@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240">
+  <!-- NeedsMe AI — The Sprout N, master (dark tile). Finished from the
+       parade art of record (Innovation Lab, the sheet Ilse approved
+       17:45): ONE Sprout leaf off the right stem. Board hexes only:
+       Loam #16120E, Bone #F0EAE0, Sprout #A8C256. v2, 14 Oct —
+       supersedes the two-leaf v1. -->
+  <rect width="240" height="240" fill="#16120E"/>
+  <path d="M170 78 C169 66 171 56 177 48" fill="none" stroke="#A8C256" stroke-width="5" stroke-linecap="round"/>
+  <path d="M178 50 C181 33 194 23 212 22 C213 40 202 52 185 55 C181 54 178 53 178 50 Z" fill="#A8C256"/>
+  <path d="M60 192 V64 H88 L148 142 V64 H180 V192 H152 L92 114 V192 Z" fill="#F0EAE0"/>
+</svg>
