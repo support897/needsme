@@ -1,6 +1,6 @@
 {
   "background_color": "#16120E",
-  "description": "Needs Me: Ilse's to-do list — every task that needs her, from every chat, in one place.",
+  "description": "Needs Me: your to-do list — every task that needs you, from everywhere, in one place.",
   "display": "standalone",
   "icons": [
     {
@@ -46,7 +46,7 @@
       "purpose": "any maskable"
     }
   ],
-  "name": "Needs Me — Ilse's To-Do List",
+  "name": "Needs Me — To-Do List",
   "scope": "./",
   "short_name": "Needs Me",
   "start_url": "./app/",
