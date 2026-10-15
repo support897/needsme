@@ -1,0 +1,54 @@
+{
+  "background_color": "#16120E",
+  "description": "Needs Me: Ilse's to-do list — every task that needs her, from every chat, in one place.",
+  "display": "standalone",
+  "icons": [
+    {
+      "src": "icons/icon-48.webp",
+      "type": "image/webp",
+      "sizes": "48x48",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-72.webp",
+      "type": "image/webp",
+      "sizes": "72x72",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-96.webp",
+      "type": "image/webp",
+      "sizes": "96x96",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-128.webp",
+      "type": "image/webp",
+      "sizes": "128x128",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-192.webp",
+      "type": "image/webp",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-256.webp",
+      "type": "image/webp",
+      "sizes": "256x256",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.webp",
+      "type": "image/webp",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "name": "Needs Me — Ilse's To-Do List",
+  "scope": "./",
+  "short_name": "Needs Me",
+  "start_url": "./app/",
+  "theme_color": "#16120E"
+}
