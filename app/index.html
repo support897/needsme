@@ -16,10 +16,15 @@
     <meta name="description" content="Needs Me: your to-do list." />
     <title>Needs Me</title>
     <script>try { var t = localStorage.getItem("nm_theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
-    <script type="module" crossorigin src="../assets/main-BYDO2BQo.js"></script>
-    <link rel="stylesheet" crossorigin href="../assets/main-thv_-mic.css">
+    <script type="module" crossorigin src="../assets/main-Qx68k_nC.js"></script>
+    <link rel="stylesheet" crossorigin href="../assets/main-DoHrrmW5.css">
   </head>
   <body>
     <div id="app"></div>
+    <!-- "Bring my calendar in" (shared module, IMPORT-ADOPTION.md):
+         the proven parser, then the house layer, then the app —
+         Pace's load order, both files byte-unchanged. -->
+    <script src="../vendor/ical/ical.min.js"></script>
+    <script src="../calendar-import.js"></script>
   </body>
 </html>
