@@ -55,6 +55,11 @@
           uid: ev.uid || "", title: (ev.summary || "").trim(), notes: (ev.description || "").trim(),
           location: (ev.location || "").trim(),
           allDay: !!ev.startDate.isDate,
+          // No DTEND and no DURATION in the source: the event has
+          // NO end. ICAL reports end == start for these, and the
+          // plan used to invent a 5-minute duration out of that
+          // (ISSUE-020) — the flag keeps the truth instead.
+          noEnd: !ve.getFirstProperty("dtend") && !ve.getFirstProperty("duration"),
           start: ev.startDate, end: ev.endDate || ev.startDate,
           rrule: rrule, exdates: exdates,
           recurrenceId: recId ? (recId.toJSDate ? keyOf(recId.toJSDate()) : String(recId)) : null,
@@ -99,8 +104,15 @@
         var guard = 0;
         while (d <= last && guard++ < 370) { out.push({ title: title, date: keyOf(d), time: null, durationMin: 30, allDay: true }); d.setDate(d.getDate() + 1); }
       } else {
-        var mins = Math.max(5, Math.round((e - s) / 60000));
-        out.push({ title: title, date: keyOf(s), time: timeOf(s), durationMin: Math.min(mins, 720), allDay: false });
+        // The TRUE duration, uncapped: a multi-day event keeps
+        // its whole span so the host can render it on every day
+        // it touches (ISSUE-019 — the old 720 cap silently cut
+        // a three-day event down to its first evening). A no-end
+        // event (no DTEND/DURATION in the source) carries null:
+        // no duration is ever invented for it (ISSUE-020 — the
+        // old Math.max(5, ...) fabricated a 5-minute end).
+        var mins = ev.noEnd ? null : Math.max(0, Math.round((e - s) / 60000));
+        out.push({ title: title, date: keyOf(s), time: timeOf(s), durationMin: mins, allDay: false });
       }
     };
     if (!ev.rrule) { push(ev.start, ev.end, ev.title); return; }
@@ -150,7 +162,7 @@
     parsed.events.forEach(function (ev) {
       if (ev.recurrenceId) {
         // An override instance: it lands as its own single event.
-        var singles = []; expandEvent({ _ical: ev._ical, rrule: null, start: ev.start, end: ev.end, allDay: ev.allDay, exdates: [] }, winStart, winEnd, singles);
+        var singles = []; expandEvent({ _ical: ev._ical, rrule: null, start: ev.start, end: ev.end, allDay: ev.allDay, noEnd: ev.noEnd, exdates: [] }, winStart, winEnd, singles);
         singles.forEach(function (s) { addOne(plan, seen, ev, s, importKey, null); });
         return;
       }
@@ -158,8 +170,10 @@
       var rep = (overridden[ev.uid] || opts.repeatModel === "none") ? null : mapRepeat(ev);
       if (rep) {
         var s0 = ev.start.toJSDate();
-        var dur = Math.max(5, Math.round((ev.end.toJSDate() - s0) / 60000));
-        addOne(plan, seen, ev, { title: ev.title, date: keyOf(s0), time: ev.allDay ? null : timeOf(s0), durationMin: ev.allDay ? 30 : Math.min(dur, 720), allDay: ev.allDay }, importKey, rep);
+        // Same truth as expandEvent: real duration uncapped,
+        // and null (never an invented 5) for a no-end event.
+        var dur = ev.noEnd ? null : Math.max(0, Math.round((ev.end.toJSDate() - s0) / 60000));
+        addOne(plan, seen, ev, { title: ev.title, date: keyOf(s0), time: ev.allDay ? null : timeOf(s0), durationMin: ev.allDay ? 30 : dur, allDay: ev.allDay }, importKey, rep);
         return;
       }
       var instances = [];
@@ -201,7 +215,28 @@
     return { added: added, liveRepeats: plan.liveRepeats, expanded: plan.expanded, dupes: plan.dupes, skipped: plan.skipped.length };
   }
 
-  var CI = { parseICS: parseICS, planImport: planImport, applyImport: applyImport, importKeyFor: importKeyFor, mapRepeat: mapRepeat, _keyOf: keyOf };
+  /* ---------- instant stamping (host seam) ---------- */
+  // The plan speaks in the importing browser's LOCAL wall time
+  // (date + "HH:MM"): that is the truth the parser proved, for UTC
+  // ("Z"), TZID and floating times alike. A host that stores the
+  // event as an instant must stamp it with THIS browser's real
+  // offset for that date, read from the Date itself (so DST is
+  // honoured) — never a hardcoded offset. A hardcoded stamp
+  // silently moves every event imported from a browser in any
+  // other zone: a 10:00Z event imported on a UTC browser and
+  // stamped "+10:00" is stored as 00:00Z, and every viewer (and
+  // every reminder) inherits the wrong hour. (ISSUE-008.)
+  function localStamp(date, time) {
+    var t = time || "09:00";
+    var d = new Date(date + "T" + t + ":00");
+    if (isNaN(d.getTime())) return date + "T" + t + ":00";
+    var off = -d.getTimezoneOffset(); // minutes east of UTC, this date
+    var sign = off < 0 ? "-" : "+";
+    var abs = Math.abs(off);
+    return date + "T" + t + ":00" + sign + pad(Math.floor(abs / 60)) + ":" + pad(abs % 60);
+  }
+
+  var CI = { parseICS: parseICS, planImport: planImport, applyImport: applyImport, importKeyFor: importKeyFor, mapRepeat: mapRepeat, localStamp: localStamp, _keyOf: keyOf };
   if (typeof module !== "undefined" && module.exports) module.exports = CI;
   root.CI = CI;
 })(typeof window !== "undefined" ? window : globalThis);
