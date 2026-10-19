@@ -1,30 +1,89 @@
 <!doctype html>
 <html lang="en-AU">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#16120E" />
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="Needs Me" />
-    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-    <link rel="icon" type="image/svg+xml" href="/icons/mark.svg" />
-    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
-    <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png" />
-    <meta name="description" content="Needs Me: your to-do list." />
-    <title>Needs Me</title>
-    <script>try { var t = localStorage.getItem("nm_theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
-    <script type="module" crossorigin src="/assets/main-CpRIcMe-.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/main-DanQEcH5.css">
-  </head>
-  <body>
-    <div id="app"></div>
-    <!-- "Bring my calendar in" (shared module, IMPORT-ADOPTION.md):
-         the proven parser, then the house layer, then the app —
-         Pace's load order, both files byte-unchanged. -->
-    <script src="/vendor/ical/ical.min.js"></script>
-    <script src="/calendar-import.js"></script>
-  </body>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Needs Me — the to-do list that keeps up with you</title>
+<meta name="description" content="Needs Me is a calm to-do list: a Start Here top 3, tasks sorted by place, and a calendar that only shows what is on. Works right in your browser." />
+<link rel="icon" type="image/svg+xml" href="./icons/mark.svg" />
+<style>
+  /* Loam / Sprout system (brand board approved 14 Oct 2026). */
+  @font-face { font-family: "Space Grotesk"; src: url("./fonts/SpaceGrotesk-Variable.ttf") format("truetype"); font-weight: 300 700; font-display: swap; }
+  @font-face { font-family: "IBM Plex Sans"; src: url("./fonts/IBMPlexSans-Variable.ttf") format("truetype"); font-weight: 100 700; font-display: swap; }
+  :root{
+    --loam:#16120E; --surface:#221C16; --hair:#38302A; --bone:#F0EAE0;
+    --muted:#A79C8C; --sprout:#A8C256; --sprout-tint:#C6D98F;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'IBM Plex Sans',system-ui,sans-serif;background:var(--loam);color:var(--bone);
+       -webkit-font-smoothing:antialiased;text-align:center}
+  .wrap{max-width:720px;margin:0 auto;padding:56px 24px 40px}
+  .pip{width:120px;height:120px;margin:0 auto 6px;display:block}
+  .pip-line{font-weight:600;color:var(--sprout);font-size:17px;margin-bottom:26px}
+  h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:54px;letter-spacing:-.01em;line-height:1.05}
+  h1 .me{color:var(--sprout)}
+  .tagline{font-size:21px;font-weight:600;margin:14px auto 30px;max-width:420px}
+  .cta{display:inline-block;background:var(--sprout);color:var(--loam);font-weight:700;font-size:19px;
+       padding:16px 42px;border-radius:999px;text-decoration:none;box-shadow:0 6px 18px rgba(168,194,86,.25)}
+  .cta:hover{background:var(--sprout-tint)}
+  .how{margin-top:14px;font-size:15px;font-weight:600;color:var(--muted);max-width:430px;margin-left:auto;margin-right:auto}
+  .tiles{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:46px 0 8px}
+  .tile{background:var(--surface);border:1px solid var(--hair);border-radius:20px;padding:20px 16px;width:200px}
+  .tile svg{width:38px;height:38px;margin-bottom:10px}
+  .tile p{font-weight:700;font-size:16px}
+  .tile span{display:block;font-weight:600;font-size:13.5px;color:var(--muted);margin-top:4px}
+  footer{margin-top:44px;padding:22px 0 8px;border-top:1px solid var(--hair);font-size:14px;font-weight:600;color:var(--muted)}
+  footer a{color:var(--sprout);text-decoration:none}
+  @media (max-width:560px){ h1{font-size:42px} .tagline{font-size:19px} .tile{width:100%;max-width:320px} }
+</style>
+</head>
+<body>
+  <main class="wrap">
+    <img class="pip" src="./icons/pip-master.svg" alt="" aria-hidden="true" />
+    <p class="pip-line">Hi. One thing at a time.</p>
+    <h1>NEEDS <span class="me">ME</span></h1>
+    <p class="tagline">The to-do list that keeps up with you.</p>
+    <a class="cta" href="./app/">Open the app</a>
+    <p class="how">Works right in your browser. Open the app, then Add to Home Screen to keep it on your phone.</p>
+    <div class="tiles">
+      <div class="tile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#A8C256" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        <p>Start Here</p><span>Your top 3, always first</span>
+      </div>
+      <div class="tile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#F0EAE0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <p>Sorted by place</p><span>Home tasks at home, work at work</span>
+      </div>
+      <div class="tile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#F0EAE0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <p>A calm calendar</p><span>Only what is on, nothing else</span>
+      </div>
+    </div>
+    <footer>
+      <a href="./privacy.html">Privacy</a> &nbsp;·&nbsp; © Needs Me
+    </footer>
+  </main>
+
+<style>
+.dl-get{max-width:720px;margin:40px auto;padding:0 20px;text-align:center}
+.dl-card{border:2px solid rgba(128,128,128,.4);border-radius:20px;padding:28px 22px}
+.dl-card h2{margin:0 0 10px}
+.dl-card p{margin:0 auto 18px;max-width:520px}
+.dl-device{margin:16px auto 0;font-weight:600;max-width:520px}
+</style>
+<section class="dl-get" id="get-the-app">
+  <div class="dl-card">
+    <h2>Get the app</h2>
+    <p>Needs Me is free. It is not in the Apple or Google stores yet. Until then, the real app opens right here, on this device, with the button below. Phone or computer, it just works.</p>
+    <a class="cta" href="./app/">Open the app</a>
+    <p class="dl-device" id="dl-device">Works on phone, tablet and computer.</p>
+  </div>
+</section>
+<script>
+(function(){var el=document.getElementById('dl-device');if(!el)return;var ua=navigator.userAgent||'';
+if(/iPhone|iPad|iPod/i.test(ua)){el.textContent='You are on an iPhone or iPad. Tap Open the app above: it works right away. To keep it on your home screen, tap Share, then Add to Home Screen. The App Store version is on its way.';}
+else if(/Android/i.test(ua)){el.textContent='You are on an Android phone. Tap Open the app above: it works right away. To keep it on your home screen, tap the menu (three dots), then Add to Home screen. The Google Play version is on its way.';}
+else{el.textContent='You are on a computer. Tap Open the app above: it opens right here in your browser. Nothing to install.';}})();
+</script>
+</body>
 </html>
