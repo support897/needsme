@@ -1,6 +1,6 @@
 {
   "background_color": "#16120E",
-  "description": "Needs Me: your to-do list — every task that needs you, from everywhere, in one place.",
+  "description": "NeedsMe Ai: organize projects, to-dos, and reminders in one personal list.",
   "display": "standalone",
   "icons": [
     {
@@ -46,9 +46,9 @@
       "purpose": "any maskable"
     }
   ],
-  "name": "Needs Me — To-Do List",
+  "name": "NeedsMe Ai",
   "scope": "./",
-  "short_name": "Needs Me",
+  "short_name": "NeedsMe Ai",
   "start_url": "./app/",
   "theme_color": "#16120E"
 }
