@@ -26,6 +26,8 @@ jobs:
           xcodebuild -version
       - name: Install XcodeGen
         run: brew install xcodegen
+      - name: Contrast check (all themes)
+        run: python3 ios-native/contrast.py | tee $RUNNER_TEMP/contrast.txt
       - name: Generate project
         working-directory: ios-native
         run: xcodegen generate
@@ -45,7 +47,7 @@ jobs:
         if: always()
         run: |
           {
-            echo '## UI test results'; cat $RUNNER_TEMP/dev.txt 2>/dev/null
+            echo '## UI test results'; cat $RUNNER_TEMP/dev.txt 2>/dev/null; cat $RUNNER_TEMP/contrast.txt 2>/dev/null
             echo '```'
             grep -E "Test Case .*(passed|failed)|error:|XCTAssert|failed -|Executed|TEST (SUCCEEDED|FAILED)|BUILD" $RUNNER_TEMP/test.log | cut -c1-300 | tail -40
             echo '```'
