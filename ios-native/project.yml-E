@@ -1,0 +1,35 @@
+name: NeedsMe
+options:
+  bundleIdPrefix: shop.ilseplacencia
+  deploymentTarget:
+    iOS: "16.0"
+packages:
+  Firebase:
+    url: https://github.com/firebase/firebase-ios-sdk
+    from: 11.0.0
+targets:
+  NeedsMe:
+    type: application
+    platform: iOS
+    sources: [NeedsMe]
+    dependencies:
+      - package: Firebase
+        product: FirebaseAuth
+      - package: Firebase
+        product: FirebaseFirestore
+    info:
+      path: NeedsMe/Info.plist
+      properties:
+        CFBundleDisplayName: NeedsMe Ai
+        UILaunchScreen: {}
+        ITSAppUsesNonExemptEncryption: false
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: shop.ilseplacencia.needsme
+        DEVELOPMENT_TEAM: GZ9Z6BPTFR
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_STYLE: Automatic
