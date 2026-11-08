@@ -11,6 +11,7 @@ final class NeedsMeUITests: XCTestCase {
         }
     }
     func wait(_ e: XCUIElement, _ t: TimeInterval = 20, _ m: String = "") { XCTAssertTrue(e.waitForExistence(timeout: t), m.isEmpty ? "missing \(e)" : m) }
+    func screenText() -> String { app.staticTexts.allElementsBoundByIndex.map { $0.label }.joined(separator: " | ") }
     func text(_ s: String) -> XCUIElement { app.staticTexts[s] }
 
     // 01 sign-in screen shows, bad password gives an error, no crash
@@ -26,7 +27,7 @@ final class NeedsMeUITests: XCTestCase {
     // 02 guest -> Pip tour (Next/Back/Finish) -> Home -> Tasks -> Notes -> themes -> replay -> sign out
     func test02_GuestFullJourney() {
         wait(app.buttons["guestButton"]); app.buttons["guestButton"].tap()
-        wait(text("Tour 1 of 7"), 30, "tour did not start after sign-up"); shot("02-tour-1")
+        wait(text("Tour 1 of 7"), 30, "tour did not start after sign-up. SCREEN: " + screenText()); shot("02-tour-1")
         app.buttons["Next"].tap(); wait(text("Tour 2 of 7")); shot("02-tour-2")
         app.buttons["Back"].tap(); wait(text("Tour 1 of 7"))
         for n in 2...7 { app.buttons["Next"].tap(); wait(text("Tour \(n) of 7")) }
@@ -72,7 +73,7 @@ final class NeedsMeUITests: XCTestCase {
         let email = app.textFields["you@example.com"]; email.tap(); email.typeText(mail)
         let pw = app.secureTextFields["Password"]; pw.tap(); pw.typeText(pass)
         app.buttons["Make my account"].tap()
-        wait(text("Tour 1 of 7"), 30, "sign-up did not reach tour"); shot("11-signup-tour")
+        wait(text("Tour 1 of 7"), 30, "sign-up did not reach tour. SCREEN: " + screenText()); shot("11-signup-tour")
         app.buttons["Skip guide"].tap(); wait(text("All clear"))
         app.tabBars.buttons["Tasks"].tap(); app.buttons["Add a task"].tap()
         let f = app.textFields["What needs doing?"]; wait(f); f.tap(); f.typeText("Persist me"); app.buttons["Save"].tap(); wait(text("Persist me"))
