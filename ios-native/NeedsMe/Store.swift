@@ -75,8 +75,9 @@ final class Store: ObservableObject {
     func guest() async { await run { _ = try await Auth.auth().signInAnonymously() } }
     func signOut() { try? Auth.auth().signOut() }
     private func run(_ f: @escaping () async throws -> Void) async {
-        message = ""
-        do { try await f() } catch { message = error.localizedDescription }
+        message = "Working..."
+        do { try await f(); message = Auth.auth().currentUser == nil ? "Done but no user yet" : "" }
+        catch { let e = error as NSError; message = "\(error.localizedDescription) [\(e.domain) \(e.code)]" }
     }
 
     // MARK: data

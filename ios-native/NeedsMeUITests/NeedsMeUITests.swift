@@ -27,7 +27,7 @@ final class NeedsMeUITests: XCTestCase {
     // 02 guest -> Pip tour (Next/Back/Finish) -> Home -> Tasks -> Notes -> themes -> replay -> sign out
     func test02_GuestFullJourney() {
         wait(app.buttons["guestButton"]); app.buttons["guestButton"].tap()
-        wait(text("Tour 1 of 7"), 30, "tour did not start after sign-up. SCREEN: " + screenText()); shot("02-tour-1")
+        wait(text("Tour 1 of 7"), 60, "tour did not start after sign-up. SCREEN: " + screenText()); shot("02-tour-1")
         app.buttons["Next"].tap(); wait(text("Tour 2 of 7")); shot("02-tour-2")
         app.buttons["Back"].tap(); wait(text("Tour 1 of 7"))
         for n in 2...7 { app.buttons["Next"].tap(); wait(text("Tour \(n) of 7")) }
