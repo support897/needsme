@@ -17,6 +17,10 @@ targets:
         product: FirebaseAuth
       - package: Firebase
         product: FirebaseFirestore
+    entitlements:
+      path: NeedsMe/NeedsMe.entitlements
+      properties:
+        com.apple.developer.applesignin: [Default]
     info:
       path: NeedsMe/Info.plist
       properties:

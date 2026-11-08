@@ -14,14 +14,20 @@ final class NeedsMeUITests: XCTestCase {
     func screenText() -> String { app.staticTexts.allElementsBoundByIndex.map { $0.label }.joined(separator: " | ") }
     func text(_ s: String) -> XCUIElement { app.staticTexts[s] }
 
-    // 01 sign-in screen shows, bad password gives an error, no crash
-    func test01_InvalidLoginShowsError() {
-        wait(app.buttons["guestButton"]); shot("01-auth")
-        let email = app.textFields["you@example.com"]; email.tap(); email.typeText("projects.reports.ilse+nmui0000@gmail.com")
-        let pw = app.secureTextFields["Password"]; pw.tap(); pw.typeText("wrong-pass-123")
-        app.buttons["Sign in"].tap()
-        let err = app.staticTexts.containing(NSPredicate(format: "label CONTAINS[c] 'password' OR label CONTAINS[c] 'credential' OR label CONTAINS[c] 'incorrect' OR label CONTAINS[c] 'no user' OR label CONTAINS[c] 'malformed'")).firstMatch
-        wait(err, 25, "no error message for invalid login"); shot("01-invalid-login")
+    // 01 first screen is sign up with Apple, Google, email; Google door is honest; bad login shows error
+    func test01_SignUpFirstAndInvalidLogin() {
+        wait(app.buttons["guestButton"]); shot("01-signup-first")
+        XCTAssertTrue(app.staticTexts["Welcome to NeedsMe Ai"].exists, "sign up is not the first screen")
+        XCTAssertTrue(app.buttons["appleButton"].exists, "Apple button missing")
+        XCTAssertTrue(app.buttons["googleButton"].exists, "Google button missing")
+        XCTAssertTrue(app.buttons["emailButton"].exists, "Email button missing")
+        app.buttons["googleButton"].tap(); wait(app.staticTexts["authMessage"], 5, "Google door shows nothing"); shot("01-google-door")
+        app.buttons["switchMode"].tap(); wait(app.staticTexts["Welcome back"])
+        app.buttons["emailButton"].tap()
+        let email = app.textFields["you@example.com"]; wait(email); email.tap(); email.typeText("projects.reports.ilse+nmui0000@gmail.com")
+        let pw = app.secureTextFields.firstMatch; pw.tap(); pw.typeText("wrong-pass-123")
+        app.buttons["emailSubmit"].tap()
+        wait(app.staticTexts["authMessage"], 40, "no error for invalid login"); shot("01-invalid-login")
     }
 
     // 02 guest -> Pip tour (Next/Back/Finish) -> Home -> Tasks -> Notes -> themes -> replay -> sign out
@@ -69,19 +75,20 @@ final class NeedsMeUITests: XCTestCase {
         let mail = "projects.reports.ilse+nmui\(tag)@gmail.com"
         let pass = "Nm" + UUID().uuidString.prefix(10) + "!"
         wait(app.buttons["guestButton"])
-        app.buttons["New here? Make an account"].tap()
+        app.buttons["emailButton"].tap()
         let email = app.textFields["you@example.com"]; email.tap(); email.typeText(mail)
-        let pw = app.secureTextFields["Password"]; pw.tap(); pw.typeText(pass)
-        app.buttons["Make my account"].tap()
+        let pw = app.secureTextFields.firstMatch; pw.tap(); pw.typeText(pass)
+        app.buttons["emailSubmit"].tap()
         wait(text("Tour 1 of 7"), 30, "sign-up did not reach tour. SCREEN: " + screenText()); shot("11-signup-tour")
         app.buttons["Skip guide"].tap(); wait(text("All clear"))
         app.tabBars.buttons["Tasks"].tap(); app.buttons["Add a task"].tap()
         let f = app.textFields["What needs doing?"]; wait(f); f.tap(); f.typeText("Persist me"); app.buttons["Save"].tap(); wait(text("Persist me"))
         app.tabBars.buttons["More"].tap(); app.buttons["Sign out"].tap()
         wait(app.buttons["guestButton"])
-        let e2 = app.textFields["you@example.com"]; e2.tap(); e2.typeText(mail)
-        let p2 = app.secureTextFields["Password"]; p2.tap(); p2.typeText(pass)
-        app.buttons["Sign in"].tap()
+        app.buttons["switchMode"].tap(); app.buttons["emailButton"].tap()
+        let e2 = app.textFields["you@example.com"]; wait(e2); e2.tap(); e2.typeText(mail)
+        let p2 = app.secureTextFields.firstMatch; p2.tap(); p2.typeText(pass)
+        app.buttons["emailSubmit"].tap()
         wait(app.tabBars.buttons["Tasks"], 30, "sign-in after sign-out failed"); app.tabBars.buttons["Tasks"].tap()
         wait(text("Persist me"), 20, "task did not persist after sign-in"); shot("12-persisted")
     }

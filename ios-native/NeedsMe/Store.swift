@@ -1,6 +1,8 @@
 import Foundation
 import FirebaseAuth
 import FirebaseFirestore
+import AuthenticationServices
+import CryptoKit
 
 struct TaskItem: Identifiable { let id: String; var title: String; var status: String; var dueOn: String; var area: String
     var isDone: Bool { status == "done" }
@@ -14,6 +16,7 @@ final class Store: ObservableObject {
     @Published var tasks: [TaskItem] = []
     @Published var notes: [NoteItem] = []
     @Published var message = ""
+    @Published var busy = false
     private var handles: [ListenerRegistration] = []
     private var authHandle: AuthStateDidChangeListenerHandle?
     private let db = Firestore.firestore()
@@ -73,11 +76,34 @@ final class Store: ObservableObject {
     func signUp(_ e: String, _ p: String) async { await run { _ = try await Auth.auth().createUser(withEmail: e, password: p) } }
     func reset(_ e: String) async { await run { try await Auth.auth().sendPasswordReset(withEmail: e); self.message = "Reset email sent." } }
     func guest() async { await run { _ = try await Auth.auth().signInAnonymously() } }
+    // Apple door: real flow. Finishes only when Apple is enabled in Firebase (parked).
+    private var nonce = ""
+    func prepareApple(_ r: ASAuthorizationAppleIDRequest) {
+        nonce = Store.randomNonce()
+        r.requestedScopes = [.fullName, .email]
+        r.nonce = Store.sha256(nonce)
+    }
+    func finishApple(_ result: Result<ASAuthorization, Error>) async {
+        switch result {
+        case .failure(let e):
+            if (e as NSError).code == ASAuthorizationError.canceled.rawValue { message = "Apple sign-in was cancelled."; return }
+            message = "Apple sign-in did not finish. Try email for now."
+        case .success(let auth):
+            guard let c = auth.credential as? ASAuthorizationAppleIDCredential, let t = c.identityToken, let id = String(data: t, encoding: .utf8) else { message = "Apple sent nothing back. Try again."; return }
+            let cred = OAuthProvider.appleCredential(withIDToken: id, rawNonce: nonce, fullName: c.fullName)
+            await run { _ = try await Auth.auth().signIn(with: cred) }
+        }
+    }
+    func googleDoor() { message = "Google sign-in is almost ready. Please use Apple or email for now." }
+    static func randomNonce(_ n: Int = 32) -> String {
+        let cs = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
+        return String((0..<n).map { _ in cs[Int.random(in: 0..<cs.count)] })
+    }
+    static func sha256(_ s: String) -> String { SHA256.hash(data: Data(s.utf8)).map { String(format: "%02x", $0) }.joined() }
     func signOut() { try? Auth.auth().signOut() }
     private func run(_ f: @escaping () async throws -> Void) async {
-        message = "Working..."
-        do { try await f(); message = Auth.auth().currentUser == nil ? "Done but no user yet" : "" }
-        catch { let e = error as NSError; message = "\(error.localizedDescription) [\(e.domain) \(e.code)]" }
+        message = ""; busy = true; defer { busy = false }
+        do { try await f() } catch { message = error.localizedDescription }
     }
 
     // MARK: data
