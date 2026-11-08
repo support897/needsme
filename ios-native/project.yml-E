@@ -33,3 +33,21 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGN_STYLE: Automatic
+  NeedsMeUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [NeedsMeUITests]
+    dependencies:
+      - target: NeedsMe
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: shop.ilseplacencia.needsme.uitests
+        DEVELOPMENT_TEAM: GZ9Z6BPTFR
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  NeedsMe:
+    build:
+      targets:
+        NeedsMe: all
+    test:
+      targets: [NeedsMeUITests]

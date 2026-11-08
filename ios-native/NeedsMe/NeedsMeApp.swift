@@ -7,6 +7,7 @@ struct NeedsMeApp: App {
     @AppStorage("nm_theme") private var themeRaw = AppTheme.white.rawValue
 
     init() {
+        if FirebaseApp.app() != nil { return }
         let o = FirebaseOptions(googleAppID: "1:943521917653:web:8b24fe223741acfb2c105c", gcmSenderID: "943521917653")
         o.apiKey = "AIzaSyD3pfsSI-NpEPZgZhk4jiqdIZjyfmbkTVs"
         o.projectID = "needs-me-480ea"

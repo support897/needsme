@@ -72,6 +72,7 @@ final class Store: ObservableObject {
     func signIn(_ e: String, _ p: String) async { await run { _ = try await Auth.auth().signIn(withEmail: e, password: p) } }
     func signUp(_ e: String, _ p: String) async { await run { _ = try await Auth.auth().createUser(withEmail: e, password: p) } }
     func reset(_ e: String) async { await run { try await Auth.auth().sendPasswordReset(withEmail: e); self.message = "Reset email sent." } }
+    func guest() async { await run { _ = try await Auth.auth().signInAnonymously() } }
     func signOut() { try? Auth.auth().signOut() }
     private func run(_ f: @escaping () async throws -> Void) async {
         message = ""

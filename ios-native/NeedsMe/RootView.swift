@@ -78,7 +78,7 @@ struct MoreView: View {
                     }
                     Card {
                         Text("Account").font(.headline).foregroundColor(p.ink)
-                        Text(store.user?.email ?? "").foregroundColor(p.soft)
+                        Text(store.user?.isAnonymous == true ? "Guest (not saved to an email yet)" : (store.user?.email ?? "")).foregroundColor(p.soft)
                         Button("Replay Pip's guide", action: replayTour).buttonStyle(SoftButton())
                         Button("Sign out") { store.signOut() }.buttonStyle(SoftButton())
                     }

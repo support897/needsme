@@ -28,6 +28,8 @@ struct AuthView: View {
                 }.buttonStyle(PrimaryButton()).disabled(busy || email.isEmpty || password.count < 6)
                 Button(creating ? "I already have an account" : "New here? Make an account") { creating.toggle(); store.message = "" }
                     .foregroundColor(p.ink).font(.subheadline.weight(.semibold))
+                Button("Try without an account") { busy = true; Task { await store.guest(); busy = false } }
+                    .buttonStyle(SoftButton()).disabled(busy).accessibilityIdentifier("guestButton")
                 if !creating { Button("Forgot password?") { Task { await store.reset(email) } }.font(.footnote).foregroundColor(p.soft) }
                 Link("Privacy policy", destination: URL(string: "https://support897.github.io/needsme/privacy.html")!).font(.footnote).foregroundColor(p.soft)
             }.padding(24)
