@@ -1,0 +1,1 @@
+{ "name": "needsme", "private": true, "scripts": { "build": "node build.mjs", "serve": "python3 -m http.server 8800" }, "devDependencies": { "esbuild": "^0.25.0" } }
