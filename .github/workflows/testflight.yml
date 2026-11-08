@@ -1,0 +1,72 @@
+name: NeedsMe iOS to TestFlight
+# Builds the SwiftUI app on a macOS runner and uploads to TestFlight. Never submits for App Review.
+on:
+  push:
+    branches: [qa-fixes-2026-10-26]
+    paths: ['ios-native.tar.gz', 'ios-native/**', '.github/workflows/testflight.yml']
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unpack source (if shipped as ios-native.tar.gz)
+        run: |
+          if [ -f ios-native.tar.gz ]; then tar xzf ios-native.tar.gz; fi
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Write App Store Connect key
+        env:
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+        run: |
+          test -n "$ASC_KEY_P8_BASE64" || { echo "Missing secret ASC_KEY_P8_BASE64"; exit 1; }
+          mkdir -p ~/private_keys
+          echo "$ASC_KEY_P8_BASE64" | base64 --decode > ~/private_keys/AuthKey_${ASC_KEY_ID}.p8
+      - name: Generate project
+        working-directory: ios-native
+        run: xcodegen generate
+      - name: Archive
+        working-directory: ios-native
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          BUILD=$(date +%Y%m%d%H%M)
+          xcodebuild archive -project NeedsMe.xcodeproj -scheme NeedsMe -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath $RUNNER_TEMP/NeedsMe.xcarchive \
+            CURRENT_PROJECT_VERSION=$BUILD -allowProvisioningUpdates \
+            -authenticationKeyPath ~/private_keys/AuthKey_${ASC_KEY_ID}.p8 \
+            -authenticationKeyID $ASC_KEY_ID -authenticationKeyIssuerID $ASC_ISSUER_ID
+      - name: Upload to TestFlight
+        working-directory: ios-native
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          cat > $RUNNER_TEMP/export.plist <<'P'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>GZ9Z6BPTFR</string>
+            <key>signingStyle</key><string>automatic</string>
+          </dict></plist>
+          P
+          xcodebuild -exportArchive -archivePath $RUNNER_TEMP/NeedsMe.xcarchive \
+            -exportOptionsPlist $RUNNER_TEMP/export.plist -exportPath $RUNNER_TEMP/out -allowProvisioningUpdates \
+            -authenticationKeyPath ~/private_keys/AuthKey_${ASC_KEY_ID}.p8 \
+            -authenticationKeyID $ASC_KEY_ID -authenticationKeyIssuerID $ASC_ISSUER_ID
+
+      - name: Commit readable source back to the branch
+        if: success()
+        run: |
+          if [ -f ios-native.tar.gz ]; then
+            git config user.name "github-actions"; git config user.email "actions@github.com"
+            git rm -q ios-native.tar.gz
+            git add ios-native
+            git commit -m "ios-native: unpack SwiftUI source [skip ci]" || true
+            git push || true
+          fi
