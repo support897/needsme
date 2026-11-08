@@ -54,6 +54,10 @@ jobs:
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $B" $A/Products/Applications/NeedsMe.app/Info.plist
           /usr/libexec/PlistBuddy -c "Set :ApplicationProperties:CFBundleVersion $B" $A/Info.plist
           /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" $A/Products/Applications/NeedsMe.app/Info.plist
+          for f in $A/Products/Applications/NeedsMe.app/Frameworks/*.framework; do
+            codesign --remove-signature "$f" || true
+            codesign -dv "$f" 2>&1 | head -2 || true
+          done
       - name: Export and upload to TestFlight
         run: |
           set -o pipefail
