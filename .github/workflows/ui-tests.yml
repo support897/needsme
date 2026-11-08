@@ -47,6 +47,29 @@ jobs:
             echo '```'
             ls $RUNNER_TEMP/shots 2>/dev/null | head -50
           } >> $GITHUB_STEP_SUMMARY
+      - name: Crash report
+        if: always()
+        run: |
+          {
+            echo '## Crash reports'; echo '```'
+            for f in ~/Library/Logs/DiagnosticReports/NeedsMe*.ips; do
+              [ -f "$f" ] || continue
+              echo "== $f"
+              python3 - "$f" <<'PY'
+          import json,sys
+          t=open(sys.argv[1]).read().split("\n",1)
+          d=json.loads(t[1])
+          print("exception:",d.get("exception"),"| termination:",d.get("termination"),"| asi:",d.get("asi"))
+          th=d["threads"][d.get("faultingThread",0)]
+          im=d.get("usedImages",[])
+          for fr in th["frames"][:14]:
+              nm=fr.get("symbol") or "?"
+              lib=im[fr["imageIndex"]].get("name","?") if "imageIndex" in fr else "?"
+              print("  ",lib,nm)
+          PY
+            done
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
       - name: Save screenshots to repo
         if: always()
         run: |
