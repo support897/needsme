@@ -34,7 +34,7 @@ jobs:
         working-directory: ios-native
         run: |
           set -o pipefail
-          BUILD=$(date +%Y%m%d%H%M)
+          BUILD=$((GITHUB_RUN_NUMBER + 100))
           xcodebuild -project NeedsMe.xcodeproj -scheme NeedsMe -configuration Release \
             -destination 'generic/platform=iOS' -archivePath $RUNNER_TEMP/NeedsMe.xcarchive \
             CURRENT_PROJECT_VERSION=$BUILD CODE_SIGNING_ALLOWED=NO archive 2>&1 | tee $RUNNER_TEMP/archive.log
