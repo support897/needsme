@@ -48,9 +48,16 @@ jobs:
           fastlane run sigh api_key_path:$HOME/asc_api_key.json app_identifier:$BUNDLE_ID output_path:$HOME/profiles filename:needsme.mobileprovision
           PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin <<< "$(security cms -D -i $HOME/profiles/needsme.mobileprovision)")
           echo "PROFILE_NAME=$PROFILE_NAME" >> $GITHUB_ENV
+          UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< "$(security cms -D -i $HOME/profiles/needsme.mobileprovision)")
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp $HOME/profiles/needsme.mobileprovision "$HOME/Library/MobileDevice/Provisioning Profiles/$UUID.mobileprovision"
+          echo "Profile: $PROFILE_NAME ($UUID)"
+          security find-identity -v -p codesigning
       - name: Generate project
         working-directory: ios-native
-        run: xcodegen generate
+        run: |
+          sed -i '' "s|PROFILE_NAME_PLACEHOLDER|$PROFILE_NAME|" project.yml
+          xcodegen generate
       - name: Archive (manual signing)
         working-directory: ios-native
         run: |
