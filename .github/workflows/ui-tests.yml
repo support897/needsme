@@ -36,7 +36,7 @@ jobs:
           mkdir -p $RUNNER_TEMP/shots
           TEST_RUNNER_SHOT_DIR=$RUNNER_TEMP/shots xcodebuild test -project NeedsMe.xcodeproj -scheme NeedsMe \
             -destination "platform=iOS Simulator,id=$DEV" -resultBundlePath $RUNNER_TEMP/r.xcresult \
-            CODE_SIGNING_ALLOWED=NO 2>&1 | tee $RUNNER_TEMP/test.log
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="-" DEVELOPMENT_TEAM="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=YES 2>&1 | tee $RUNNER_TEMP/test.log
       - name: Summary
         if: always()
         run: |
