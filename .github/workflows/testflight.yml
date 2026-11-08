@@ -30,8 +30,8 @@ jobs:
       - name: Generate project
         working-directory: ios-native
         run: |
-          sed -i "s/CURRENT_PROJECT_VERSION: \"1\"/CURRENT_PROJECT_VERSION: \"$((GITHUB_RUN_NUMBER + 100))\"/" project.yml
-          grep CURRENT_PROJECT_VERSION project.yml
+          sed -i -E "s/CURRENT_PROJECT_VERSION: .*/CURRENT_PROJECT_VERSION: \"$((GITHUB_RUN_NUMBER + 100))\"/" project.yml || true
+          grep CURRENT_PROJECT_VERSION project.yml || true
           xcodegen generate
       - name: Archive (unsigned)
         working-directory: ios-native
