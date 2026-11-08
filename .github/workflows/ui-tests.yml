@@ -7,6 +7,10 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
+env:
+  KEY_ID: 6T836KMTN7
+  ISSUER_ID: ae2251a2-85e6-42f5-9071-4f4be62f3b6e
+  TEAM_ID: GZ9Z6BPTFR
 jobs:
   test:
     runs-on: macos-26
@@ -80,3 +84,89 @@ jobs:
           git commit -m "ios UI test screenshots [skip ci]" || true
           git pull --rebase -q || true
           git push || true
+  ship:
+    # Runs only if every UI test above passed. Uploads to TestFlight, never App Review.
+    needs: test
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unpack source
+        run: |
+          if [ -f ios-native.tar.gz ]; then tar xzf ios-native.tar.gz; fi
+      - name: Pick newest Xcode
+        run: |
+          X=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          [ -n "$X" ] && sudo xcode-select -s "$X"
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Write App Store Connect key
+        env:
+          P8_B64: ${{ secrets.ASC_ADMIN_P8_B64 }}
+        run: |
+          mkdir -p ~/private_keys
+          echo "$P8_B64" | base64 --decode > ~/private_keys/AuthKey_${KEY_ID}.p8
+      - name: Generate project
+        working-directory: ios-native
+        run: |
+          sed -i -E "s/CURRENT_PROJECT_VERSION: .*/CURRENT_PROJECT_VERSION: \"$((GITHUB_RUN_NUMBER + 100))\"/" project.yml || true
+          grep CURRENT_PROJECT_VERSION project.yml || true
+          xcodegen generate
+      - name: Archive (unsigned)
+        working-directory: ios-native
+        run: |
+          set -o pipefail
+          BUILD=$((GITHUB_RUN_NUMBER + 100))
+          xcodebuild -project NeedsMe.xcodeproj -scheme NeedsMe -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath $RUNNER_TEMP/NeedsMe.xcarchive \
+            CURRENT_PROJECT_VERSION=$BUILD CODE_SIGNING_ALLOWED=NO archive 2>&1 | tee $RUNNER_TEMP/archive.log
+      - name: Set build number in archive
+        run: |
+          B=$((GITHUB_RUN_NUMBER + 100))
+          A=$RUNNER_TEMP/NeedsMe.xcarchive
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $B" $A/Products/Applications/NeedsMe.app/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :ApplicationProperties:CFBundleVersion $B" $A/Info.plist
+          /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" $A/Products/Applications/NeedsMe.app/Info.plist
+          for f in $A/Products/Applications/NeedsMe.app/Frameworks/*.framework; do
+            codesign --remove-signature "$f" || true
+            codesign -dv "$f" 2>&1 | head -2 || true
+          done
+      - name: Export and upload to TestFlight
+        run: |
+          set -o pipefail
+          cat > $RUNNER_TEMP/up.plist <<P
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>teamID</key><string>$TEAM_ID</string>
+            <key>destination</key><string>upload</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict></plist>
+          P
+          xcodebuild -exportArchive -archivePath $RUNNER_TEMP/NeedsMe.xcarchive \
+            -exportOptionsPlist $RUNNER_TEMP/up.plist -exportPath $RUNNER_TEMP/out -allowProvisioningUpdates \
+            -authenticationKeyPath ~/private_keys/AuthKey_${KEY_ID}.p8 \
+            -authenticationKeyID $KEY_ID -authenticationKeyIssuerID $ISSUER_ID 2>&1 | tee $RUNNER_TEMP/export.log
+      - name: Show errors in run summary
+        if: always()
+        run: |
+          {
+            echo '## Build log highlights'
+            echo '```'
+            /usr/libexec/PlistBuddy -c 'Print :ApplicationProperties:CFBundleVersion' $RUNNER_TEMP/NeedsMe.xcarchive/Info.plist || true
+            for f in $RUNNER_TEMP/archive.log $RUNNER_TEMP/export.log; do
+              [ -f "$f" ] && { echo "== $f"; grep -E 'error:|\*\* |requires|Exported|Upload succeeded|ERROR|Provisioning' "$f" | tail -25 | cut -c1-400; }
+            done
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+      - name: Commit readable source back
+        if: success()
+        run: |
+          if [ -f ios-native.tar.gz ]; then
+            git config user.name "github-actions"; git config user.email "actions@github.com"
+            git rm -q ios-native.tar.gz; git add ios-native
+            git commit -m "ios-native: unpack SwiftUI source [skip ci]" || true
+            git push || true
+          fi
