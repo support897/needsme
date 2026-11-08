@@ -36,8 +36,9 @@ jobs:
           BUILD=$(date +%Y%m%d%H%M)
           xcodebuild archive -project NeedsMe.xcodeproj -scheme NeedsMe -configuration Release \
             -destination 'generic/platform=iOS' -archivePath $RUNNER_TEMP/NeedsMe.xcarchive \
-            CURRENT_PROJECT_VERSION=$BUILD \
-            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+            CURRENT_PROJECT_VERSION=$BUILD -allowProvisioningUpdates \
+            -authenticationKeyPath ~/private_keys/AuthKey_6T836KMTN7.p8 \
+            -authenticationKeyID 6T836KMTN7 -authenticationKeyIssuerID $ASC_ISSUER_ID
       - name: Upload to TestFlight
         working-directory: ios-native
         env:
