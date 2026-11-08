@@ -1,0 +1,57 @@
+name: NeedsMe iOS UI tests
+# Runs the app in an iPhone simulator and drives it like a user. Never uploads, never submits for App Review.
+on:
+  push:
+    branches: [qa-fixes-2026-10-26]
+    paths: ['ios-native.tar.gz', '.github/workflows/ui-tests.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  test:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unpack source
+        run: |
+          if [ -f ios-native.tar.gz ]; then tar xzf ios-native.tar.gz; fi
+      - name: Pick newest Xcode
+        run: |
+          X=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          [ -n "$X" ] && sudo xcode-select -s "$X"
+          xcodebuild -version
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        working-directory: ios-native
+        run: xcodegen generate
+      - name: Run UI tests in simulator
+        working-directory: ios-native
+        run: |
+          set -o pipefail
+          DEV=$(xcrun simctl list devices available | grep -E '^\s+iPhone [0-9]+ \(' | head -1 | sed -E 's/^\s+(iPhone [0-9]+) \(.*/\1/')
+          echo "device: $DEV" > $RUNNER_TEMP/dev.txt
+          mkdir -p $RUNNER_TEMP/shots
+          TEST_RUNNER_SHOT_DIR=$RUNNER_TEMP/shots xcodebuild test -project NeedsMe.xcodeproj -scheme NeedsMe \
+            -destination "platform=iOS Simulator,name=$DEV" -resultBundlePath $RUNNER_TEMP/r.xcresult \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee $RUNNER_TEMP/test.log
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo '## UI test results'; cat $RUNNER_TEMP/dev.txt 2>/dev/null
+            echo '```'
+            grep -E "Test Case .*(passed|failed)|error:|XCTAssert|failed -|Executed|TEST (SUCCEEDED|FAILED)|BUILD" $RUNNER_TEMP/test.log | cut -c1-300 | tail -40
+            echo '```'
+            ls $RUNNER_TEMP/shots 2>/dev/null | head -50
+          } >> $GITHUB_STEP_SUMMARY
+      - name: Save screenshots to repo
+        if: always()
+        run: |
+          mkdir -p docs/ios-test
+          cp $RUNNER_TEMP/shots/*.png docs/ios-test/ 2>/dev/null || true
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          git add docs/ios-test
+          git commit -m "ios UI test screenshots [skip ci]" || true
+          git pull --rebase -q || true
+          git push || true
