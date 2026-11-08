@@ -110,20 +110,20 @@ jobs:
       - name: Generate project
         working-directory: ios-native
         run: |
-          sed -i -E "s/CURRENT_PROJECT_VERSION: .*/CURRENT_PROJECT_VERSION: \"$((GITHUB_RUN_NUMBER + 100))\"/" project.yml || true
+          sed -i -E "s/CURRENT_PROJECT_VERSION: .*/CURRENT_PROJECT_VERSION: \"$((GITHUB_RUN_NUMBER + 300))\"/" project.yml || true
           grep CURRENT_PROJECT_VERSION project.yml || true
           xcodegen generate
       - name: Archive (unsigned)
         working-directory: ios-native
         run: |
           set -o pipefail
-          BUILD=$((GITHUB_RUN_NUMBER + 100))
+          BUILD=$((GITHUB_RUN_NUMBER + 300))
           xcodebuild -project NeedsMe.xcodeproj -scheme NeedsMe -configuration Release \
             -destination 'generic/platform=iOS' -archivePath $RUNNER_TEMP/NeedsMe.xcarchive \
             CURRENT_PROJECT_VERSION=$BUILD CODE_SIGNING_ALLOWED=NO archive 2>&1 | tee $RUNNER_TEMP/archive.log
       - name: Set build number in archive
         run: |
-          B=$((GITHUB_RUN_NUMBER + 100))
+          B=$((GITHUB_RUN_NUMBER + 300))
           A=$RUNNER_TEMP/NeedsMe.xcarchive
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $B" $A/Products/Applications/NeedsMe.app/Info.plist
           /usr/libexec/PlistBuddy -c "Set :ApplicationProperties:CFBundleVersion $B" $A/Info.plist
