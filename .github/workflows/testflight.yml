@@ -13,12 +13,18 @@ env:
   TEAM_ID: GZ9Z6BPTFR
 jobs:
   build:
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
       - name: Unpack source
         run: |
           if [ -f ios-native.tar.gz ]; then tar xzf ios-native.tar.gz; fi
+      - name: Pick newest Xcode
+        run: |
+          X=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          [ -n "$X" ] && sudo xcode-select -s "$X"
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Write App Store Connect key
