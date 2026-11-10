@@ -332,7 +332,9 @@ final class Store: ObservableObject {
             if !list.contains(hit.project) { list.append(hit.project) }
             self.col(isPrompt ? "prompts" : "notes")?.document(id).updateData([
                 "projects": list, "project": list.first ?? "Unsorted",
-                "autoProject": hit.project, "autoBy": reader.label, "autoWords": hit.words])
+                "autoProject": hit.project, "autoBy": reader.label, "autoWords": hit.words]) { [weak self] err in
+                if let err { Task { @MainActor in self?.message = "Could not save the project match: \(err.localizedDescription)" } }
+            }
         }
     }
 

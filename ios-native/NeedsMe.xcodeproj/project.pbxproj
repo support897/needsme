@@ -8,18 +8,24 @@
 
 /* Begin PBXBuildFile section */
 		14506A5C79A24569C60BC410 /* NeedsMeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEAECF1299E36B557EDD4580 /* NeedsMeApp.swift */; };
+		19DAC56C44A85A062ACCD3A3 /* SproutIcons.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8DA0710E97C7E03687B9C3C /* SproutIcons.swift */; };
 		26B5AE3041CD5DC6C29EBA49 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01023191D936D9DCDB975F60 /* HomeView.swift */; };
 		3659015687D412BEE407B631 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = BE2146A79E9FF1B15A329BAA /* FirebaseAuth */; };
 		4C906ED779D7257E9A1AA1CE /* Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AFA73D2E0B523164735FC9D /* Store.swift */; };
+		5109AF526C770780CD6DB056 /* RoomView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE026907D18E404297A9AA5B /* RoomView.swift */; };
 		5EF86B872184F9945E236450 /* PipTour.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34F621D6D3730A4DB25C0A73 /* PipTour.swift */; };
 		826BA9BFDCA2CB060EE84A50 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A58F61EA10424347D4B39716 /* RootView.swift */; };
 		8E56E351296A3F8E2FF715BC /* NeedsMeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FF1B7DFC4DC89A535EA36C4 /* NeedsMeUITests.swift */; };
 		948F028EB741CF86AEEB1C17 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 3D14794B0C62918BE0D3EB83 /* FirebaseFirestore */; };
+		9AC7797FA2CCBE4A391E2720 /* ProjectViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A787BA80A6F8EA7472AFCA8 /* ProjectViews.swift */; };
 		B347F34A2028A2987A5FDFE9 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44BFAC8282C36541218483CB /* Theme.swift */; };
 		B39CE2282CB4967BE8595C69 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AD4D88743ADE354D0FA814E6 /* Assets.xcassets */; };
+		BD39F749DA93B693AB31CDA0 /* PromptSender.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD75EF7E77389DD4E5F6AE60 /* PromptSender.swift */; };
 		C5FECBB9C599645ADD092DEB /* TasksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B08112C0B385915BC62DD2D /* TasksView.swift */; };
 		CAD878245E9875ABE1449D43 /* NotesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00158EC2EA1AFB03A1D577A4 /* NotesView.swift */; };
 		CEE0A0F340751B32710AF2BC /* AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29B00E960F560A14B0B12286 /* AuthView.swift */; };
+		D7D68F5F7AD1620DFEABE20D /* AIKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3015B1FB20A7914A4D301C5E /* AIKeys.swift */; };
+		D82E755A2D491A1033044280 /* AIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB027877AC03B6907E1DB92D /* AIClient.swift */; };
 		FCE73DDBAA2A0F0D5B3C3AC6 /* ConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56CAF653B3E8BABF2E1957DE /* ConnectView.swift */; };
 /* End PBXBuildFile section */
 
@@ -36,8 +42,10 @@
 /* Begin PBXFileReference section */
 		00158EC2EA1AFB03A1D577A4 /* NotesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesView.swift; sourceTree = "<group>"; };
 		01023191D936D9DCDB975F60 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		0A787BA80A6F8EA7472AFCA8 /* ProjectViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectViews.swift; sourceTree = "<group>"; };
 		17D716ECE4C28E7E73FDBF21 /* NeedsMe.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = NeedsMe.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		29B00E960F560A14B0B12286 /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
+		3015B1FB20A7914A4D301C5E /* AIKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIKeys.swift; sourceTree = "<group>"; };
 		34F621D6D3730A4DB25C0A73 /* PipTour.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipTour.swift; sourceTree = "<group>"; };
 		43CBFA996E2789248FA0A292 /* NeedsMeUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = NeedsMeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		44BFAC8282C36541218483CB /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
@@ -48,7 +56,11 @@
 		9FF1B7DFC4DC89A535EA36C4 /* NeedsMeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NeedsMeUITests.swift; sourceTree = "<group>"; };
 		A58F61EA10424347D4B39716 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		AD4D88743ADE354D0FA814E6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		BD75EF7E77389DD4E5F6AE60 /* PromptSender.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptSender.swift; sourceTree = "<group>"; };
+		CB027877AC03B6907E1DB92D /* AIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIClient.swift; sourceTree = "<group>"; };
+		D8DA0710E97C7E03687B9C3C /* SproutIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SproutIcons.swift; sourceTree = "<group>"; };
 		E616EBDDBE9C7C2FFB487CFF /* NeedsMe.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NeedsMe.entitlements; sourceTree = "<group>"; };
+		EE026907D18E404297A9AA5B /* RoomView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomView.swift; sourceTree = "<group>"; };
 		EEAECF1299E36B557EDD4580 /* NeedsMeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NeedsMeApp.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -77,6 +89,8 @@
 		4E0BAB3B237BCA54D5990CFF /* NeedsMe */ = {
 			isa = PBXGroup;
 			children = (
+				CB027877AC03B6907E1DB92D /* AIClient.swift */,
+				3015B1FB20A7914A4D301C5E /* AIKeys.swift */,
 				AD4D88743ADE354D0FA814E6 /* Assets.xcassets */,
 				29B00E960F560A14B0B12286 /* AuthView.swift */,
 				56CAF653B3E8BABF2E1957DE /* ConnectView.swift */,
@@ -86,7 +100,11 @@
 				EEAECF1299E36B557EDD4580 /* NeedsMeApp.swift */,
 				00158EC2EA1AFB03A1D577A4 /* NotesView.swift */,
 				34F621D6D3730A4DB25C0A73 /* PipTour.swift */,
+				0A787BA80A6F8EA7472AFCA8 /* ProjectViews.swift */,
+				BD75EF7E77389DD4E5F6AE60 /* PromptSender.swift */,
+				EE026907D18E404297A9AA5B /* RoomView.swift */,
 				A58F61EA10424347D4B39716 /* RootView.swift */,
+				D8DA0710E97C7E03687B9C3C /* SproutIcons.swift */,
 				5AFA73D2E0B523164735FC9D /* Store.swift */,
 				8B08112C0B385915BC62DD2D /* TasksView.swift */,
 				44BFAC8282C36541218483CB /* Theme.swift */,
@@ -219,13 +237,19 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D82E755A2D491A1033044280 /* AIClient.swift in Sources */,
+				D7D68F5F7AD1620DFEABE20D /* AIKeys.swift in Sources */,
 				CEE0A0F340751B32710AF2BC /* AuthView.swift in Sources */,
 				FCE73DDBAA2A0F0D5B3C3AC6 /* ConnectView.swift in Sources */,
 				26B5AE3041CD5DC6C29EBA49 /* HomeView.swift in Sources */,
 				14506A5C79A24569C60BC410 /* NeedsMeApp.swift in Sources */,
 				CAD878245E9875ABE1449D43 /* NotesView.swift in Sources */,
 				5EF86B872184F9945E236450 /* PipTour.swift in Sources */,
+				9AC7797FA2CCBE4A391E2720 /* ProjectViews.swift in Sources */,
+				BD39F749DA93B693AB31CDA0 /* PromptSender.swift in Sources */,
+				5109AF526C770780CD6DB056 /* RoomView.swift in Sources */,
 				826BA9BFDCA2CB060EE84A50 /* RootView.swift in Sources */,
+				19DAC56C44A85A062ACCD3A3 /* SproutIcons.swift in Sources */,
 				4C906ED779D7257E9A1AA1CE /* Store.swift in Sources */,
 				C5FECBB9C599645ADD092DEB /* TasksView.swift in Sources */,
 				B347F34A2028A2987A5FDFE9 /* Theme.swift in Sources */,
@@ -268,7 +292,7 @@
 				CODE_SIGN_ENTITLEMENTS = NeedsMe/NeedsMe.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 125;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = GZ9Z6BPTFR;
 				INFOPLIST_FILE = NeedsMe/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -289,7 +313,7 @@
 				CODE_SIGN_ENTITLEMENTS = NeedsMe/NeedsMe.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 125;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = GZ9Z6BPTFR;
 				INFOPLIST_FILE = NeedsMe/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

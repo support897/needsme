@@ -1,5 +1,8 @@
 # NeedsMe Connect Part 1 overlay: accounts, Loop, prompts and notes, theme law, icon law, name law fix (Addendum 5)
 
+## FIX PASS: one compile error (CI)
+Store.swift, autoMatch (about line 333): the Firestore `updateData` call ran inside an async Task with no try and no await, so the compiler took the async overload and failed. Fixed that one call in the house pattern of the file's other writes (the completion handler form, as in the room and need writes): `updateData([...]) { [weak self] err in ... }`, with a plain error message on failure. Nothing else changed. The other `updateData` and `setData` calls are in synchronous code and already match the house pattern. Syntax check clean. Not compiled here.
+
 Apply: extract over the repo root. Changed: NeedsMe/{ConnectView,Store,ProjectViews,TasksView,RoomView,NotesView,HomeView,Theme,NeedsMeApp,RootView,PipTour}.swift (HomeView and RootView changed again for the name law), NeedsMeUITests/NeedsMeUITests.swift, ios-native.tar.gz. Added: NeedsMe/{AIKeys,AIClient,RoomView,PromptSender,SproutIcons}.swift (AIKeys, AIClient, RoomView came in earlier passes; PromptSender is new). No project.pbxproj, no version bump. Nothing was compiled or run (no Xcode here); syntax checked with tree-sitter only. The host proof judges each piece.
 
 ## Piece 4 storage truth (read from the code first)
