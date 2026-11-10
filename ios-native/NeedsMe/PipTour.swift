@@ -2,8 +2,12 @@ import SwiftUI
 
 struct PipTour: View {
     var onClose: () -> Void
+    /// Takes the user to the screen Pip is talking about (tab index: 0 Home, 1 Tasks, 2 Notes, 3 AI, 4 More).
+    var goTo: (Int) -> Void = { _ in }
+    private let tabs = [0, 0, 1, 2, 3, 4, 0]
     @Environment(\.palette) var p
     @Environment(\.accessibilityReduceMotion) var reduceMotion
+    @AppStorage("nm_motion") private var motion = "system"
     @State private var step = 0
     private let stops: [(String, String, String)] = [
         ("pip-welcome", "Hi, I'm Pip!", "I'll show you around in under a minute. You can skip any time."),
@@ -37,5 +41,9 @@ struct PipTour: View {
             .accessibilityElement(children: .contain).accessibilityLabel("Pip's guide")
         }
     }
-    func go(_ d: Int) { if reduceMotion { step += d } else { withAnimation { step += d } } }
+    func go(_ d: Int) {
+        let next = min(max(step + d, 0), tabs.count - 1)
+        if reduceMotion || motion != "system" { step = next } else { withAnimation { step = next } }
+        goTo(tabs[next])
+    }
 }
