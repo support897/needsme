@@ -24,7 +24,7 @@ struct RootView: View {
                 }
             }
         }
-        .onChange(of: store.user?.email) { _, email in if email != nil { tab = 0 } }
+        .onChange(of: store.user?.email) { email in if email != nil { tab = 0 } }
         .animation((motion != "system" || reduceMotion) ? nil : .easeInOut(duration: 0.25), value: showTour)
     }
 }
