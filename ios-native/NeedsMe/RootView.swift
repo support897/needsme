@@ -6,6 +6,7 @@ struct RootView: View {
     @AppStorage("nm_tour_done") private var tourDone = false
     @State private var showTour = false
     @State private var tab = 0
+    @State private var tabBeforeTour = 0
     @AppStorage("nm_motion") private var motion = "system"
     @Environment(\.accessibilityReduceMotion) var reduceMotion
 
@@ -15,14 +16,15 @@ struct RootView: View {
             if store.user == nil {
                 AuthView()
             } else {
-                MainTabs(tab: $tab, replayTour: { tab = 0; showTour = true })
-                    .onAppear { if !tourDone { showTour = true } }
+                MainTabs(tab: $tab, replayTour: { tabBeforeTour = tab; showTour = true })
+                    .onAppear { if !tourDone { tabBeforeTour = tab; showTour = true } }
                 if showTour {
-                    PipTour(onClose: { tourDone = true; showTour = false; tab = 0 }, goTo: { tab = $0 })
+                    PipTour(onClose: { tourDone = true; showTour = false; tab = tabBeforeTour }, goTo: { tab = $0 })
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
         }
+        .onChange(of: store.user?.email) { _, email in if email != nil { tab = 0 } }
         .animation((motion != "system" || reduceMotion) ? nil : .easeInOut(duration: 0.25), value: showTour)
     }
 }
