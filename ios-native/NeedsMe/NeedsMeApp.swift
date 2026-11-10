@@ -29,12 +29,22 @@ struct NeedsMeApp: App {
         }
     }
 
+    private func applyCloud() {
+        guard store.cloudThemeLoaded else { return }
+        let want = store.cloudTheme ?? AppTheme.white.rawValue
+        if themeRaw != want { themeRaw = want }
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environmentObject(store)
-                .environment(\.palette, (AppTheme(rawValue: themeRaw) ?? .white).palette)
-                .preferredColorScheme((AppTheme(rawValue: themeRaw) ?? .white).scheme)
+                .environment(\.palette, AppTheme.from(themeRaw).palette)
+                .preferredColorScheme(AppTheme.from(themeRaw).scheme)
+                .onAppear { if themeRaw == "green" { themeRaw = AppTheme.brand.rawValue } }
+                // Her saved pick wins over the device copy. A fresh account with nothing saved gets White.
+                .onChange(of: store.cloudThemeLoaded) { _ in applyCloud() }
+                .onChange(of: store.cloudTheme) { _ in applyCloud() }
         }
     }
 }

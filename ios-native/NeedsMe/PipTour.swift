@@ -15,7 +15,7 @@ struct PipTour: View {
         ("pip-point-show", "Tasks", "All open and finished to-dos live here."),
         ("pip-point-show", "Notes & prompts", "Keep ideas and AI prompts in one place, sorted by project and AI."),
         ("pip-welcome", "Connect an AI", "Set up an AI in about 60 seconds. Tap Copy setup prompt for help."),
-        ("pip-point-show", "Colours", "In More, pick Soft White, Dark, Soft Green or match your phone."),
+        ("pip-point-show", "Colours", "In More, pick White, Dark, Beige, Brand or match your phone."),
         ("pip-celebrate", "You are ready!", "Pick one small step to begin."),
     ]
     var body: some View {

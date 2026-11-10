@@ -5,6 +5,10 @@ let setupPrompt = "You are my friendly setup helper for the NeedsMe Ai app. Help
 struct ConnectView: View {
     @Environment(\.palette) var p
     @State private var copied = false
+    @ObservedObject private var conns = AIConnections.shared
+    var statusLines: String {
+        conns.accounts.map { "\($0.label): \(conns.status($0))" }.joined(separator: "\n")
+    }
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -30,7 +34,15 @@ struct ConnectView: View {
                     }
                     Card {
                         Text("Connection status").font(.headline).foregroundColor(p.ink)
-                        Text("No AI is connected yet. Pick a route below for each AI: your own key, or the hand off route. A hand off is never shown as a live link.").font(.subheadline).foregroundColor(p.ink).accessibilityIdentifier("connectionStatus")
+                        Text(statusLines).font(.subheadline).foregroundColor(p.ink).accessibilityIdentifier("connectionStatus")
+                        Text("An AI shows Connected only after its own test passed on this phone. A hand off is never shown as a live link.").font(.footnote).foregroundColor(p.soft)
+                    }
+                    KeysCard()
+                    Card {
+                        Text("Rooms").font(.headline).foregroundColor(p.ink)
+                        Text("Talk to your connected AIs in one room. Mention them by name.").font(.subheadline).foregroundColor(p.soft)
+                        NavigationLink { RoomsListView() } label: { Text("Open rooms").font(.system(.body, design: .rounded).weight(.semibold)).frame(maxWidth: .infinity).padding(.vertical, 12).background(p.chip).foregroundColor(p.ink).clipShape(Capsule()) }
+                            .accessibilityIdentifier("openRooms")
                     }
                     AIRoutesCard()
                 }.padding()
@@ -62,8 +74,8 @@ let aiRoutes: [AIRoute] = [
     AIRoute(id: "cursor", name: "Cursor", kind: "Hand-off", how: "Copy a project prompt, paste it in Cursor, bring the result back.", url: "https://cursor.com"),
     AIRoute(id: "polar", name: "Polar", kind: "Hand-off", how: "Copy a task prompt, open Polar, bring the result back.", url: "https://polarbrowser.com"),
     AIRoute(id: "muse", name: "Muse", kind: "Hand-off", how: "Copy a task prompt, open Muse, bring the result back. (No link: open Muse yourself.)", url: ""),
-    AIRoute(id: "perplexity", name: "Perplexity", kind: "Hand-off", how: "Copy your question, open Perplexity, paste the answer back.", url: "https://www.perplexity.ai"),
-    AIRoute(id: "grok", name: "Grok", kind: "Hand-off", how: "Copy your question, open Grok, paste the answer back.", url: "https://grok.com"),
+    AIRoute(id: "perplexity", name: "Perplexity", kind: "Own key", how: "Make a key at Perplexity, paste it above, then test it.", url: "https://www.perplexity.ai"),
+    AIRoute(id: "grok", name: "Grok", kind: "Own key", how: "Make a key at xAI, paste it above, then test it.", url: "https://grok.com"),
 ]
 
 struct AIRoutesCard: View {
@@ -90,5 +102,113 @@ struct AIRoutesCard: View {
                 }.padding(.vertical, 6)
             }
         }
+    }
+}
+
+/// Each own key provider holds a list of accounts. An account is its own key plus its own label.
+/// Keys go to the Keychain only. The screen never shows a key again.
+struct KeysCard: View {
+    @Environment(\.palette) var p
+    @Environment(\.openURL) var openURL
+    @ObservedObject private var conns = AIConnections.shared
+    @State private var drafts: [String: String] = [:]
+    @State private var labels: [String: String] = [:]
+    @State private var notes: [String: String] = [:]
+    @State private var adding: String? = nil
+    @State private var newLabel = ""
+    @State private var newKey = ""
+
+    var body: some View {
+        Card {
+            Text("YOUR OWN KEYS").font(.caption.monospaced().bold()).foregroundColor(p.soft)
+            Text("Connect with your key").font(.title3.bold()).foregroundColor(p.ink)
+            Text("Each key is one account with its own name. Two keys from one AI are two voices in a room. Your key stays on this phone, in the Keychain. It is never sent to our servers.")
+                .font(.subheadline).foregroundColor(p.soft)
+            ForEach(AIProvider.allCases) { prov in
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(prov.name + " (" + prov.company + ")").font(.headline).foregroundColor(p.ink)
+                    ForEach(conns.accounts(for: prov)) { a in row(a) }
+                    if adding == prov.rawValue { addForm(prov) } else {
+                        Button("Add another account") {
+                            adding = prov.rawValue; newLabel = conns.nextDefaultLabel(prov); newKey = ""
+                        }.buttonStyle(SoftButton()).accessibilityIdentifier("addAccount-" + prov.rawValue)
+                    }
+                    Button("Get a key") { if let u = URL(string: prov.keyPage) { openURL(u) } }
+                        .buttonStyle(SoftButton()).accessibilityIdentifier("getKey-" + prov.rawValue)
+                }.padding(.vertical, 8)
+            }
+        }
+    }
+
+    func field(_ placeholder: String, _ text: Binding<String>) -> some View {
+        TextField(placeholder, text: text)
+            .autocorrectionDisabled()
+            .padding(10).background(p.bg).clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(p.line, lineWidth: 1))
+            .foregroundColor(p.ink)
+    }
+    func secure(_ placeholder: String, _ text: Binding<String>) -> some View {
+        SecureField(placeholder, text: text)
+            .autocorrectionDisabled().textInputAutocapitalization(.never)
+            .padding(10).background(p.bg).clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(p.line, lineWidth: 1))
+            .foregroundColor(p.ink)
+    }
+
+    func row(_ a: AIAccount) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(a.label).font(.body.weight(.semibold)).foregroundColor(p.ink)
+                Spacer()
+                Text(conns.status(a)).font(.caption.bold()).foregroundColor(p.ink)
+                    .accessibilityIdentifier("status-" + a.id)
+            }
+            field("Name in rooms", Binding(get: { labels[a.id] ?? a.label }, set: { labels[a.id] = $0 }))
+                .onSubmit { commitLabel(a) }
+                .accessibilityIdentifier("label-" + a.id)
+            secure(conns.hasKey(a) ? "A key is saved. Paste a new one to replace it." : "Paste your key",
+                   Binding(get: { drafts[a.id] ?? "" }, set: { drafts[a.id] = $0 }))
+                .accessibilityIdentifier("keyField-" + a.id)
+            HStack(spacing: 8) {
+                Button("Save") {
+                    commitLabel(a)
+                    let k = drafts[a.id] ?? ""
+                    if k.isEmpty { notes[a.id] = conns.hasKey(a) ? "Name saved." : "Paste a key first." }
+                    else { notes[a.id] = conns.save(k, for: a) ? "Saved on this phone." : "Could not save the key." }
+                    drafts[a.id] = ""
+                }.buttonStyle(SoftButton()).accessibilityIdentifier("saveKey-" + a.id)
+                Button("Test connection") {
+                    Task { await conns.test(a) }
+                }.buttonStyle(SoftButton()).accessibilityIdentifier("testKey-" + a.id)
+            }
+            if conns.hasKey(a) || a.id != a.provider {
+                Button(a.id == a.provider ? "Remove key" : "Remove account") {
+                    conns.remove(a); notes[a.id] = "Removed."
+                }.buttonStyle(SoftButton()).accessibilityIdentifier("removeKey-" + a.id)
+            }
+            if let n = notes[a.id], !n.isEmpty { Text(n).font(.footnote).foregroundColor(p.soft) }
+        }
+        .padding(12).background(p.bg.opacity(0.5)).clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    func commitLabel(_ a: AIAccount) {
+        if let l = labels[a.id], !l.trimmingCharacters(in: .whitespaces).isEmpty { conns.rename(a, to: l) }
+        labels[a.id] = nil
+    }
+
+    func addForm(_ prov: AIProvider) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("New " + prov.name + " account").font(.subheadline.weight(.semibold)).foregroundColor(p.ink)
+            field("Name in rooms", $newLabel).accessibilityIdentifier("newLabel-" + prov.rawValue)
+            secure("Paste the key", $newKey).accessibilityIdentifier("newKey-" + prov.rawValue)
+            HStack(spacing: 8) {
+                Button("Save account") {
+                    if conns.add(provider: prov, label: newLabel, key: newKey) != nil { adding = nil; newKey = ""; newLabel = "" }
+                }.buttonStyle(SoftButton()).accessibilityIdentifier("saveNew-" + prov.rawValue)
+                Button("Cancel") { adding = nil; newKey = "" }
+                    .buttonStyle(SoftButton()).accessibilityIdentifier("cancelNew-" + prov.rawValue)
+            }
+        }
+        .padding(12).background(p.bg.opacity(0.5)).clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }

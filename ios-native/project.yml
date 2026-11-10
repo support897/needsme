@@ -27,13 +27,15 @@ targets:
         CFBundleDisplayName: NeedsMe Ai
         UILaunchScreen: {}
         ITSAppUsesNonExemptEncryption: false
+        CFBundleURLTypes:
+          - CFBundleURLSchemes: [app-1-943521917653-ios-729a230157baf5a02c105c, com.googleusercontent.apps.943521917653-k7cggtl36k7fn64mvhtv2qbbp3kkmg32]
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: shop.ilseplacencia.needsme
         DEVELOPMENT_TEAM: GZ9Z6BPTFR
         MARKETING_VERSION: "1.0.0"
-        CURRENT_PROJECT_VERSION: "125"
+        CURRENT_PROJECT_VERSION: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGN_STYLE: Automatic

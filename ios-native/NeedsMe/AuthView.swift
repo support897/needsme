@@ -9,6 +9,11 @@ struct AuthView: View {
     @State private var signingUp = true      // sign up is the first thing people see
     @State private var showEmail = false
 
+    func submit() {
+        guard !store.busy, !email.isEmpty, password.count >= 6 else { return }
+        Task { if signingUp { await store.signUp(email, password) } else { await store.signIn(email, password) } }
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
@@ -27,7 +32,7 @@ struct AuthView: View {
                         .frame(height: 52).clipShape(RoundedRectangle(cornerRadius: 14))
                         .accessibilityIdentifier("appleButton")
 
-                    Button { store.googleDoor() } label: {
+                    Button { Task { await store.googleDoor() } } label: {
                         HStack { Image(systemName: "g.circle.fill"); Text(signingUp ? "Sign up with Google" : "Sign in with Google").fontWeight(.semibold) }
                             .frame(maxWidth: .infinity).frame(height: 52)
                             .background(p.card).foregroundColor(p.ink)
@@ -50,10 +55,9 @@ struct AuthView: View {
                             .textInputAutocapitalization(.never).keyboardType(.emailAddress).autocorrectionDisabled()
                             .padding().background(p.card).clipShape(RoundedRectangle(cornerRadius: 14))
                         SecureField("Password (6+ letters)", text: $password)
+                            .submitLabel(.go).onSubmit { submit() }
                             .padding().background(p.card).clipShape(RoundedRectangle(cornerRadius: 14))
-                        Button(signingUp ? "Make my account" : "Sign in") {
-                            Task { if signingUp { await store.signUp(email, password) } else { await store.signIn(email, password) } }
-                        }.buttonStyle(PrimaryButton()).disabled(store.busy || email.isEmpty || password.count < 6)
+                        Button(signingUp ? "Make my account" : "Sign in") { submit() }.buttonStyle(PrimaryButton()).disabled(store.busy || email.isEmpty || password.count < 6)
                             .accessibilityIdentifier("emailSubmit")
                         if !signingUp { Button("Forgot password?") { Task { await store.reset(email) } }.font(.footnote).foregroundColor(p.soft) }
                     }.foregroundColor(p.ink).transition(.opacity)
@@ -67,11 +71,8 @@ struct AuthView: View {
 
                 Button(signingUp ? "Already have an account? Sign in" : "New here? Make an account") { signingUp.toggle(); store.message = "" }
                     .foregroundColor(p.ink).font(.subheadline.weight(.semibold)).accessibilityIdentifier("switchMode")
-                Button("Look around first, no account") { Task { await store.guest() } }
-                    .font(.footnote.weight(.semibold)).foregroundColor(p.soft).disabled(store.busy)
-                    .accessibilityIdentifier("guestButton")
                 Link("Privacy policy", destination: URL(string: "https://support897.github.io/needsme/privacy.html")!).font(.footnote).foregroundColor(p.soft)
             }.padding(24)
-        }
+        }.scrollDismissesKeyboard(.interactively)
     }
 }

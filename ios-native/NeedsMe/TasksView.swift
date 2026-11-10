@@ -10,13 +10,21 @@ struct TasksView: View {
     var body: some View {
         NavigationStack {
             List {
+                if !store.message.isEmpty {
+                    Text(store.message).font(.footnote.weight(.medium)).foregroundColor(.red).accessibilityIdentifier("taskMessage")
+                        .listRowBackground(p.card)
+                }
+                if store.tasks.isEmpty && store.message.isEmpty {
+                    Text("No tasks yet. Tap + to add your first one.").foregroundColor(p.soft).listRowBackground(p.card)
+                }
                 ForEach(store.tasks.sorted { !$0.isDone && $1.isDone }) { t in
                     HStack {
-                        Button { store.toggle(t) } label: { Image(systemName: t.isDone ? "checkmark.circle.fill" : "circle").font(.title2) }
+                        Button { store.toggle(t) } label: { SproutBox(on: t.isDone, size: 26) }
                             .accessibilityLabel(t.isDone ? "Mark not done" : "Mark done")
                         VStack(alignment: .leading) {
                             Text(t.title).strikethrough(t.isDone).foregroundColor(p.ink)
                             if !t.area.isEmpty { Text(t.area).font(.caption).foregroundColor(p.soft) }
+                            if !t.stamp.isEmpty { Text(t.stamp).font(.caption2).foregroundColor(p.soft) }
                         }
                     }
                     .listRowBackground(p.card)
@@ -25,7 +33,7 @@ struct TasksView: View {
             }
             .scrollContentBackground(.hidden).background(p.bg)
             .navigationTitle("Tasks")
-            .toolbar { Button { adding = true } label: { Image(systemName: "plus") }.accessibilityLabel("Add a task") }
+            .toolbar { Button { adding = true } label: { SproutPlus() }.accessibilityLabel("Add a task") }
             .sheet(isPresented: $adding) {
                 NavigationStack {
                     Form {

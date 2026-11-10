@@ -7,6 +7,9 @@ struct RootView: View {
     @State private var showTour = false
     @State private var tab = 0
     @State private var tabBeforeTour = 0
+    @State private var askClosedNow = false
+    @State private var nameDraft = ""
+    static let launchId = UUID().uuidString
     @AppStorage("nm_motion") private var motion = "system"
     @Environment(\.accessibilityReduceMotion) var reduceMotion
 
@@ -18,6 +21,7 @@ struct RootView: View {
             } else {
                 MainTabs(tab: $tab, replayTour: { tabBeforeTour = tab; showTour = true })
                     .onAppear { if !tourDone { tabBeforeTour = tab; showTour = true } }
+                if showNameAsk { nameAsk }
                 if showTour {
                     PipTour(onClose: { tourDone = true; showTour = false; tab = tabBeforeTour }, goTo: { tab = $0 })
                         .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -25,7 +29,58 @@ struct RootView: View {
             }
         }
         .onChange(of: store.user?.email) { email in if email != nil { tab = 0 } }
+        .onChange(of: store.user?.uid) { _ in askClosedNow = false; nameDraft = "" }
         .animation((motion != "system" || reduceMotion) ? nil : .easeInOut(duration: 0.25), value: showTour)
+    }
+}
+
+extension RootView {
+    private var askKey: String { "nm_nameask_" + (store.user?.uid ?? "none") }
+
+    /// Pip asks once the guide is out of the way and nothing is saved. If it is closed unanswered it is offered
+    /// once more on the next launch only (never the same session), then never again.
+    var showNameAsk: Bool {
+        guard store.user != nil, store.cloudThemeLoaded, store.savedName == nil, !showTour, !askClosedNow else { return false }
+        if CommandLine.arguments.contains("-uitest-noask") { return false }
+        let v = UserDefaults.standard.string(forKey: askKey) ?? ""
+        if v == "done" { return false }
+        if v.hasPrefix("closed1:") { return v != "closed1:" + RootView.launchId }
+        return true
+    }
+
+    func closeAsk() {
+        let v = UserDefaults.standard.string(forKey: askKey) ?? ""
+        UserDefaults.standard.set(v.hasPrefix("closed1:") ? "done" : "closed1:" + RootView.launchId, forKey: askKey)
+        askClosedNow = true
+    }
+
+    var nameAsk: some View {
+        VStack {
+            Spacer()
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
+                    PipImage(size: 44)
+                    Text("What's your name?").font(.headline).foregroundColor(p.ink)
+                }
+                TextField("Your name", text: $nameDraft).textFieldStyle(.roundedBorder).textContentType(.givenName)
+                    .accessibilityIdentifier("nameField")
+                HStack {
+                    Button("Not now") { closeAsk() }.foregroundColor(p.soft).font(.subheadline.bold()).accessibilityIdentifier("nameClose")
+                    Spacer()
+                    Button("Save") {
+                        store.saveName(nameDraft)
+                        UserDefaults.standard.set("done", forKey: askKey)
+                        askClosedNow = true
+                    }
+                    .buttonStyle(PrimaryButton()).frame(maxWidth: 130).accessibilityIdentifier("nameSave")
+                    .disabled(nameDraft.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+            .padding(18).background(p.card).clipShape(RoundedRectangle(cornerRadius: 22))
+            .overlay(RoundedRectangle(cornerRadius: 22).stroke(p.line))
+            .padding(12).padding(.bottom, 56).shadow(radius: 12, y: 4)
+            .accessibilityElement(children: .contain).accessibilityIdentifier("nameAsk")
+        }
     }
 }
 
@@ -73,17 +128,36 @@ struct MoreView: View {
     @AppStorage("nm_digest") private var digest = "Daily"
     @AppStorage("nm_quiet") private var quiet = true
     @State private var confirmDelete = false
+    @State private var editingName = false
+    @State private var nameText = ""
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     Card {
+                        Text("Your name").font(.headline).foregroundColor(p.ink)
+                        if editingName {
+                            TextField("Your name", text: $nameText).textFieldStyle(.roundedBorder).accessibilityIdentifier("nameEditField")
+                            HStack {
+                                Button("Cancel") { editingName = false }.buttonStyle(SoftButton())
+                                Button("Save") { store.saveName(nameText); editingName = false }
+                                    .buttonStyle(PrimaryButton()).accessibilityIdentifier("nameEditSave")
+                                    .disabled(nameText.trimmingCharacters(in: .whitespaces).isEmpty)
+                            }
+                        } else {
+                            Button { nameText = store.savedName ?? ""; editingName = true } label: {
+                                HStack { Text(store.savedName ?? "Add your name"); Spacer(); Text("Edit").font(.subheadline.bold()) }
+                                    .padding(.vertical, 6)
+                            }.foregroundColor(p.ink).accessibilityIdentifier("nameRow")
+                        }
+                    }
+                    Card {
                         Text("Colours").font(.headline).foregroundColor(p.ink)
                         ForEach(AppTheme.allCases) { t in
-                            Button { themeRaw = t.rawValue } label: {
-                                HStack { Text(t.label); Spacer(); if themeRaw == t.rawValue { Image(systemName: "checkmark.circle.fill") } }
+                            Button { themeRaw = t.rawValue; store.saveTheme(t.rawValue) } label: {
+                                HStack { Text(t.label); Spacer(); if AppTheme.from(themeRaw) == t { SproutBox(on: true, size: 22) } }
                                     .padding(.vertical, 6)
-                            }.foregroundColor(p.ink)
+                            }.foregroundColor(p.ink).accessibilityIdentifier("theme-" + t.rawValue)
                         }
                     }
                     Card {
@@ -105,7 +179,7 @@ struct MoreView: View {
                         Text("Privacy and your data").font(.headline).foregroundColor(p.ink)
                         Text("What we keep: your sign-in email, and the tasks and notes you write. They are saved to your own account.").font(.subheadline).foregroundColor(p.ink)
                         Text("What we do not keep: no AI keys, no passwords for other services, no location, no contacts.").font(.subheadline).foregroundColor(p.ink)
-                        Text("Nobody else can see your tasks and notes. Alert settings and colours stay on this phone.").font(.subheadline).foregroundColor(p.ink)
+                        Text("Nobody else can see your tasks and notes. Your name and colour pick are saved to your account. Alert settings stay on this phone.").font(.subheadline).foregroundColor(p.ink)
                         Text("You can delete everything below. It cannot be undone.").font(.footnote).foregroundColor(p.soft)
                         ShareLink(item: store.exportText.isEmpty ? "No notes yet." : store.exportText) { Text("Export my notes") }.buttonStyle(SoftButton()).accessibilityIdentifier("exportNotes")
                         Button("Delete my account") { confirmDelete = true }
