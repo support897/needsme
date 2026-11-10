@@ -28,6 +28,10 @@ struct ConnectView: View {
                         }.buttonStyle(PrimaryButton())
                         Text("Never paste your key into a chat. Keep it private.").font(.footnote).foregroundColor(p.soft)
                     }
+                    Card {
+                        Text("Connection status").font(.headline).foregroundColor(p.ink)
+                        Text("No AI is connected yet. Pick a route below for each AI: your own key, or the hand off route. A hand off is never shown as a live link.").font(.subheadline).foregroundColor(p.ink).accessibilityIdentifier("connectionStatus")
+                    }
                     AIRoutesCard()
                 }.padding()
             }.background(p.bg).navigationTitle("Connect")
