@@ -19,11 +19,12 @@ final class Store: ObservableObject {
     @Published var busy = false
     private var handles: [ListenerRegistration] = []
     private var authHandle: AuthStateDidChangeListenerHandle?
-    private let db = Firestore.firestore()
+    private lazy var db: Firestore = { FirebaseBoot.ensure(); return Firestore.firestore() }()
 
     nonisolated static var today: String { let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: Date()) }
 
     init() {
+        FirebaseBoot.ensure()
         authHandle = Auth.auth().addStateDidChangeListener { [weak self] _, u in
             Task { @MainActor in self?.user = u; self?.listen() }
         }
@@ -44,7 +45,8 @@ final class Store: ObservableObject {
         handles.forEach { $0.remove() }; handles = []; tasks = []; notes = []
         guard user != nil else { return }
         if let c = col("tasks") {
-            handles.append(c.addSnapshotListener { [weak self] s, _ in
+            handles.append(c.addSnapshotListener { [weak self] s, e in
+                if let e { Task { @MainActor in self?.message = "Could not load your tasks: \(e.localizedDescription)" } }
                 guard let s else { return }
                 let items = s.documents.map { d -> TaskItem in
                     let x = d.data()
@@ -94,13 +96,47 @@ final class Store: ObservableObject {
             await run { _ = try await Auth.auth().signIn(with: cred) }
         }
     }
-    func googleDoor() { message = "Google sign-in is almost ready. Please use Apple or email for now." }
+    private var googleProvider: OAuthProvider?
+    func googleDoor() async {
+        let prov = OAuthProvider(providerID: "google.com")
+        prov.scopes = ["email", "profile"]
+        googleProvider = prov
+        await run {
+            let cred: AuthCredential = try await withCheckedThrowingContinuation { cont in
+                prov.getCredentialWith(nil) { c, e in
+                    if let c = c { cont.resume(returning: c) } else { cont.resume(throwing: e ?? NSError(domain: "nm", code: 1)) }
+                }
+            }
+            _ = try await Auth.auth().signIn(with: cred)
+        }
+    }
     static func randomNonce(_ n: Int = 32) -> String {
         let cs = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
         return String((0..<n).map { _ in cs[Int.random(in: 0..<cs.count)] })
     }
     static func sha256(_ s: String) -> String { SHA256.hash(data: Data(s.utf8)).map { String(format: "%02x", $0) }.joined() }
     func signOut() { try? Auth.auth().signOut() }
+    @Published var deleteMessage = ""
+    func deleteAccount() async {
+        guard let u = Auth.auth().currentUser else { return }
+        deleteMessage = "Deleting..."
+        do {
+            for name in ["tasks", "notes"] {
+                if let c = col(name) {
+                    let snap = try await c.getDocuments()
+                    for d in snap.documents { try await d.reference.delete() }
+                }
+            }
+            try await u.delete()
+            deleteMessage = ""
+            try? Auth.auth().signOut()
+        } catch {
+            let code = (error as NSError).code
+            deleteMessage = code == AuthErrorCode.requiresRecentLogin.rawValue
+                ? "For safety, please sign out, sign in again, then delete your account right away. Your tasks and notes were removed."
+                : "Could not delete: \(error.localizedDescription)"
+        }
+    }
     private func run(_ f: @escaping () async throws -> Void) async {
         message = ""; busy = true; defer { busy = false }
         do { try await f() } catch { message = error.localizedDescription }
@@ -108,7 +144,9 @@ final class Store: ObservableObject {
 
     // MARK: data
     func addTask(_ title: String, area: String, due: String) {
-        col("tasks")?.addDocument(data: ["title": title, "area": area, "due_on": due, "status": "waiting", "created": FieldValue.serverTimestamp()])
+        col("tasks")?.addDocument(data: ["title": title, "area": area, "due_on": due, "status": "waiting", "created": FieldValue.serverTimestamp()]) { [weak self] err in
+            if let err { Task { @MainActor in self?.message = "Could not save your task: \(err.localizedDescription)" } }
+        }
     }
     func toggle(_ t: TaskItem) {
         col("tasks")?.document(t.id).updateData(["status": t.isDone ? "waiting" : "done", "done_date": t.isDone ? "" : Store.today, "done_by": "user"])
@@ -121,4 +159,9 @@ final class Store: ObservableObject {
         if let id { c.document(id).setData(d, merge: true) } else { d["createdAt"] = now; d["version"] = 1; c.addDocument(data: d) }
     }
     func delete(_ n: NoteItem) { col(n.isPrompt ? "prompts" : "notes")?.document(n.id).delete() }
+
+    /// Plain-text copy of every note and prompt, for the Privacy and data screen.
+    var exportText: String {
+        notes.map { "# \($0.title)\n(\($0.isPrompt ? "Prompt" : "Note") · \($0.project) · \($0.ai))\n\n\($0.body)\n" }.joined(separator: "\n---\n\n")
+    }
 }
