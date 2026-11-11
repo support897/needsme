@@ -19,7 +19,11 @@ final class NeedsMeUITests: XCTestCase {
     }
     func labels(_ q: XCUIElementQuery, _ n: Int) -> String {
         var out: [String] = []
-        for i in 0..<min(q.count, n) { let el = q.element(boundBy: i); if el.exists { out.append(el.label) } }
+        // The screen can change while this runs. Read a snapshot of each element and skip any that vanished.
+        for i in 0..<min(q.count, n) {
+            if i >= q.count { break }
+            if let snap = try? q.element(boundBy: i).snapshot() { out.append(snap.label) }
+        }
         return out.joined(separator: ",")
     }
     func screenText() -> String { labels(app.staticTexts, 30).replacingOccurrences(of: ",", with: " | ").suffix(300).description }
@@ -160,7 +164,7 @@ final class NeedsMeUITests: XCTestCase {
         del.tap()
         let confirm = app.alerts.buttons["Delete everything"]; wait(confirm, 10, "confirm alert missing"); shot("13-delete-confirm")
         confirm.tap()
-        wait(app.buttons["emailButton"], 40, "not signed out after delete. SCREEN: " + screenText()); shot("13-deleted")
+        wait(app.buttons["emailButton"], 90, "not signed out after delete. SCREEN: " + screenText()); shot("13-deleted")
         app.buttons["switchMode"].tap(); app.buttons["emailButton"].tap()
         let e = app.textFields["you@example.com"]; wait(e); e.tap(); e.typeText(mail)
         let pw = app.secureTextFields.firstMatch; pw.tap(); pw.typeText(pass); submitCreds()

@@ -217,17 +217,13 @@ final class Store: ObservableObject {
         guard let u = Auth.auth().currentUser else { return }
         deleteMessage = "Deleting..."
         do {
-            if let rc = col("rooms") {
-                for r in try await rc.getDocuments().documents {
-                    for m in try await r.reference.collection("messages").getDocuments().documents { try await m.reference.delete() }
-                    try await r.reference.delete()
+            // The sweeps do not depend on each other, so they run together. Each one deletes in batches.
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                group.addTask { try await self.sweepRooms() }
+                for name in ["tasks", "notes", "prompts", "needs", "settings"] {
+                    group.addTask { try await self.sweep(name) }
                 }
-            }
-            for name in ["tasks", "notes", "prompts", "needs", "settings"] {
-                if let c = col(name) {
-                    let snap = try await c.getDocuments()
-                    for d in snap.documents { try await d.reference.delete() }
-                }
+                try await group.waitForAll()
             }
             try await u.delete()
             deleteMessage = ""
@@ -239,6 +235,37 @@ final class Store: ObservableObject {
                 : "Could not delete: \(error.localizedDescription)"
         }
     }
+    /// Deletes every document in one collection of her space, in batches.
+    private func sweep(_ name: String) async throws {
+        guard let c = col(name) else { return }
+        let snap = try await c.getDocuments()
+        try await wipe(snap.documents.map { $0.reference })
+    }
+    /// Each room and its messages. The rooms are swept together.
+    private func sweepRooms() async throws {
+        guard let rc = col("rooms") else { return }
+        let ids = try await rc.getDocuments().documents.map { $0.documentID }
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            for id in ids { group.addTask { try await self.sweepRoom(id) } }
+            try await group.waitForAll()
+        }
+    }
+    private func sweepRoom(_ id: String) async throws {
+        guard let r = col("rooms")?.document(id) else { return }
+        let msgs = try await r.collection("messages").getDocuments().documents.map { $0.reference }
+        try await wipe(msgs + [r])
+    }
+    /// Batch delete, 400 at a time (a batch holds at most 500).
+    private func wipe(_ refs: [DocumentReference]) async throws {
+        var i = 0
+        while i < refs.count {
+            let batch = db.batch()
+            for ref in refs[i..<min(i + 400, refs.count)] { batch.deleteDocument(ref) }
+            try await batch.commit()
+            i += 400
+        }
+    }
+
     private func run(_ f: @escaping () async throws -> Void) async {
         message = ""; busy = true; defer { busy = false }
         do { try await f() } catch { message = error.localizedDescription }
