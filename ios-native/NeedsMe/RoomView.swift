@@ -228,7 +228,7 @@ final class RoomEngine: ObservableObject {
             guard !text.isEmpty, let m = remember(author: a.id, text: text, needsYou: need != nil) else { return }
             if let need {
                 // An AI never finalises its own proposal. File it and wait for the user.
-                store.addNeed(text: need, ai: a.label, roomId: roomId)
+                store.addNeed(text: need, ai: a.label, roomId: roomId, messageId: m.id)
                 paused = true
                 autoRead()
                 return
@@ -239,8 +239,9 @@ final class RoomEngine: ObservableObject {
 
     // MARK: the loop: detect, file, sync
 
-    private func readerAccount() -> AIAccount? {
-        AIConnections.shared.connected.sorted { $0.label.lowercased() < $1.label.lowercased() }.first
+    /// Connected accounts in label order. The first is asked first. If its read fails, the next is asked.
+    private func readerAccounts() -> [AIAccount] {
+        AIConnections.shared.connected.sorted { $0.label.lowercased() < $1.label.lowercased() }
     }
 
     /// One read each time a chain settles (cap reached, Needs You pause, Stop). Never two reads at once.
@@ -270,7 +271,8 @@ final class RoomEngine: ObservableObject {
 
     private func readTalk(manual: Bool) async {
         if reading { return }
-        guard let reader = readerAccount(), let key = AIKeys.load(reader.id) else {
+        let readers = readerAccounts().filter { AIKeys.load($0.id) != nil }
+        guard !readers.isEmpty else {
             if manual { fileNote = "No AI is connected yet, so nothing can be filed. Connect one in the Connect screen." }
             return
         }
@@ -285,22 +287,36 @@ final class RoomEngine: ObservableObject {
         let transcript = history.map { "\(displayName($0.author)): \($0.text)" }.joined(separator: "\n")
         let system = "You read a room conversation and report only what it clearly states. Never invent. Never guess. Answer with JSON only, no other words, in exactly this shape: {\"project\": string or null, \"done\": [strings], \"todo\": [strings]}. project is the name of the project the talk is about, or null if no project is clearly named. done lists work the talk clearly says is finished. todo lists work the talk clearly says is still to do. Use short plain words taken from the talk."
         let ask = "Room: \(title)\n\nTalk:\n\(transcript)"
-        let result = await AIClient.chat(reader, key: key, system: system, messages: [ChatMsg(role: "user", text: ask)], maxTokens: 800)
-        switch result {
-        case .failure(let e):
-            fileNote = ""
-            note("\(reader.label) could not read the talk: \(e.reason)")
-        case .success(let raw):
-            guard let found = RoomEngine.parseReader(raw) else {
-                fileNote = ""
-                note("Nothing clear to file from this talk yet.")
-                return
+        // Fall through: ask each connected account in turn. Only a failed call moves on to the next one.
+        var firstFailure: (label: String, reason: String)? = nil
+        var answer: (reader: AIAccount, raw: String)? = nil
+        for r in readers {
+            guard let key = AIKeys.load(r.id) else { continue }
+            let result = await AIClient.chat(r, key: key, system: system, messages: [ChatMsg(role: "user", text: ask)], maxTokens: 800)
+            switch result {
+            case .failure(let e):
+                if firstFailure == nil { firstFailure = (r.label, e.reason) }
+            case .success(let raw):
+                answer = (r, raw)
             }
-            let name = store.fileFromTalk(project: found.project, done: found.done, todo: found.todo, room: title, by: reader.label)
-            store.setRoomProject(roomId: roomId, project: name)
-            fileNote = "Filed under \(name)."
-            postList(project: name, extraTodo: found.todo, done: found.done)
+            if answer != nil { break }
         }
+        guard let got = answer else {
+            fileNote = ""
+            let f = firstFailure
+            note("\(f?.label ?? "An AI") could not read the talk: \(f?.reason ?? "no answer"). No other connected AI could read it either.")
+            return
+        }
+        let reader = got.reader
+        guard let found = RoomEngine.parseReader(got.raw) else {
+            fileNote = ""
+            note("Nothing clear to file from this talk yet.")
+            return
+        }
+        let name = store.fileFromTalk(project: found.project, done: found.done, todo: found.todo, room: title, by: reader.label)
+        store.setRoomProject(roomId: roomId, project: name)
+        fileNote = "Filed under \(name)."
+        postList(project: name, extraTodo: found.todo, done: found.done)
     }
 
     /// Strict: the reply must be one JSON object. A null or empty project, or two empty lists, files nothing.

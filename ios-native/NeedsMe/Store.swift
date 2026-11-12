@@ -24,7 +24,7 @@ struct TaskItem: Identifiable {
 }
 struct RoomItem: Identifiable { let id: String; var title: String; var project: String = "" }
 struct RoomMessage: Identifiable { let id: String; var author: String; var text: String; var needsYou: Bool; var createdAt: Date? }
-struct NeedItem: Identifiable { let id: String; var text: String; var ai: String; var roomId: String; var status: String }
+struct NeedItem: Identifiable { let id: String; var text: String; var ai: String; var roomId: String; var status: String; var messageId: String = "" }
 struct NoteItem: Identifiable {
     let id: String; var title: String; var body: String; var project: String; var ai: String; var isPrompt: Bool
     /// Project names (a project is its name in this app). A note can hold several, a prompt holds at most one.
@@ -68,6 +68,10 @@ final class Store: ObservableObject {
     private var handles: [ListenerRegistration] = []
     private var authHandle: AuthStateDidChangeListenerHandle?
     private var ticker: Timer?
+    // Relay registry: one sync write per sign in, once both lists have arrived from the server.
+    private var roomsFresh = false
+    private var promptsFresh = false
+    private var registrySynced = false
     private var firing: Set<String> = []
     private lazy var db: Firestore = { FirebaseBoot.ensure(); return Firestore.firestore() }()
 
@@ -76,7 +80,10 @@ final class Store: ObservableObject {
     init() {
         FirebaseBoot.ensure()
         authHandle = Auth.auth().addStateDidChangeListener { [weak self] _, u in
-            Task { @MainActor in self?.user = u; self?.listen() }
+            Task { @MainActor in
+                self?.user = u; self?.listen()
+                if u != nil { Task { await self?.fileUnfiledNeeds() } }
+            }
         }
         startScheduler()
     }
@@ -95,6 +102,7 @@ final class Store: ObservableObject {
     private func listen() {
         handles.forEach { $0.remove() }; handles = []; tasks = []; notes = []; rooms = []; needs = []
         cloudTheme = nil; cloudThemeLoaded = false; cloudName = nil
+        roomsFresh = false; promptsFresh = false; registrySynced = false
         guard user != nil else { return }
         if let c = col("settings") {
             handles.append(c.document("app").addSnapshotListener { [weak self] snap, _ in
@@ -128,7 +136,11 @@ final class Store: ObservableObject {
                 if let e { Task { @MainActor in self?.roomError = "Could not load rooms: \(e.localizedDescription)" } }
                 guard let s else { return }
                 let items = s.documents.map { d in RoomItem(id: d.documentID, title: d.data()["title"] as? String ?? "Room", project: d.data()["project"] as? String ?? "") }
-                Task { @MainActor in self?.rooms = items }
+                let fresh = !s.metadata.isFromCache
+                Task { @MainActor in
+                    self?.rooms = items
+                    if fresh { self?.roomsFresh = true; self?.syncRegistryOnce() }
+                }
             })
         }
         if let c = col("needs") {
@@ -137,7 +149,7 @@ final class Store: ObservableObject {
                 guard let s else { return }
                 let items = s.documents.map { d -> NeedItem in
                     let x = d.data()
-                    return NeedItem(id: d.documentID, text: x["text"] as? String ?? "", ai: x["ai"] as? String ?? "", roomId: x["roomId"] as? String ?? "", status: x["status"] as? String ?? "open")
+                    return NeedItem(id: d.documentID, text: x["text"] as? String ?? "", ai: x["ai"] as? String ?? "", roomId: x["roomId"] as? String ?? "", status: x["status"] as? String ?? "open", messageId: x["messageId"] as? String ?? "")
                 }
                 Task { @MainActor in self?.needs = items }
             })
@@ -161,9 +173,11 @@ final class Store: ObservableObject {
                                     room: x["room"] as? String ?? "", roomTitle: x["roomTitle"] as? String ?? "", state: x["state"] as? String ?? "",
                                     scheduledFor: (x["scheduledFor"] as? Timestamp)?.dateValue(), sentAt: (x["sentAt"] as? Timestamp)?.dateValue())
                 }
+                let fresh = !s.metadata.isFromCache
                 Task { @MainActor in
                     if isPrompt { prompts = items } else { plain = items }
                     merge(self)
+                    if isPrompt && fresh { self?.promptsFresh = true; self?.syncRegistryOnce() }
                 }
             })
         }
@@ -171,7 +185,22 @@ final class Store: ObservableObject {
 
     // MARK: auth
     func signIn(_ e: String, _ p: String) async { await run { _ = try await Auth.auth().signIn(withEmail: e, password: p) } }
-    func signUp(_ e: String, _ p: String) async { await run { _ = try await Auth.auth().createUser(withEmail: e, password: p) } }
+    /// Sign up. On a network error only, try once more with the same values. If that retry says the address is
+    /// already in use, the first try landed, so go on to sign in with the same credentials. Any other retry
+    /// outcome is the same as a single try. No retry anywhere else.
+    func signUp(_ e: String, _ p: String) async {
+        await run {
+            do {
+                _ = try await Auth.auth().createUser(withEmail: e, password: p)
+            } catch let first as NSError where first.code == AuthErrorCode.networkError.rawValue {
+                do {
+                    _ = try await Auth.auth().createUser(withEmail: e, password: p)
+                } catch let second as NSError where second.code == AuthErrorCode.emailAlreadyInUse.rawValue {
+                    _ = try await Auth.auth().signIn(withEmail: e, password: p)
+                }
+            }
+        }
+    }
     func reset(_ e: String) async { await run { try await Auth.auth().sendPasswordReset(withEmail: e); self.message = "Reset email sent." } }
     func guest() async { await run { _ = try await Auth.auth().signInAnonymously() } }
     // Apple door: real flow. Finishes only when Apple is enabled in Firebase (parked).
@@ -307,12 +336,15 @@ final class Store: ObservableObject {
     /// Notes and prompts are one shape in Firestore under users/{uid}/notes and users/{uid}/prompts.
     /// There is no delete for a note anywhere in the app. Archive is the only way out of sight.
     @discardableResult
-    func saveNote(id: String?, title: String, body: String, isPrompt: Bool, extra: [String: Any] = [:]) -> String? {
+    func saveNote(id: String?, title: String, body: String, isPrompt: Bool, extra: [String: Any] = [:], landed: ((String) -> Void)? = nil) -> String? {
         guard let c = col(isPrompt ? "prompts" : "notes") else { return nil }
         let now = FieldValue.serverTimestamp()
         var d: [String: Any] = ["title": title, "body": body, "updatedAt": now]
         for (k, v) in extra { d[k] = v }
-        if let id { c.document(id).setData(d, merge: true); return id }
+        if let id {
+            c.document(id).setData(d, merge: true) { err in if err == nil { landed?(id) } }
+            return id
+        }
         let ref = c.document()
         d["createdAt"] = now; d["version"] = 1; d["archived"] = false
         if d["project"] == nil { d["project"] = "Unsorted" }
@@ -320,6 +352,7 @@ final class Store: ObservableObject {
         if d["ai"] == nil { d["ai"] = "Any AI" }
         ref.setData(d) { [weak self] err in
             if let err { Task { @MainActor in self?.message = "Could not save: \(err.localizedDescription)" } }
+            else { landed?(ref.documentID) }
         }
         return ref.documentID
     }
@@ -390,7 +423,12 @@ final class Store: ObservableObject {
         var extra: [String: Any] = ["room": room?.id ?? "", "roomTitle": room?.title ?? ""]
         if sendNow { extra["state"] = "sent"; extra["sentAt"] = Timestamp(date: Date()) }
         else { extra["state"] = "scheduled"; extra["scheduledFor"] = Timestamp(date: at) }
-        let newId = saveNote(id: id, title: title, body: body, isPrompt: true, extra: extra)
+        // After the prompt lands, the relay registry hears about it: scheduled adds it, sent takes it off.
+        let newId = saveNote(id: id, title: title, body: body, isPrompt: true, extra: extra) { [weak self] landedId in
+            Task { @MainActor in
+                if sendNow || room == nil { self?.registryPrompts(removing: landedId) } else { self?.registryPrompts(adding: landedId) }
+            }
+        }
         if sendNow, let room { PromptSender.post(store: self, roomId: room.id, text: body) }
         if let newId { autoMatch(id: newId, isPrompt: true, title: title, body: body) }
     }
@@ -398,7 +436,9 @@ final class Store: ObservableObject {
     /// One tap on a saved prompt that has a room.
     func sendPromptNow(_ n: NoteItem) {
         guard n.isPrompt, !n.room.isEmpty, n.state != "sent" else { return }
-        col("prompts")?.document(n.id).updateData(["state": "sent", "sentAt": Timestamp(date: Date())])
+        col("prompts")?.document(n.id).updateData(["state": "sent", "sentAt": Timestamp(date: Date())]) { [weak self] err in
+            if err == nil { Task { @MainActor in self?.registryPrompts(removing: n.id) } }
+        }
         PromptSender.post(store: self, roomId: n.room, text: n.body)
     }
 
@@ -420,7 +460,9 @@ final class Store: ObservableObject {
             guard let at = n.scheduledFor, at <= now, !n.room.isEmpty, rooms.contains(where: { $0.id == n.room }) else { continue }
             firing.insert(n.id)
             let sent = Date()
-            col("prompts")?.document(n.id).updateData(["state": "sent", "sentAt": Timestamp(date: sent)])
+            col("prompts")?.document(n.id).updateData(["state": "sent", "sentAt": Timestamp(date: sent)]) { [weak self] err in
+                if err == nil { Task { @MainActor in self?.registryPrompts(removing: n.id) } }
+            }
             PromptSender.post(store: self, roomId: n.room, text: n.body)
             _ = addRoomMessage(roomId: n.room, author: "system",
                                text: "Scheduled prompt \(n.title). Set for \(Store.niceTime(at)). Sent at \(Store.niceTime(sent)).")
@@ -495,6 +537,60 @@ final class Store: ObservableObject {
         col("rooms")?.document(roomId).updateData(["project": project])
     }
 
+    // MARK: relay registry. One document per user: _relayRegistry/{uid} = { rooms: [roomId], prompts: [promptId], updatedAt }.
+    // Ids and updatedAt only. Never keys, titles or bodies. These writes never block the action they ride on,
+    // run only after the main write lands, and swallow their errors. The sign in sync repairs any miss.
+    private var registryDoc: DocumentReference? {
+        guard let u = user else { return nil }
+        return db.collection("_relayRegistry").document(u.uid)
+    }
+    private func scheduledPromptIds() -> [String] {
+        notes.filter { $0.isPrompt && $0.state == "scheduled" && !$0.room.isEmpty }.map { $0.id }
+    }
+    /// Rewrites rooms[]. The change just made is passed in, because the local list may not show it yet.
+    func registryRooms(adding: String? = nil, removing: String? = nil) {
+        var ids = rooms.map { $0.id }.filter { $0 != removing }
+        if let a = adding, !ids.contains(a) { ids.append(a) }
+        registryDoc?.setData(["rooms": ids, "updatedAt": FieldValue.serverTimestamp()], merge: true) { _ in }
+    }
+    /// Rewrites prompts[] (the scheduled prompts).
+    func registryPrompts(adding: String? = nil, removing: String? = nil) {
+        var ids = scheduledPromptIds().filter { $0 != removing }
+        if let a = adding, !ids.contains(a) { ids.append(a) }
+        registryDoc?.setData(["prompts": ids, "updatedAt": FieldValue.serverTimestamp()], merge: true) { _ in }
+    }
+    /// On every sign in: one write of both arrays from the app's own lists.
+    private func syncRegistryOnce() {
+        guard roomsFresh, promptsFresh, !registrySynced else { return }
+        registrySynced = true
+        registryDoc?.setData(["rooms": rooms.map { $0.id }, "prompts": scheduledPromptIds(), "updatedAt": FieldValue.serverTimestamp()], merge: true) { _ in }
+    }
+
+    // MARK: on open filing pass for NEEDS-YOU messages the relay posted while the app was closed
+    /// For each room, any message flagged needsYou that is not filed yet files its needs item (same shape as the
+    /// live turn filing, through addNeed) and is marked filed. Quiet: errors are swallowed, nothing is shown.
+    func fileUnfiledNeeds() async {
+        guard let rc = col("rooms"), let nc = col("needs") else { return }
+        guard let roomDocs = try? await rc.getDocuments().documents else { return }
+        guard let needDocs = try? await nc.getDocuments().documents else { return }
+        var filedFor: Set<String> = Set(needDocs.compactMap { $0.data()["messageId"] as? String })
+        for r in roomDocs {
+            guard let flagged = try? await r.reference.collection("messages").whereField("needsYou", isEqualTo: true).getDocuments().documents else { continue }
+            for m in flagged {
+                let x = m.data()
+                if (x["filed"] as? Bool) == true { continue }
+                if filedFor.contains(m.documentID) { m.reference.updateData(["filed": true]) { _ in }; continue }
+                let raw = x["text"] as? String ?? ""
+                let (body, line) = RoomEngine.splitNeed(raw)
+                let need = line ?? body
+                if need.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { continue }
+                let author = x["author"] as? String ?? ""
+                addNeed(text: need, ai: AIConnections.shared.displayName(author), roomId: r.documentID, messageId: m.documentID)
+                filedFor.insert(m.documentID)
+            }
+        }
+    }
+
     // MARK: rooms (every write stays inside users/{uid}/)
     func roomMessagesCollection(_ roomId: String) -> CollectionReference? {
         col("rooms")?.document(roomId).collection("messages")
@@ -502,10 +598,12 @@ final class Store: ObservableObject {
     func createRoom(_ title: String) -> String? {
         guard let c = col("rooms") else { return nil }
         let ref = c.document()
+        let newId = ref.documentID
         ref.setData(["title": title, "createdAt": FieldValue.serverTimestamp()]) { [weak self] err in
             if let err { Task { @MainActor in self?.roomError = "Could not save the room: \(err.localizedDescription)" } }
+            else { Task { @MainActor in self?.registryRooms(adding: newId) } }
         }
-        return ref.documentID
+        return newId
     }
     /// Writes one message and returns its id right away. Author is the uid, an AI id, or "system".
     func addRoomMessage(roomId: String, author: String, text: String, needsYou: Bool = false) -> String? {
@@ -516,9 +614,16 @@ final class Store: ObservableObject {
         }
         return ref.documentID
     }
-    func addNeed(text: String, ai: String, roomId: String) {
-        col("needs")?.addDocument(data: ["text": text, "ai": ai, "roomId": roomId, "source": "room", "status": "open", "createdAt": FieldValue.serverTimestamp()]) { [weak self] err in
+    /// Files one needs item. When it comes from a message, the message id rides on the item and the
+    /// message is marked filed, so the same message never files twice.
+    func addNeed(text: String, ai: String, roomId: String, messageId: String = "") {
+        var d: [String: Any] = ["text": text, "ai": ai, "roomId": roomId, "source": "room", "status": "open", "createdAt": FieldValue.serverTimestamp()]
+        if !messageId.isEmpty { d["messageId"] = messageId }
+        col("needs")?.addDocument(data: d) { [weak self] err in
             if let err { Task { @MainActor in self?.roomError = "Could not save the need: \(err.localizedDescription)" } }
+            else if !messageId.isEmpty {
+                Task { @MainActor in self?.col("rooms")?.document(roomId).collection("messages").document(messageId).updateData(["filed": true]) { _ in } }
+            }
         }
     }
     func resolveNeed(_ n: NeedItem) { col("needs")?.document(n.id).updateData(["status": "done"]) }

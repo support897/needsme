@@ -39,6 +39,10 @@ struct PipTour: View {
             .overlay(RoundedRectangle(cornerRadius: 22).stroke(p.line))
             .padding(12).shadow(radius: 12, y: 4)
             .accessibilityElement(children: .contain).accessibilityLabel("Pip's guide")
+            // Sliding right goes back one step, like the back swipe everywhere else.
+            .gesture(DragGesture(minimumDistance: 30).onEnded { v in
+                if v.translation.width > 60, abs(v.translation.height) < 60, step > 0 { go(-1) }
+            })
         }
     }
     func go(_ d: Int) {

@@ -38,6 +38,11 @@ final class NeedsMeUITests: XCTestCase {
         let go = app.keyboards.buttons["Go"]
         if go.waitForExistence(timeout: 3) { go.tap() } else { app.buttons["emailSubmit"].tap() }
     }
+    /// The door shape: the first page, then the email button opens the email page.
+    func openEmailPage() {
+        wait(app.buttons["emailButton"]); app.buttons["emailButton"].tap()
+        wait(app.textFields["you@example.com"], 15, "email page did not open")
+    }
     func openAddTask() {
         for _ in 0..<4 {
             wait(app.buttons["Add a task"]); app.buttons["Add a task"].tap()
@@ -45,9 +50,9 @@ final class NeedsMeUITests: XCTestCase {
         }
     }
     func signUpFresh() -> (String, String) {
-        let mail = "projects.reports.ilse+nmui\(Int.random(in: 1000...9999))@gmail.com"
+        let mail = "nmui.tests+nmui\(Int.random(in: 1000...9999))@example.com"
         let pass = "Nm" + UUID().uuidString.prefix(10) + "!"
-        wait(app.buttons["emailButton"]); app.buttons["emailButton"].tap()
+        openEmailPage()
         let email = app.textFields["you@example.com"]; wait(email); email.tap(); email.typeText(mail)
         let pw = app.secureTextFields.firstMatch; pw.tap(); pw.typeText(pass); submitCreds()
         for _ in 0..<3 {
@@ -59,17 +64,20 @@ final class NeedsMeUITests: XCTestCase {
     }
     func text(_ s: String) -> XCUIElement { app.staticTexts[s] }
 
-    // 01 first screen is sign up with Apple, Google, email; Google door is honest; bad login shows error
+    // 01 the door: first page is only Google, Apple and one small email button; email opens its own page; bad login shows error
     func test01_SignUpFirstAndInvalidLogin() {
         wait(app.buttons["emailButton"]); shot("01-signup-first")
-        XCTAssertTrue(app.staticTexts["Welcome to NeedsMe Ai"].exists, "sign up is not the first screen")
+        XCTAssertEqual(app.textFields.count + app.secureTextFields.count, 0, "the first page must not hold an email form")
+        XCTAssertFalse(app.buttons["switchMode"].exists, "the mode switch belongs on the email page")
+        XCTAssertFalse(app.buttons["emailSubmit"].exists, "the submit button belongs on the email page")
         XCTAssertTrue(app.buttons["appleButton"].exists, "Apple button missing")
         XCTAssertTrue(app.buttons["googleButton"].exists, "Google button missing")
         XCTAssertTrue(app.buttons["emailButton"].exists, "Email button missing")
         shot("01-google-door")
-        app.buttons["switchMode"].tap(); wait(app.staticTexts["Welcome back"])
-        app.buttons["emailButton"].tap()
-        let email = app.textFields["you@example.com"]; wait(email); email.tap(); email.typeText("projects.reports.ilse+nmui0000@gmail.com")
+        openEmailPage(); shot("01-email-page")
+        XCTAssertTrue(app.buttons["emailSubmit"].exists, "submit missing on the email page")
+        app.buttons["switchMode"].tap(); wait(app.buttons["Sign in"], 10, "mode switch did not change the page to sign in")
+        let email = app.textFields["you@example.com"]; wait(email); email.tap(); email.typeText("nmui.tests+nmui0000@example.com")
         let pw = app.secureTextFields.firstMatch; pw.tap(); pw.typeText("wrong-pass-123"); submitCreds()
         if !app.staticTexts["authMessage"].waitForExistence(timeout: 15) { app.buttons["emailSubmit"].tap() }
         wait(app.staticTexts["authMessage"], 40, "no error for invalid login"); shot("01-invalid-login")
@@ -126,10 +134,9 @@ final class NeedsMeUITests: XCTestCase {
     // 03 real email sign-up with random test account, skip tour, data persists across sign-out/in
     func test03_EmailSignUpSignInRoundTrip() {
         let tag = String(Int.random(in: 1000...9999))
-        let mail = "projects.reports.ilse+nmui\(tag)@gmail.com"
+        let mail = "nmui.tests+nmui\(tag)@example.com"
         let pass = "Nm" + UUID().uuidString.prefix(10) + "!"
-        wait(app.buttons["emailButton"])
-        app.buttons["emailButton"].tap()
+        openEmailPage()
         let email = app.textFields["you@example.com"]; email.tap(); email.typeText(mail)
         let pw = app.secureTextFields.firstMatch; pw.tap(); pw.typeText(pass)
         app.buttons["emailSubmit"].tap()
@@ -139,7 +146,7 @@ final class NeedsMeUITests: XCTestCase {
         let f = app.textFields["What needs doing?"]; wait(f, 20, "add-task sheet missing. SCREEN: " + screenText()); f.tap(); f.typeText("Persist me"); app.buttons["Save"].tap(); wait(text("Persist me"))
         app.tabBars.buttons["More"].tap(); app.buttons["Sign out"].tap()
         wait(app.buttons["emailButton"])
-        app.buttons["switchMode"].tap(); app.buttons["emailButton"].tap()
+        openEmailPage(); app.buttons["switchMode"].tap()
         let e2 = app.textFields["you@example.com"]; wait(e2); e2.tap(); e2.typeText(mail)
         let p2 = app.secureTextFields.firstMatch; p2.tap(); p2.typeText(pass); submitCreds()
         for _ in 0..<3 {
@@ -165,7 +172,7 @@ final class NeedsMeUITests: XCTestCase {
         let confirm = app.alerts.buttons["Delete everything"]; wait(confirm, 10, "confirm alert missing"); shot("13-delete-confirm")
         confirm.tap()
         wait(app.buttons["emailButton"], 90, "not signed out after delete. SCREEN: " + screenText()); shot("13-deleted")
-        app.buttons["switchMode"].tap(); app.buttons["emailButton"].tap()
+        openEmailPage(); app.buttons["switchMode"].tap()
         let e = app.textFields["you@example.com"]; wait(e); e.tap(); e.typeText(mail)
         let pw = app.secureTextFields.firstMatch; pw.tap(); pw.typeText(pass); submitCreds()
         if !app.staticTexts["authMessage"].waitForExistence(timeout: 15) { app.buttons["emailSubmit"].tap() }
@@ -294,5 +301,16 @@ final class NeedsMeUITests: XCTestCase {
         wait(app.buttons["nameRow"], 10, "More name row missing")
         XCTAssertTrue(app.buttons["nameRow"].label.contains("Add your name"), "row should offer Add your name")
         shot("19-name-row")
+    }
+
+    // 11 Swipe law on the door: the email page slides back to the first page.
+    func test11_SwipeBackFromEmailPage() {
+        openEmailPage()
+        let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.5))
+        let to = app.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.5))
+        from.press(forDuration: 0.1, thenDragTo: to)
+        wait(app.buttons["googleButton"], 10, "swipe back did not return to the first page")
+        XCTAssertFalse(app.textFields["you@example.com"].exists, "email page still showing after swipe back")
+        shot("20-swipe-back")
     }
 }
