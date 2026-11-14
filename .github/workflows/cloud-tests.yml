@@ -1,0 +1,71 @@
+name: NeedsMe cloud tests (test only)
+
+# Test-only lane on GitHub's cloud Macs, copied from Fit Hard's proven
+# ios-native.yml shape (one job; shipping structurally absent). This file
+# can NEVER upload: there is no ship job and no signing material in it.
+# Shipping stays in ui-tests.yml / testflight.yml, on the Boss's ship word.
+# It tests the newest state pushed to qa-fixes-2026-10-26. While the 341
+# tree stands uncommitted on Ilse's Mac, this lane tests the GitHub state
+# (build 340 sources) and its result is never a 341 result.
+
+on:
+  push:
+    branches: [qa-fixes-2026-10-26]
+    paths: ['ios-native.tar.gz', '.github/workflows/cloud-tests.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unpack source
+        run: |
+          if [ -f ios-native.tar.gz ]; then tar xzf ios-native.tar.gz; fi
+      - name: Pick newest Xcode
+        run: |
+          X=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          [ -n "$X" ] && sudo xcode-select -s "$X"
+          xcodebuild -version
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Contrast check (all themes)
+        run: python3 ios-native/contrast.py | tee $RUNNER_TEMP/contrast.txt
+      - name: Generate project
+        working-directory: ios-native
+        run: xcodegen generate
+      - name: Run UI tests in simulator
+        working-directory: ios-native
+        run: |
+          set -o pipefail
+          LINE=$(xcrun simctl list devices available | grep -E '^\s+iPhone [0-9]+ \(' | head -1)
+          DEV=$(echo "$LINE" | grep -oE '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}')
+          echo "device: $LINE" > $RUNNER_TEMP/dev.txt
+          xcrun simctl boot "$DEV" || true
+          mkdir -p $RUNNER_TEMP/shots
+          TEST_RUNNER_SHOT_DIR=$RUNNER_TEMP/shots xcodebuild test -project NeedsMe.xcodeproj -scheme NeedsMe \
+            -destination "platform=iOS Simulator,id=$DEV" -resultBundlePath $RUNNER_TEMP/r.xcresult \
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="-" DEVELOPMENT_TEAM="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=YES 2>&1 | tee $RUNNER_TEMP/test.log
+          grep -q "TEST SUCCEEDED" $RUNNER_TEMP/test.log
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo '## Cloud test results (GitHub state, not build 341)'; cat $RUNNER_TEMP/dev.txt 2>/dev/null; cat $RUNNER_TEMP/contrast.txt 2>/dev/null
+            echo '```'
+            grep -E "Test Case .*(passed|failed)|error:|XCTAssert|failed -|Executed|TEST (SUCCEEDED|FAILED)|BUILD" $RUNNER_TEMP/test.log | cut -c1-300 | tail -40
+            echo '```'
+            ls $RUNNER_TEMP/shots 2>/dev/null | head -50
+          } >> $GITHUB_STEP_SUMMARY
+      - name: Save screenshots and result bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloud-test-evidence
+          path: |
+            ${{ runner.temp }}/shots
+            ${{ runner.temp }}/r.xcresult
+          if-no-files-found: warn
