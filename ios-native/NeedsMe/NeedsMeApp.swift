@@ -1,6 +1,7 @@
 import SwiftUI
 import FirebaseCore
 import FirebaseAuth
+import GoogleSignIn
 
 /// Crash fix (build 121): Firebase must be configured exactly once, from code,
 /// before anything touches Auth or Firestore. No GoogleService-Info.plist needed.
@@ -38,6 +39,7 @@ struct NeedsMeApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
+                .onOpenURL { _ = GIDSignIn.sharedInstance.handle($0) }
                 .environmentObject(store)
                 .environment(\.palette, AppTheme.from(themeRaw).palette)
                 .preferredColorScheme(AppTheme.from(themeRaw).scheme)

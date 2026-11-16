@@ -2,6 +2,8 @@ import Foundation
 import SwiftUI
 import UIKit
 import FirebaseAuth
+import FirebaseCore
+import GoogleSignIn
 import FirebaseFirestore
 import AuthenticationServices
 import CryptoKit
@@ -306,7 +308,6 @@ final class Store: ObservableObject {
             await run { _ = try await Auth.auth().signIn(with: cred) }
         }
     }
-    private var googleProvider: OAuthProvider?
     /// True when an error is the person closing the sign in page themselves. A cancel on any door
     /// is a quiet return to the door: no error line, nothing red, nothing painted (build 341, item 4).
     nonisolated static func isDoorCancel(_ e: Error) -> Bool {
@@ -315,23 +316,33 @@ final class Store: ObservableObject {
         if n.domain == "com.apple.AuthenticationServices.AuthorizationError" && n.code == 1000 { return true }
         return n.localizedDescription.lowercased().contains("cancel")
     }
+    /// Google door (build 342): the NATIVE Google Sign-In SDK, not Firebase's web redirect handler.
+    /// The old route (OAuthProvider.getCredentialWith) bounced through needs-me-480ea.firebaseapp.com/__/auth/handler
+    /// and died on a real phone with "missing initial state". Native sign-in hands back an ID token that goes
+    /// straight to Firebase as a credential, so no web page keeps state.
     func googleDoor() async {
-        let prov = OAuthProvider(providerID: "google.com")
-        prov.scopes = ["email", "profile"]
-        googleProvider = prov
         message = ""; busy = true
         defer { busy = false }
+        guard let cid = FirebaseApp.app()?.options.clientID else { message = "Google sign-in is not set up."; return }
+        GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: cid)
+        guard let top = Store.topViewController() else { message = "Could not open Google. Try again."; return }
         do {
-            let cred: AuthCredential = try await withCheckedThrowingContinuation { cont in
-                prov.getCredentialWith(nil) { c, e in
-                    if let c = c { cont.resume(returning: c) } else { cont.resume(throwing: e ?? NSError(domain: "nm", code: 1)) }
-                }
-            }
+            let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: top)
+            guard let idToken = result.user.idToken?.tokenString else { message = "Google sent nothing back. Try again."; return }
+            let cred = GoogleAuthProvider.credential(withIDToken: idToken, accessToken: result.user.accessToken.tokenString)
             _ = try await Auth.auth().signIn(with: cred)
         } catch {
             // Her own cancel is never an error. Anything else keeps the words it had before.
-            message = Store.isDoorCancel(error) ? "" : error.localizedDescription
+            let n = error as NSError
+            let cancelled = (n.domain == kGIDSignInErrorDomain && n.code == GIDSignInError.canceled.rawValue) || Store.isDoorCancel(error)
+            message = cancelled ? "" : error.localizedDescription
         }
+    }
+    static func topViewController() -> UIViewController? {
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first { $0.activationState == .foregroundActive } ?? UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        var vc = scene?.windows.first(where: { $0.isKeyWindow })?.rootViewController ?? scene?.windows.first?.rootViewController
+        while let p = vc?.presentedViewController { vc = p }
+        return vc
     }
     static func randomNonce(_ n: Int = 32) -> String {
         let cs = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
@@ -353,6 +364,8 @@ final class Store: ObservableObject {
                 }
                 try await group.waitForAll()
             }
+            // Build 342: the account's registry page goes too (it was left behind). Must run while still signed in.
+            try? await registryDoc?.delete()
             try await u.delete()
             deleteMessage = ""
             try? Auth.auth().signOut()
