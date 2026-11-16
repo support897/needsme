@@ -4,13 +4,45 @@ struct ProjectView: View {
     let name: String
     @EnvironmentObject var store: Store
     @Environment(\.palette) var p
+    var projectNeeds: [NeedItem] {
+        let roomIds = Set(store.rooms.filter { $0.project == name }.map { $0.id })
+        return store.needs.filter { $0.status == "open" && roomIds.contains($0.roomId) }
+    }
+    var projectRooms: [RoomItem] { store.rooms.filter { $0.project == name } }
+
     var body: some View {
         let pr = store.progress(name)
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 Card {
-                    Text("\(pr.done) of \(pr.total) tasks done").font(.headline).foregroundColor(p.ink)
-                    ProgressView(value: Double(pr.done), total: Double(max(pr.total, 1))).tint(p.accent)
+                    HStack(spacing: 8) {
+                        Circle().fill(ProjectColor.color(name)).frame(width: 12, height: 12)
+                        Text("\(pr.done) of \(pr.total) tasks done").font(.headline).foregroundColor(p.ink)
+                    }
+                    if let pct = store.percentDone(name) {
+                        Text("\(pct)% done, counted from this project's tasks").font(.subheadline).foregroundColor(p.soft)
+                        ProgressView(value: Double(pr.done), total: Double(max(pr.total, 1))).tint(ProjectColor.color(name))
+                    } else {
+                        Text("Progress not yet measurable. This project has no tasks yet.").font(.subheadline).foregroundColor(p.soft)
+                    }
+                }
+                if !projectNeeds.isEmpty {
+                    Text("Needs your attention").font(.title3.bold()).foregroundColor(p.ink)
+                    ForEach(projectNeeds) { n in
+                        Card {
+                            Text("\(n.ai) needs you").font(.headline).foregroundColor(p.ink)
+                            Text(n.text).font(.subheadline).foregroundColor(p.ink)
+                            Button("Done") { store.resolveNeed(n) }.buttonStyle(SoftButton()).frame(maxWidth: 140)
+                        }
+                    }
+                }
+                if !projectRooms.isEmpty {
+                    Text("Rooms").font(.title3.bold()).foregroundColor(p.ink)
+                    ForEach(projectRooms) { r in
+                        NavigationLink { RoomView(room: r, store: store) } label: {
+                            Card { Text(r.title).font(.headline).foregroundColor(p.ink) }
+                        }.buttonStyle(.plain)
+                    }
                 }
                 Text("Tasks").font(.title3.bold()).foregroundColor(p.ink)
                 let ts = store.tasks.filter { $0.area == name }

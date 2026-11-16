@@ -22,7 +22,8 @@ enum AppTheme: String, CaseIterable, Identifiable {
 struct Palette {
     var bg: Color, card: Color, ink: Color, soft: Color, accent: Color, accentInk: Color, chip: Color, line: Color
     var isDark: Bool { bg == Palette.dark.bg }
-    static let white = Palette(bg: Color(hex: 0xF4EFE7), card: Color(hex: 0xFFFEFA), ink: Color(hex: 0x16120E), soft: Color(hex: 0x6B6252), accent: Color(hex: 0xA8C256), accentInk: Color(hex: 0x16120E), chip: Color(hex: 0xEFE8DA), line: Color(hex: 0xD8D0C0))
+    // White (default): pure white page and card surfaces, soft neutral dividers and chips (HTML section 3).
+    static let white = Palette(bg: Color(hex: 0xFFFFFF), card: Color(hex: 0xFFFFFF), ink: Color(hex: 0x16120E), soft: Color(hex: 0x6B6252), accent: Color(hex: 0xA8C256), accentInk: Color(hex: 0x16120E), chip: Color(hex: 0xF1EEE6), line: Color(hex: 0xE3DED2))
     static let dark = Palette(bg: Color(hex: 0x1A1612), card: Color(hex: 0x262019), ink: Color(hex: 0xF3ECDF), soft: Color(hex: 0xA79C8C), accent: Color(hex: 0xA8C256), accentInk: Color(hex: 0x16120E), chip: Color(hex: 0x353026), line: Color(hex: 0x40392D))
     // Beige: a real warm beige family. Ground, card, ink, accent and chip all sit in the same sand and brown hues.
     static let beige = Palette(bg: Color(hex: 0xE6D8BC), card: Color(hex: 0xF3EAD6), ink: Color(hex: 0x2A1F10), soft: Color(hex: 0x57472E), accent: Color(hex: 0x7A4E1D), accentInk: Color(hex: 0xFFF8EA), chip: Color(hex: 0xD6C4A0), line: Color(hex: 0xBCA77D))

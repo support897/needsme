@@ -10,8 +10,7 @@ struct ConnectView: View {
         conns.accounts.map { "\($0.label): \(conns.status($0))" }.joined(separator: "\n")
     }
     var body: some View {
-        NavigationStack {
-            ScrollView {
+        ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     Card {
                         HStack { VStack(alignment: .leading) { Text("Set up, with Pip.").font(.title2.bold()); Text("Connect an AI in about a minute.").foregroundColor(p.soft) }; Spacer(); PipImage(size: 60) }.foregroundColor(p.ink)
@@ -38,16 +37,12 @@ struct ConnectView: View {
                         Text("An AI shows Connected only after its own test passed on this phone. A hand off is never shown as a live link.").font(.footnote).foregroundColor(p.soft)
                     }
                     KeysCard()
-                    Card {
-                        Text("Rooms").font(.headline).foregroundColor(p.ink)
-                        Text("Talk to your connected AIs in one room. Mention them by name.").font(.subheadline).foregroundColor(p.soft)
-                        NavigationLink { RoomsListView() } label: { Text("Open rooms").font(.system(.body, design: .rounded).weight(.semibold)).frame(maxWidth: .infinity).padding(.vertical, 12).background(p.chip).foregroundColor(p.ink).clipShape(Capsule()) }
-                            .accessibilityIdentifier("openRooms")
-                    }
+                    BringKeysCard()
                     AIRoutesCard()
+                    WorkToolsCard()
+                    CustomMCPCard()
                 }.padding()
-            }.background(p.bg).navigationTitle("Connect")
-        }
+        }.background(p.bg).navigationTitle("Connections")
     }
     func step(_ n: Int, _ t: String) -> some View {
         HStack(spacing: 10) {
@@ -60,27 +55,31 @@ struct ConnectView: View {
 /// Every AI gets a real, honestly named route. No "coming soon" bucket.
 /// Own key = you make a key at the AI's own page. Hand-off = the app copies your question,
 /// opens that AI's own app or page, and you paste the answer back into a note. Nothing here
-/// pretends to be a live link between the AI and this app.
+/// pretends to be a live link between the AI and this app. (HTML section 13 catalogue:
+/// method, capabilities, permissions, setup and limitations stand on every entry.)
 struct AIRoute: Identifiable {
     let id: String; let name: String; let kind: String; let how: String; let url: String
+    let category: String; let caps: String; let perms: String; let limits: String
 }
 let aiRoutes: [AIRoute] = [
-    AIRoute(id: "chatgpt", name: "ChatGPT / OpenAI", kind: "Own key", how: "Make a key, then use it in your AI app. Or hand off a question to ChatGPT.", url: "https://platform.openai.com/api-keys"),
-    AIRoute(id: "claude", name: "Claude", kind: "Own key", how: "Make a key at Anthropic, or hand off a question to Claude.", url: "https://console.anthropic.com/settings/keys"),
-    AIRoute(id: "gemini", name: "Gemini", kind: "Own key", how: "Make a key at Google AI Studio, or hand off a question to Gemini.", url: "https://aistudio.google.com/apikey"),
-    AIRoute(id: "copilot", name: "Microsoft Copilot", kind: "Hand-off", how: "Copy your question, open Copilot, paste the answer back into a note.", url: "https://copilot.microsoft.com"),
-    AIRoute(id: "claudecode", name: "Claude Code", kind: "Hand-off", how: "Copy a project prompt, paste it in Claude Code on your computer, bring the result back.", url: "https://claude.com/product/claude-code"),
-    AIRoute(id: "codex", name: "Codex", kind: "Hand-off", how: "Copy a project prompt, open Codex, bring the result back.", url: "https://chatgpt.com/codex"),
-    AIRoute(id: "cursor", name: "Cursor", kind: "Hand-off", how: "Copy a project prompt, paste it in Cursor, bring the result back.", url: "https://cursor.com"),
-    AIRoute(id: "polar", name: "Polar", kind: "Hand-off", how: "Copy a task prompt, open Polar, bring the result back.", url: "https://polarbrowser.com"),
-    AIRoute(id: "muse", name: "Muse", kind: "Hand-off", how: "Copy a task prompt, open Muse, bring the result back. (No link: open Muse yourself.)", url: ""),
-    AIRoute(id: "perplexity", name: "Perplexity", kind: "Own key", how: "Make a key at Perplexity, paste it above, then test it.", url: "https://www.perplexity.ai"),
-    AIRoute(id: "grok", name: "Grok", kind: "Own key", how: "Make a key at xAI, paste it above, then test it.", url: "https://grok.com"),
+    AIRoute(id: "chatgpt", name: "ChatGPT / OpenAI", kind: "Own key", how: "Make a key, then use it in your AI app. Or hand off a question to ChatGPT.", url: "https://platform.openai.com/api-keys", category: "AI assistants and models", caps: "Answers in rooms · reads talks · files to-dos", perms: "Your key is used only for calls you start", limits: "Needs credit on your OpenAI account to answer"),
+    AIRoute(id: "claude", name: "Claude", kind: "Own key", how: "Make a key at Anthropic, or hand off a question to Claude.", url: "https://console.anthropic.com/settings/keys", category: "AI assistants and models", caps: "Answers in rooms · reads talks · files to-dos", perms: "Your key is used only for calls you start", limits: "Needs credit on your Anthropic account to answer"),
+    AIRoute(id: "gemini", name: "Gemini", kind: "Own key", how: "Make a key at Google AI Studio, or hand off a question to Gemini.", url: "https://aistudio.google.com/apikey", category: "AI assistants and models", caps: "Answers in rooms · reads talks · files to-dos", perms: "Your key is used only for calls you start", limits: "Free keys have daily limits"),
+    AIRoute(id: "perplexity", name: "Perplexity", kind: "Own key", how: "Make a key at Perplexity, paste it above, then test it.", url: "https://www.perplexity.ai", category: "AI assistants and models", caps: "Answers in rooms · reads talks · files to-dos", perms: "Your key is used only for calls you start", limits: "Needs credit on your Perplexity account to answer"),
+    AIRoute(id: "grok", name: "Grok", kind: "Own key", how: "Make a key at xAI, paste it above, then test it.", url: "https://grok.com", category: "AI assistants and models", caps: "Answers in rooms · reads talks · files to-dos", perms: "Your key is used only for calls you start", limits: "Needs credit on your xAI account to answer"),
+    AIRoute(id: "copilot", name: "Microsoft Copilot", kind: "Hand-off", how: "Copy your question, open Copilot, paste the answer back into a note.", url: "https://copilot.microsoft.com", category: "AI assistants and models", caps: "Hand-off questions and answers", perms: "Nothing is shared until you paste it", limits: "No live link. A carry, not a connection"),
+    AIRoute(id: "claudecode", name: "Claude Code", kind: "Hand-off", how: "Copy a project prompt, paste it in Claude Code on your computer, bring the result back.", url: "https://claude.com/product/claude-code", category: "AI coding", caps: "Hand-off project prompts", perms: "Nothing is shared until you paste it", limits: "No live link in this build. The connection design is in the build notes"),
+    AIRoute(id: "codex", name: "Codex", kind: "Hand-off", how: "Copy a project prompt, open Codex, bring the result back.", url: "https://chatgpt.com/codex", category: "AI coding", caps: "Hand-off project prompts", perms: "Nothing is shared until you paste it", limits: "No live link. A carry, not a connection"),
+    AIRoute(id: "cursor", name: "Cursor", kind: "Hand-off", how: "Copy a project prompt, paste it in Cursor, bring the result back.", url: "https://cursor.com", category: "AI coding", caps: "Hand-off project prompts", perms: "Nothing is shared until you paste it", limits: "No live link. A carry, not a connection"),
+    AIRoute(id: "polar", name: "Polar", kind: "Hand-off", how: "Copy a task prompt, open Polar, bring the result back.", url: "https://polarbrowser.com", category: "AI browsers and research", caps: "Hand-off task prompts", perms: "Nothing is shared until you paste it", limits: "No live link. A carry, not a connection"),
+    AIRoute(id: "muse", name: "Muse", kind: "Hand-off", how: "Copy a task prompt, open Muse, bring the result back. (No link: open Muse yourself.)", url: "", category: "AI browsers and research", caps: "Hand-off task prompts", perms: "Nothing is shared until you paste it", limits: "No live link. A carry, not a connection"),
 ]
+let aiCategories = ["AI assistants and models", "AI coding", "AI browsers and research"]
 
 struct AIRoutesCard: View {
     @Environment(\.palette) var p
     @Environment(\.openURL) var openURL
+    @ObservedObject private var conns = AIConnections.shared
     @State private var copiedId = ""
     var body: some View {
         Card {
@@ -88,19 +87,101 @@ struct AIRoutesCard: View {
             Text("Pick your AI").font(.title3.bold()).foregroundColor(p.ink)
             Text("Own key: you make a key at that AI. Hand-off: the app copies your question, opens that AI, and you paste the answer back. Hand-off is a carry, not a live link, and we say so.")
                 .font(.subheadline).foregroundColor(p.soft)
-            ForEach(aiRoutes) { r in
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack { Text(r.name).font(.body.weight(.semibold)).foregroundColor(p.ink); Spacer()
-                        Text(r.kind).font(.caption.bold()).foregroundColor(p.soft) }
-                    Text(r.how).font(.footnote).foregroundColor(p.soft)
-                    Button(copiedId == r.id ? "Copied. Opening..." : (r.url.isEmpty ? "Copy question" : "Copy question and open")) {
-                        UIPasteboard.general.string = "Question from my NeedsMe Ai project:\n\n"
-                        copiedId = r.id
-                        if let u = URL(string: r.url), !r.url.isEmpty { openURL(u) }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { copiedId = "" }
-                    }.buttonStyle(SoftButton()).accessibilityIdentifier("route-" + r.id)
-                }.padding(.vertical, 6)
+            ForEach(aiCategories, id: \.self) { cat in
+                Text(cat).font(.headline).foregroundColor(p.ink).padding(.top, 8)
+                ForEach(aiRoutes.filter { $0.category == cat }) { r in routeRow(r) }
             }
+        }
+    }
+
+    func routeRow(_ r: AIRoute) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack { Text(r.name).font(.body.weight(.semibold)).foregroundColor(p.ink); Spacer()
+                Text(r.kind).font(.caption.bold()).foregroundColor(p.soft) }
+            Text(r.how).font(.footnote).foregroundColor(p.soft)
+            Text("Can do: " + r.caps).font(.footnote).foregroundColor(p.soft)
+            Text("Permissions: " + r.perms).font(.footnote).foregroundColor(p.soft)
+            Text("Limits: " + r.limits).font(.footnote).foregroundColor(p.soft)
+            if let acc = conns.account(r.id), let res = conns.results[acc.id] {
+                Text("Last tested: " + Store.niceTime(res.at)).font(.footnote).foregroundColor(p.soft)
+            }
+            Button(copiedId == r.id ? "Copied. Opening..." : (r.url.isEmpty ? "Copy question" : "Copy question and open")) {
+                UIPasteboard.general.string = "Question from my NeedsMe Ai project:\n\n"
+                copiedId = r.id
+                if let u = URL(string: r.url), !r.url.isEmpty { openURL(u) }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { copiedId = "" }
+            }.buttonStyle(SoftButton()).accessibilityIdentifier("route-" + r.id)
+        }.padding(.vertical, 6)
+    }
+}
+
+/// Work tools (HTML section 13): named in the catalogue, with the truth about their path.
+/// None has a supported way into this app yet, so none carries a Connect button.
+struct WorkToolsCard: View {
+    @Environment(\.palette) var p
+    let tools = ["GitHub", "Notion", "Google Drive", "Slack", "Discord", "Email", "Calendar"]
+    var body: some View {
+        Card {
+            Text("WORK TOOLS").font(.caption.monospaced().bold()).foregroundColor(p.soft)
+            Text("Work and project tools").font(.title3.bold()).foregroundColor(p.ink)
+            ForEach(tools, id: \.self) { t in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(t).font(.body.weight(.semibold)).foregroundColor(p.ink)
+                    Text("No supported path into this app yet. Nothing here pretends to connect it.")
+                        .font(.footnote).foregroundColor(p.soft)
+                }.padding(.vertical, 4)
+            }
+        }
+    }
+}
+
+/// Custom connections (HTML section 13): a user can write down an MCP server they own.
+/// Saving a server never shows it as connected: it stands as saved on this phone only,
+/// until a real connection test exists and passes.
+struct CustomMCPCard: View {
+    @Environment(\.palette) var p
+    @State private var name = ""
+    @State private var address = ""
+    @State private var saved: [[String: String]] = CustomMCPCard.load()
+    static let storeKey = "nm_custom_mcp"
+    static func load() -> [[String: String]] {
+        (UserDefaults.standard.array(forKey: storeKey) as? [[String: String]]) ?? []
+    }
+    func persist() { UserDefaults.standard.set(saved, forKey: CustomMCPCard.storeKey) }
+
+    var body: some View {
+        Card {
+            Text("CUSTOM CONNECTION").font(.caption.monospaced().bold()).foregroundColor(p.soft)
+            Text("Add your own MCP server").font(.title3.bold()).foregroundColor(p.ink)
+            Text("Write down a server you own. It is saved on this phone only. Saved is not connected: a server here never shows as a live worker until a real test passes.")
+                .font(.subheadline).foregroundColor(p.soft)
+            ForEach(saved.indices, id: \.self) { i in
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(saved[i]["name"] ?? "").font(.body.weight(.semibold)).foregroundColor(p.ink)
+                        Text(saved[i]["address"] ?? "").font(.caption).foregroundColor(p.soft)
+                        Text("Saved on this phone. Not connected.").font(.caption.bold()).foregroundColor(p.soft)
+                    }
+                    Spacer()
+                    Button("Remove") { saved.remove(at: i); persist() }.buttonStyle(SoftButton())
+                }.padding(.vertical, 4)
+            }
+            TextField("Server name", text: $name)
+                .autocorrectionDisabled()
+                .padding(10).background(p.bg).clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(p.line, lineWidth: 1))
+                .foregroundColor(p.ink).accessibilityIdentifier("mcpName")
+            TextField("Server address", text: $address)
+                .autocorrectionDisabled().textInputAutocapitalization(.never)
+                .padding(10).background(p.bg).clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(p.line, lineWidth: 1))
+                .foregroundColor(p.ink).accessibilityIdentifier("mcpAddress")
+            Button("Save server") {
+                let n = name.trimmingCharacters(in: .whitespaces)
+                let a = address.trimmingCharacters(in: .whitespaces)
+                guard !n.isEmpty, !a.isEmpty else { return }
+                saved.append(["name": n, "address": a]); persist(); name = ""; address = ""
+            }.buttonStyle(SoftButton()).accessibilityIdentifier("mcpSave")
         }
     }
 }

@@ -17,6 +17,20 @@ final class RoomEngine: ObservableObject {
 
     /// One engine per open room, so a posted prompt never wakes the same room twice.
     static var live: [String: RoomEngine] = [:]
+    /// Agents whose current run was cancelled from the Workforce controls (HTML section 11).
+    /// A cancelled agent drops the reply it was writing and stays out until the next message.
+    static var cancelledAgents: Set<String> = []
+    static func isWorking(_ id: String) -> Bool { live.values.contains { $0.working.contains(id) } }
+    /// Cancels one agent's run wherever it is working. Returns true when a run was going.
+    static func cancelAgent(_ a: AIAccount) -> Bool {
+        cancelledAgents.insert(a.id)
+        let was = isWorking(a.id)
+        if was {
+            for e in live.values where e.working.contains(a.id) { e.cancelNote(a.label) }
+        }
+        return was
+    }
+    func cancelNote(_ label: String) { note("\(label)'s run was cancelled.") }
     var isBackground = false
     static func retireBackground(_ roomId: String) {
         if let o = live[roomId], o.isBackground { o.close() }
@@ -101,6 +115,7 @@ final class RoomEngine: ObservableObject {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !t.isEmpty, let uid = store.user?.uid else { return }
         stopped = false; paused = false; chain = 0; capNoted = false
+        RoomEngine.cancelledAgents = []
         let m = remember(author: uid, text: t, needsYou: false)
         if let m { handle(m) }
     }
@@ -168,8 +183,15 @@ final class RoomEngine: ObservableObject {
     private func handle(_ m: RoomMessage) {
         if stopped || paused { return }
         let conns = AIConnections.shared
+        // Per agent controls (section 11): a paused agent, an agent without the rooms tool,
+        // or an agent whose run was cancelled does not answer.
+        for a in RoomEngine.mentions(in: m.text, among: conns.connected, requireAt: true) where a.id != m.author {
+            if store.agentPaused(a.id) { note("\(a.label) is paused, so it did not answer.") }
+        }
         var targets: [AIAccount] = []
-        for a in RoomEngine.mentions(in: m.text, among: conns.connected, requireAt: false) where a.id != m.author {
+        for a in RoomEngine.mentions(in: m.text, among: conns.connected, requireAt: false) where a.id != m.author
+            && !store.agentPaused(a.id) && store.agentMay(a.id, tool: AgentTool.rooms)
+            && !RoomEngine.cancelledAgents.contains(a.id) {
             if chain >= 6 {
                 if !capNoted { capNoted = true; note("Six AI turns in a row. The room waits for you now."); autoRead() }
                 break
@@ -197,6 +219,7 @@ final class RoomEngine: ObservableObject {
     }
 
     private func turn(_ a: AIAccount) async {
+        if RoomEngine.cancelledAgents.contains(a.id) { return }
         guard let key = AIKeys.load(a.id) else { note("\(a.label) could not answer: no key saved"); return }
         working.insert(a.id)
         defer { working.remove(a.id) }
@@ -216,12 +239,17 @@ final class RoomEngine: ObservableObject {
 
         let result = await AIClient.chat(a, key: key, system: system, messages: [ChatMsg(role: "user", text: ask)])
         if stopped || Task.isCancelled { return }
+        // Cancelled while it was writing: its reply is dropped, never posted (section 11).
+        if RoomEngine.cancelledAgents.contains(a.id) { return }
         switch result {
         case .failure(let e):
             note("\(a.label) could not answer: \(e.reason)")
         case .success(let raw):
-            // Cross off: only a DONE line that names an open to do of this room's project is acted on.
-            let (afterDone, crossed) = RoomEngine.splitDone(raw, open: open)
+            // Cross off: only a DONE line that names an open to do of this room's project is acted on,
+            // and only when this agent may file to-dos into that project (its section 11 controls).
+            let mayCross = store.agentMay(a.id, tool: AgentTool.file)
+                && (proj.isEmpty || store.agentMayFile(a.id, project: proj))
+            let (afterDone, crossed) = mayCross ? RoomEngine.splitDone(raw, open: open) : (raw, [])
             for t in crossed { store.markDone(t, by: a.label) }
             let (body, need) = RoomEngine.splitNeed(afterDone)
             let text = body.isEmpty ? (need ?? "") : body
@@ -240,8 +268,11 @@ final class RoomEngine: ObservableObject {
     // MARK: the loop: detect, file, sync
 
     /// Connected accounts in label order. The first is asked first. If its read fails, the next is asked.
+    /// Paused agents, and agents without the read tool, never read (section 11).
     private func readerAccounts() -> [AIAccount] {
-        AIConnections.shared.connected.sorted { $0.label.lowercased() < $1.label.lowercased() }
+        AIConnections.shared.connected
+            .filter { !store.agentPaused($0.id) && store.agentMay($0.id, tool: AgentTool.read) }
+            .sorted { $0.label.lowercased() < $1.label.lowercased() }
     }
 
     /// One read each time a chain settles (cap reached, Needs You pause, Stop). Never two reads at once.
@@ -311,6 +342,18 @@ final class RoomEngine: ObservableObject {
         guard let found = RoomEngine.parseReader(got.raw) else {
             fileNote = ""
             note("Nothing clear to file from this talk yet.")
+            return
+        }
+        // The reader's own controls bind what it may file (section 11): no file tool, no filing;
+        // a project outside its scope, no filing into it. Both say so in the room, plainly.
+        guard store.agentMay(reader.id, tool: AgentTool.file) else {
+            fileNote = ""
+            note("\(reader.label) read the talk, but filing to-dos is switched off for it, so nothing was filed.")
+            return
+        }
+        guard store.agentMayFile(reader.id, project: found.project) else {
+            fileNote = ""
+            note("\(reader.label) is not allowed to file into \(found.project), so nothing was filed.")
             return
         }
         let name = store.fileFromTalk(project: found.project, done: found.done, todo: found.todo, room: title, by: reader.label)
@@ -383,28 +426,55 @@ struct RoomsListView: View {
     @Environment(\.palette) var p
     @State private var asking = false
     @State private var title = ""
+    @State private var projectFilter = ""
+    @State private var roomToDelete: RoomItem?
+
+    var shownRooms: [RoomItem] {
+        projectFilter.isEmpty ? store.rooms : store.rooms.filter { $0.project == projectFilter }
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                Text("A room is one chat for you and your AIs. Mention an AI with its name to ask it.")
+                Text("One room for all your AIs. Mention an AI with its name to ask it. An AI that is not connected never takes part.")
                     .font(.subheadline).foregroundColor(p.soft)
-                Button("New room") { title = ""; asking = true }
+                Button("New group chat") { title = ""; asking = true }
                     .buttonStyle(PrimaryButton()).accessibilityIdentifier("newRoom")
-                if store.rooms.isEmpty {
-                    Text("No rooms yet.").foregroundColor(p.soft).accessibilityIdentifier("noRooms")
+                if !store.projects.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack {
+                            filterChip("All projects", projectFilter.isEmpty) { projectFilter = "" }
+                            ForEach(store.projects, id: \.self) { name in
+                                filterChip(name, projectFilter == name) { projectFilter = name }
+                            }
+                        }
+                    }
                 }
-                ForEach(store.rooms) { r in
-                    NavigationLink { RoomView(room: r, store: store) } label: {
-                        Card { Text(r.title).font(.headline).foregroundColor(p.ink) }
-                    }.buttonStyle(.plain).accessibilityIdentifier("room-" + r.title)
+                if shownRooms.isEmpty {
+                    Text(store.rooms.isEmpty ? "No rooms yet." : "No rooms for this project yet.").foregroundColor(p.soft).accessibilityIdentifier("noRooms")
+                }
+                ForEach(shownRooms) { r in
+                    Card {
+                        HStack(spacing: 10) {
+                            NavigationLink { RoomView(room: r, store: store) } label: {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(r.title).font(.headline).foregroundColor(p.ink)
+                                    if !r.project.isEmpty { Text(r.project).font(.caption).foregroundColor(p.soft) }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }.buttonStyle(.plain).accessibilityIdentifier("room-" + r.title)
+                            Button { roomToDelete = r } label: {
+                                Image(systemName: "trash").foregroundColor(p.soft).frame(width: 44, height: 44).contentShape(Rectangle())
+                            }.accessibilityLabel("Delete room \(r.title)").accessibilityIdentifier("deleteRoom-" + r.title)
+                        }
+                    }
                 }
                 if !store.roomError.isEmpty {
                     Text(store.roomError).font(.footnote).foregroundColor(p.soft).accessibilityIdentifier("roomError")
                 }
             }.padding()
         }
-        .background(p.bg).navigationTitle("Rooms")
+        .background(p.bg).navigationTitle("AI Group Chat")
         .alert("Name your room", isPresented: $asking) {
             TextField("Room name", text: $title)
             Button("Create") {
@@ -413,6 +483,20 @@ struct RoomsListView: View {
             }
             Button("Cancel", role: .cancel) {}
         }
+        .alert("Delete this room?", isPresented: Binding(get: { roomToDelete != nil }, set: { if !$0 { roomToDelete = nil } })) {
+            Button("Delete the room", role: .destructive) {
+                if let r = roomToDelete { store.deleteRoom(r) }
+                roomToDelete = nil
+            }
+            Button("Keep it", role: .cancel) { roomToDelete = nil }
+        } message: {
+            Text("The room and its messages are removed. This cannot be undone.")
+        }
+    }
+
+    func filterChip(_ t: String, _ on: Bool, _ a: @escaping () -> Void) -> some View {
+        Button(t, action: a).font(.subheadline.bold()).padding(.horizontal, 14).padding(.vertical, 8).frame(minHeight: 44)
+            .background(on ? p.ink : p.card).foregroundColor(on ? p.bg : p.ink).clipShape(Capsule())
     }
 }
 
@@ -427,12 +511,25 @@ struct RoomView: View {
         _engine = StateObject(wrappedValue: RoomEngine(store: store, room: room))
     }
 
+    /// Who is in this room, and its project when one is filed. Only connected AIs are named:
+    /// a disconnected AI is never shown as taking part (HTML section 12).
+    var participantsLine: String {
+        var s = "In this room: " + (["You"] + conns.connected.map { $0.label + (store.agentPaused($0.id) ? " (paused)" : "") }).joined(separator: ", ")
+        let proj = store.rooms.first { $0.id == engine.roomId }?.project ?? ""
+        if !proj.isEmpty { s += " · Project: " + proj }
+        return s
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             Text("AIs answer while this room is open.")
                 .font(.footnote).foregroundColor(p.soft)
                 .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal).padding(.top, 8)
                 .accessibilityIdentifier("roomNote")
+            Text(participantsLine)
+                .font(.footnote).foregroundColor(p.soft)
+                .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal)
+                .accessibilityIdentifier("roomParticipants")
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 10) {

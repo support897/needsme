@@ -1,11 +1,24 @@
 import Foundation
+import SwiftUI
+import UIKit
 import FirebaseAuth
 import FirebaseFirestore
 import AuthenticationServices
 import CryptoKit
 
+/// One line of a task's checklist (HTML section 9). Stored on the task record itself.
+struct CheckItem: Equatable {
+    var text: String; var done: Bool
+}
+
 struct TaskItem: Identifiable {
     let id: String; var title: String; var status: String; var dueOn: String; var area: String
+    /// When the record was written (the "created" stamp every task write already carries). Read only.
+    var createdAt: Date? = nil
+    /// The task detail's own records (HTML section 9): its checklist lines, and the ids of
+    /// the tasks it waits on. Both ride on the task document; empty until someone writes them.
+    var checklist: [CheckItem] = []
+    var dependsOn: [String] = []
     // Source and cross off stamps. Filled when the app filed the task from a room, or an AI crossed it off.
     var sourceRoom = ""; var sourceDate = ""; var sourceBy = ""; var doneBy = ""; var doneDate = ""
     var isDone: Bool { status == "done" }
@@ -22,6 +35,31 @@ struct TaskItem: Identifiable {
         return parts.joined(separator: ". ")
     }
 }
+/// A picture kept with a note (HTML section 10). The bytes ride a document under the note,
+/// in her own space — the same store as every other record she holds.
+struct NoteAttachment: Identifiable {
+    let id: String; var name: String; var data: Data; var createdAt: Date?
+}
+
+/// One AI worker's controls (HTML section 11): paused, the projects it may file into and the
+/// tools it may use. An empty projects list means every project; an empty tools list means
+/// every tool — the shape the app has always run with until she changes it.
+struct AgentControl: Equatable {
+    var paused = false; var projects: [String] = []; var tools: [String] = []
+}
+
+/// The tools an agent's controls switch (HTML sections 11 and 13 capabilities).
+enum AgentTool {
+    static let rooms = "rooms", read = "read", file = "file"
+    static let all: [(id: String, name: String)] = [(rooms, "Answer in rooms"), (read, "Read talks and notes"), (file, "File to-dos")]
+}
+
+/// A device that has signed in to her account (HTML section 15). Lives in her settings space.
+struct DeviceRecord: Identifiable {
+    let id: String; var name: String; var model: String; var system: String
+    var firstSeen: Date?; var lastSeen: Date?
+}
+
 struct RoomItem: Identifiable { let id: String; var title: String; var project: String = "" }
 struct RoomMessage: Identifiable { let id: String; var author: String; var text: String; var needsYou: Bool; var createdAt: Date? }
 struct NeedItem: Identifiable { let id: String; var text: String; var ai: String; var roomId: String; var status: String; var messageId: String = "" }
@@ -30,6 +68,8 @@ struct NoteItem: Identifiable {
     /// Project names (a project is its name in this app). A note can hold several, a prompt holds at most one.
     var projects: [String] = []
     var archived = false
+    /// When the record was first written and last changed (stamps saveNote already writes). Read only.
+    var createdAt: Date? = nil; var updatedAt: Date? = nil
     var autoProject = ""; var autoBy = ""; var autoWords = ""; var projectFixed = false
     // Prompts only: target room, state ("scheduled" or "sent"; older prompts have none), and times.
     var room = ""; var roomTitle = ""; var state = ""
@@ -46,9 +86,20 @@ struct NoteItem: Identifiable {
 final class Store: ObservableObject {
     @Published var user: User?
     @Published var tasks: [TaskItem] = []
+    /// The kindness offer (main-round item 8): stands after a task is finished,
+    /// on whichever task surface the person is standing on. It belongs to the
+    /// act of finishing, not to one screen, so it lives here and not in a view.
+    @Published var kindnessOffer = false
     @Published var notes: [NoteItem] = []
     @Published var rooms: [RoomItem] = []
     @Published var needs: [NeedItem] = []
+    /// Pictures kept with notes, by note id (HTML section 10).
+    @Published var noteImages: [String: [NoteAttachment]] = [:]
+    private var attHandles: [String: ListenerRegistration] = [:]
+    /// Per agent controls, by account id (HTML section 11), from users/{uid}/settings/agents.
+    @Published var agentControls: [String: AgentControl] = [:]
+    /// Devices that have signed in (HTML section 15), newest seen first.
+    @Published var devices: [DeviceRecord] = []
     @Published var roomError = ""
     /// Her saved colour pick, from users/{uid}/settings/app. Nil until one is saved.
     @Published var cloudTheme: String?
@@ -101,9 +152,37 @@ final class Store: ObservableObject {
     }
     private func listen() {
         handles.forEach { $0.remove() }; handles = []; tasks = []; notes = []; rooms = []; needs = []
+        attHandles.values.forEach { $0.remove() }; attHandles = [:]; noteImages = [:]
+        agentControls = [:]; devices = []
         cloudTheme = nil; cloudThemeLoaded = false; cloudName = nil
         roomsFresh = false; promptsFresh = false; registrySynced = false
         guard user != nil else { return }
+        registerDevice()
+        if let c = col("settings") {
+            handles.append(c.addSnapshotListener { [weak self] s, _ in
+                guard let s else { return }
+                var controls: [String: AgentControl] = [:]
+                var devs: [DeviceRecord] = []
+                for d in s.documents {
+                    let x = d.data()
+                    if d.documentID == "agents" {
+                        for (k, v) in x {
+                            guard let m = v as? [String: Any] else { continue }
+                            controls[k] = AgentControl(paused: m["paused"] as? Bool ?? false,
+                                                       projects: m["projects"] as? [String] ?? [],
+                                                       tools: m["tools"] as? [String] ?? [])
+                        }
+                    } else if d.documentID.hasPrefix("device-") {
+                        devs.append(DeviceRecord(id: d.documentID, name: x["name"] as? String ?? "",
+                                                 model: x["model"] as? String ?? "", system: x["system"] as? String ?? "",
+                                                 firstSeen: (x["firstSeen"] as? Timestamp)?.dateValue(),
+                                                 lastSeen: (x["lastSeen"] as? Timestamp)?.dateValue()))
+                    }
+                }
+                devs.sort { ($0.lastSeen ?? .distantPast) > ($1.lastSeen ?? .distantPast) }
+                Task { @MainActor in self?.agentControls = controls; self?.devices = devs }
+            })
+        }
         if let c = col("settings") {
             handles.append(c.document("app").addSnapshotListener { [weak self] snap, _ in
                 guard let snap else { return }
@@ -124,7 +203,12 @@ final class Store: ObservableObject {
                 guard let s else { return }
                 let items = s.documents.map { d -> TaskItem in
                     let x = d.data()
+                    let checks = ((x["checklist"] as? [[String: Any]]) ?? []).map {
+                        CheckItem(text: $0["text"] as? String ?? "", done: $0["done"] as? Bool ?? false)
+                    }
                     return TaskItem(id: d.documentID, title: x["title"] as? String ?? "", status: x["status"] as? String ?? "", dueOn: x["due_on"] as? String ?? "", area: x["area"] as? String ?? "",
+                                    createdAt: (x["created"] as? Timestamp)?.dateValue(),
+                                    checklist: checks, dependsOn: x["dependsOn"] as? [String] ?? [],
                                     sourceRoom: x["source_room"] as? String ?? "", sourceDate: x["source_date"] as? String ?? "", sourceBy: x["source_by"] as? String ?? "",
                                     doneBy: x["done_by"] as? String ?? "", doneDate: x["done_date"] as? String ?? "")
                 }
@@ -168,6 +252,7 @@ final class Store: ObservableObject {
                     return NoteItem(id: d.documentID, title: x["title"] as? String ?? "", body: x["body"] as? String ?? "",
                                     project: plist.first ?? "Unsorted", ai: x["ai"] as? String ?? "", isPrompt: isPrompt,
                                     projects: plist, archived: x["archived"] as? Bool ?? false,
+                                    createdAt: (x["createdAt"] as? Timestamp)?.dateValue(), updatedAt: (x["updatedAt"] as? Timestamp)?.dateValue(),
                                     autoProject: x["autoProject"] as? String ?? "", autoBy: x["autoBy"] as? String ?? "",
                                     autoWords: x["autoWords"] as? String ?? "", projectFixed: x["projectFixed"] as? Bool ?? false,
                                     room: x["room"] as? String ?? "", roomTitle: x["roomTitle"] as? String ?? "", state: x["state"] as? String ?? "",
@@ -222,17 +307,30 @@ final class Store: ObservableObject {
         }
     }
     private var googleProvider: OAuthProvider?
+    /// True when an error is the person closing the sign in page themselves. A cancel on any door
+    /// is a quiet return to the door: no error line, nothing red, nothing painted (build 341, item 4).
+    nonisolated static func isDoorCancel(_ e: Error) -> Bool {
+        let n = e as NSError
+        if n.domain == "com.apple.AuthenticationServices.WebAuthenticationSession" && n.code == 1 { return true }
+        if n.domain == "com.apple.AuthenticationServices.AuthorizationError" && n.code == 1000 { return true }
+        return n.localizedDescription.lowercased().contains("cancel")
+    }
     func googleDoor() async {
         let prov = OAuthProvider(providerID: "google.com")
         prov.scopes = ["email", "profile"]
         googleProvider = prov
-        await run {
+        message = ""; busy = true
+        defer { busy = false }
+        do {
             let cred: AuthCredential = try await withCheckedThrowingContinuation { cont in
                 prov.getCredentialWith(nil) { c, e in
                     if let c = c { cont.resume(returning: c) } else { cont.resume(throwing: e ?? NSError(domain: "nm", code: 1)) }
                 }
             }
             _ = try await Auth.auth().signIn(with: cred)
+        } catch {
+            // Her own cancel is never an error. Anything else keeps the words it had before.
+            message = Store.isDoorCancel(error) ? "" : error.localizedDescription
         }
     }
     static func randomNonce(_ n: Int = 32) -> String {
@@ -249,6 +347,7 @@ final class Store: ObservableObject {
             // The sweeps do not depend on each other, so they run together. Each one deletes in batches.
             try await withThrowingTaskGroup(of: Void.self) { group in
                 group.addTask { try await self.sweepRooms() }
+                group.addTask { try await self.sweepNoteAttachments() }
                 for name in ["tasks", "notes", "prompts", "needs", "settings"] {
                     group.addTask { try await self.sweep(name) }
                 }
@@ -330,9 +429,111 @@ final class Store: ObservableObject {
         }
     }
     func toggle(_ t: TaskItem) {
+        if !t.isDone { kindnessOffer = true }
         col("tasks")?.document(t.id).updateData(["status": t.isDone ? "waiting" : "done", "done_date": t.isDone ? "" : Store.today, "done_by": "user"])
     }
     func deleteTask(_ t: TaskItem) { col("tasks")?.document(t.id).delete() }
+
+    // MARK: task detail records (HTML section 9): checklist and dependencies ride on the task document
+    func saveChecklist(_ t: TaskItem, _ list: [CheckItem]) {
+        col("tasks")?.document(t.id).updateData(["checklist": list.map { ["text": $0.text, "done": $0.done] }])
+    }
+    func saveDependsOn(_ t: TaskItem, _ ids: [String]) {
+        col("tasks")?.document(t.id).updateData(["dependsOn": ids])
+    }
+
+    // MARK: note attachments (HTML section 10): pictures under the note, in her own space
+    func listenAttachments(_ noteId: String) {
+        guard attHandles[noteId] == nil, let c = col("notes")?.document(noteId).collection("attachments") else { return }
+        attHandles[noteId] = c.order(by: "createdAt").addSnapshotListener { [weak self] s, _ in
+            guard let s else { return }
+            let items = s.documents.map { d -> NoteAttachment in
+                let x = d.data()
+                return NoteAttachment(id: d.documentID, name: x["name"] as? String ?? "Picture",
+                                      data: x["data"] as? Data ?? Data(),
+                                      createdAt: (x["createdAt"] as? Timestamp)?.dateValue())
+            }
+            Task { @MainActor in self?.noteImages[noteId] = items }
+        }
+    }
+    /// Shrinks a picked picture so it fits one Firestore document. Nil when even the smallest
+    /// try is still too large — the screen then says so plainly instead of pretending.
+    static func shrink(_ raw: Data) -> Data? {
+        guard let img = UIImage(data: raw) else { return nil }
+        let maxSide: CGFloat = 1000
+        let scale = min(1, maxSide / max(img.size.width, img.size.height))
+        var out = img
+        if scale < 1 {
+            let size = CGSize(width: img.size.width * scale, height: img.size.height * scale)
+            out = UIGraphicsImageRenderer(size: size).image { _ in img.draw(in: CGRect(origin: .zero, size: size)) }
+        }
+        for q in [0.6, 0.4, 0.25, 0.15] {
+            if let d = out.jpegData(compressionQuality: q), d.count <= 700_000 { return d }
+        }
+        return nil
+    }
+    /// Returns false when the picture could not be kept (too large). The write itself is the
+    /// same shape as every other record: one document in her own space.
+    @discardableResult
+    func addAttachment(noteId: String, raw: Data) -> Bool {
+        guard let data = Store.shrink(raw), let c = col("notes")?.document(noteId).collection("attachments") else { return false }
+        c.addDocument(data: ["name": "Picture", "data": data, "createdAt": FieldValue.serverTimestamp()]) { [weak self] err in
+            if let err { Task { @MainActor in self?.message = "Could not keep that picture: \(err.localizedDescription)" } }
+        }
+        return true
+    }
+    func removeAttachment(noteId: String, _ a: NoteAttachment) {
+        col("notes")?.document(noteId).collection("attachments").document(a.id).delete()
+    }
+    /// Every note's attachments go when the account goes.
+    private func sweepNoteAttachments() async throws {
+        guard let c = col("notes") else { return }
+        let docs = try await c.getDocuments().documents
+        for d in docs {
+            let atts = try await d.reference.collection("attachments").getDocuments().documents.map { $0.reference }
+            try await wipe(atts)
+        }
+    }
+
+    // MARK: per agent controls (HTML section 11), persisted per owner in settings/agents
+    func agentControl(_ id: String) -> AgentControl { agentControls[id] ?? AgentControl() }
+    func agentPaused(_ id: String) -> Bool { agentControl(id).paused }
+    func agentMay(_ id: String, tool: String) -> Bool {
+        let t = agentControl(id).tools
+        return t.isEmpty || t.contains(tool)
+    }
+    func agentMayFile(_ id: String, project: String) -> Bool {
+        let ps = agentControl(id).projects
+        return ps.isEmpty || ps.contains { $0.lowercased() == project.lowercased() }
+    }
+    func setAgentControl(_ id: String, _ ctrl: AgentControl) {
+        agentControls[id] = ctrl
+        var map: [String: Any] = [:]
+        for (k, v) in agentControls { map[k] = ["paused": v.paused, "projects": v.projects, "tools": v.tools] }
+        col("settings")?.document("agents").setData(map)
+    }
+
+    // MARK: devices (HTML section 15): this device registers itself at sign-in, in her settings space
+    static var deviceId: String {
+        if let s = UserDefaults.standard.string(forKey: "nm_device_id"), !s.isEmpty { return s }
+        let s = UIDevice.current.identifierForVendor?.uuidString ?? UUID().uuidString
+        UserDefaults.standard.set(s, forKey: "nm_device_id")
+        return s
+    }
+    static var thisDeviceDocId: String { "device-" + deviceId }
+    private func registerDevice() {
+        guard let ref = col("settings")?.document(Store.thisDeviceDocId) else { return }
+        Task {
+            let snap = try? await ref.getDocument()
+            var d: [String: Any] = ["name": UIDevice.current.name, "model": UIDevice.current.model,
+                                    "system": "iOS " + UIDevice.current.systemVersion,
+                                    "lastSeen": FieldValue.serverTimestamp()]
+            if snap?.exists != true || (snap?.data()?["firstSeen"] as? Timestamp) == nil {
+                d["firstSeen"] = FieldValue.serverTimestamp()
+            }
+            ref.setData(d, merge: true) { _ in }
+        }
+    }
     /// Notes and prompts are one shape in Firestore under users/{uid}/notes and users/{uid}/prompts.
     /// There is no delete for a note anywhere in the app. Archive is the only way out of sight.
     @discardableResult
@@ -378,7 +579,9 @@ final class Store: ObservableObject {
     func autoMatch(id: String, isPrompt: Bool, title: String, body: String) {
         let names = projects
         guard !names.isEmpty,
-              let reader = AIConnections.shared.connected.sorted(by: { $0.label.lowercased() < $1.label.lowercased() }).first,
+              let reader = AIConnections.shared.connected
+                .filter({ !agentPaused($0.id) && agentMay($0.id, tool: AgentTool.read) })
+                .sorted(by: { $0.label.lowercased() < $1.label.lowercased() }).first,
               let key = AIKeys.load(reader.id) else { return }
         let system = "You file one note or prompt into the user's existing projects. Use only what is clearly stated. Never invent. Never guess. Answer with JSON only, no other words, in exactly this shape: {\"project\": string or null, \"words\": string}. project must be exactly one name from this list, or null: " + names.joined(separator: " | ") + ". words is the few words from the item that made you choose it."
         let ask = "Title: \(title)\n\nText: \(String(body.prefix(2000)))"
@@ -628,8 +831,60 @@ final class Store: ObservableObject {
     }
     func resolveNeed(_ n: NeedItem) { col("needs")?.document(n.id).updateData(["status": "done"]) }
 
+    // MARK: build 341 item 6: room delete and scheduled prompt cancel, wired to the relay registry
+
+    /// Deletes one of her own rooms and its messages, then takes the room off the relay registry.
+    /// The confirm step lives on the screen; this runs only after she has confirmed.
+    func deleteRoom(_ room: RoomItem) {
+        Task {
+            try? await sweepRoom(room.id)
+            registryRooms(removing: room.id)
+        }
+    }
+
+    /// Cancels a scheduled prompt that has not sent yet. The state change alone stops the scheduler
+    /// (it only fires state "scheduled"), and the registry rewrite takes the id off prompts[].
+    func cancelScheduledPrompt(_ n: NoteItem) {
+        guard n.isPrompt, n.state == "scheduled" else { return }
+        col("prompts")?.document(n.id).updateData(["state": "cancelled"]) { [weak self] err in
+            if err == nil { Task { @MainActor in self?.registryPrompts(removing: n.id) } }
+        }
+    }
+
     /// Plain-text copy of every note and prompt, for the Privacy and data screen.
     var exportText: String {
         notes.map { "# \($0.title)\n(\($0.isPrompt ? "Prompt" : "Note") · \($0.project) · \($0.ai))\n\n\($0.body)\n" }.joined(separator: "\n---\n\n")
+    }
+}
+
+/// One calm colour per project (build 341, her word 22:50). The same name always gets the same
+/// colour, drawn from a quiet set in the app's own family. Views stay visually quiet: the colour
+/// is a small dot or a thin bar, never a loud surface.
+enum ProjectColor {
+    static let hexes: [UInt32] = [0xA8C256, 0x7FA6A3, 0xB08968, 0x9B8EA6, 0xC2A878, 0xC08A7E, 0x7E8FA6, 0x8A9A5B]
+    static func hex(_ name: String) -> UInt32 {
+        var h = 0
+        for u in name.lowercased().unicodeScalars { h = (h &* 31 &+ Int(u.value)) & 0x7fffffff }
+        return hexes[h % hexes.count]
+    }
+    static func color(_ name: String) -> Color { Color(hex: hex(name)) }
+}
+
+extension Store {
+    /// Percentage done for one project, only where the records give an honest basis:
+    /// the project must hold at least one task. Otherwise nil, and screens show the
+    /// "not yet measurable" words instead of a number (HTML section 7).
+    func percentDone(_ name: String) -> Int? {
+        let pr = progress(name)
+        guard pr.total > 0 else { return nil }
+        return Int((Double(pr.done) / Double(pr.total) * 100).rounded())
+    }
+    /// The dependencies of a task that are still open (HTML section 9). A task whose
+    /// dependencies are all done, or that has none, is not blocked.
+    func openDependencies(_ t: TaskItem) -> [TaskItem] {
+        t.dependsOn.compactMap { id in tasks.first { $0.id == id && !$0.isDone } }
+    }
+    func dependencyTasks(_ t: TaskItem) -> [TaskItem] {
+        t.dependsOn.compactMap { id in tasks.first { $0.id == id } }
     }
 }

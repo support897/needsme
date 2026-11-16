@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 let aiNames = ["Claude", "ChatGPT", "Gemini", "Grok", "Perplexity", "Copilot"]
 
@@ -28,7 +29,7 @@ struct NotesView: View {
         store.notes.filter { $0.isPrompt && $0.state == "sent" && matches($0) }.sorted { ($0.sentAt ?? .distantPast) > ($1.sentAt ?? .distantPast) }
     }
     var waitingPrompts: [NoteItem] {
-        store.notes.filter { $0.isPrompt && $0.state != "sent" && matches($0) }.sorted { ($0.scheduledFor ?? .distantFuture) < ($1.scheduledFor ?? .distantFuture) }
+        store.notes.filter { $0.isPrompt && $0.state != "sent" && $0.state != "cancelled" && matches($0) }.sorted { ($0.scheduledFor ?? .distantFuture) < ($1.scheduledFor ?? .distantFuture) }
     }
     var noteList: [NoteItem] { store.notes.filter { !$0.isPrompt && $0.archived == showArchived && matches($0) } }
     var archivedCount: Int { store.notes.filter { !$0.isPrompt && $0.archived }.count }
@@ -100,6 +101,10 @@ struct NotesView: View {
                     Button("Send now") { if n.room.isEmpty { openPrompt = n; flash("Pick a room first.") } else { store.sendPromptNow(n); flash("Sent.") } }
                         .buttonStyle(PrimaryButton()).accessibilityIdentifier("sendNow-" + n.id)
                     Button("Edit") { openPrompt = n }.buttonStyle(SoftButton())
+                }
+                if n.state == "scheduled" {
+                    Button("Cancel this prompt") { store.cancelScheduledPrompt(n); flash("Cancelled. It will not send.") }
+                        .buttonStyle(SoftButton()).accessibilityIdentifier("cancelPrompt-" + n.id)
                 }
             }
         }
@@ -197,6 +202,8 @@ struct NoteSheet: View {
     @State private var text = ""
     @State private var editing = false
     @State private var lastSaved = ""
+    @State private var pickerItem: PhotosPickerItem?
+    @State private var attachNote = ""
     @FocusState private var focus: Bool
 
     var current: NoteItem? { store.notes.first { $0.id == id } }
@@ -233,6 +240,7 @@ struct NoteSheet: View {
                                 }
                             }
                         }.frame(maxWidth: .infinity, alignment: .leading).padding()
+                        attachmentsSection.padding(.horizontal)
                     }
                 }
             }
@@ -251,10 +259,56 @@ struct NoteSheet: View {
                 }
             }
             .onAppear {
-                if let n = note { id = n.id; text = n.body; lastSaved = n.body; editing = false }
+                if let n = note { id = n.id; text = n.body; lastSaved = n.body; editing = false; store.listenAttachments(n.id) }
                 else { editing = true; DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { focus = true } }
             }
+            .onChange(of: id) { newId in if let newId { store.listenAttachments(newId) } }
+            .onChange(of: pickerItem) { item in
+                guard let item, let nid = id else { return }
+                Task {
+                    if let data = try? await item.loadTransferable(type: Data.self) {
+                        if !store.addAttachment(noteId: nid, raw: data) {
+                            attachNote = "That picture is too large to keep with the note."
+                        } else { attachNote = "" }
+                    }
+                    pickerItem = nil
+                }
+            }
             .onDisappear { if editing { commit() } }
+        }
+    }
+
+    /// Pictures kept with this note (HTML section 10). They live under the note in her own
+    /// space — the one storage shape this app holds — and stand in the note where she reads it.
+    @ViewBuilder var attachmentsSection: some View {
+        if let nid = id, current != nil {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Pictures").font(.headline).foregroundColor(p.ink)
+                let atts = store.noteImages[nid] ?? []
+                if atts.isEmpty {
+                    Text("No pictures with this note yet.").font(.subheadline).foregroundColor(p.soft)
+                }
+                ForEach(atts) { a in
+                    VStack(alignment: .leading, spacing: 6) {
+                        if let ui = UIImage(data: a.data) {
+                            Image(uiImage: ui).resizable().scaledToFit()
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                .accessibilityIdentifier("noteAttachmentImage")
+                        }
+                        Button("Remove picture") { store.removeAttachment(noteId: nid, a) }
+                            .buttonStyle(SoftButton()).accessibilityIdentifier("attachRemove")
+                    }
+                }
+                PhotosPicker(selection: $pickerItem, matching: .images) {
+                    Text("Add a picture").font(.subheadline.bold()).foregroundColor(p.ink)
+                        .padding(.horizontal, 12).padding(.vertical, 8).background(p.chip).clipShape(Capsule())
+                }.accessibilityIdentifier("attachPhoto")
+                if !attachNote.isEmpty {
+                    Text(attachNote).font(.subheadline).foregroundColor(p.soft)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.bottom, 20)
         }
     }
 

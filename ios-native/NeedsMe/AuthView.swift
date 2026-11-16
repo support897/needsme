@@ -12,6 +12,14 @@ struct AuthView: View {
         NavigationStack {
             VStack(spacing: 14) {
                 Spacer()
+                PipImage(size: 84).accessibilityIdentifier("doorPip")
+                Text("NeedsMe Ai").font(.largeTitle.bold()).foregroundColor(p.ink)
+                    .accessibilityIdentifier("doorWordmark")
+                Text("See what is moving, what is blocked, and what needs you.")
+                    .font(.subheadline).foregroundColor(p.soft)
+                    .multilineTextAlignment(.center)
+                    .accessibilityIdentifier("doorPromise")
+                Spacer().frame(height: 10)
                 SignInWithAppleButton(.continue,
                     onRequest: { store.prepareApple($0) },
                     onCompletion: { r in Task { await store.finishApple(r) } })

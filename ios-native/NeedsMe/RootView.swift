@@ -84,16 +84,20 @@ extension RootView {
     }
 }
 
+/// The mobile shape of the HTML section 2 order: bottom tabs are Home, Needs Me, Projects,
+/// Notes and More. More opens the remaining destinations in the same sidebar order.
 struct MainTabs: View {
     @Binding var tab: Int
     var replayTour: () -> Void
+    @EnvironmentObject var store: Store
     @Environment(\.palette) var p
     var body: some View {
         TabView(selection: $tab) {
             HomeView().tabItem { Label("Home", systemImage: "house") }.tag(0)
-            TasksView().tabItem { Label("Tasks", systemImage: "checkmark") }.tag(1)
-            NotesView().tabItem { Label("Notes", systemImage: "note.text") }.tag(2)
-            ConnectView().tabItem { Label("AI", systemImage: "sparkles") }.tag(3)
+            NeedsMeView().tabItem { Label("Needs Me", systemImage: "bell") }.tag(1)
+                .badge(store.needs.filter { $0.status == "open" }.count)
+            ProjectsView().tabItem { Label("Projects", systemImage: "folder") }.tag(2)
+            NotesView().tabItem { Label("Notes", systemImage: "note.text") }.tag(3)
             MoreView(replayTour: replayTour).tabItem { Label("More", systemImage: "ellipsis") }.tag(4)
         }
         .tint(p.ink)
@@ -116,89 +120,5 @@ struct Card<Content: View>: View {
         content.padding(16).frame(maxWidth: .infinity, alignment: .leading)
             .background(p.card).clipShape(RoundedRectangle(cornerRadius: 18))
             .overlay(RoundedRectangle(cornerRadius: 18).stroke(p.line, lineWidth: 1))
-    }
-}
-
-struct MoreView: View {
-    var replayTour: () -> Void
-    @EnvironmentObject var store: Store
-    @Environment(\.palette) var p
-    @AppStorage("nm_theme") private var themeRaw = AppTheme.white.rawValue
-    @AppStorage("nm_motion") private var motion = "system"
-    @AppStorage("nm_digest") private var digest = "Daily"
-    @AppStorage("nm_quiet") private var quiet = true
-    @State private var confirmDelete = false
-    @State private var editingName = false
-    @State private var nameText = ""
-    var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    Card {
-                        Text("Your name").font(.headline).foregroundColor(p.ink)
-                        if editingName {
-                            TextField("Your name", text: $nameText).textFieldStyle(.roundedBorder).accessibilityIdentifier("nameEditField")
-                            HStack {
-                                Button("Cancel") { editingName = false }.buttonStyle(SoftButton())
-                                Button("Save") { store.saveName(nameText); editingName = false }
-                                    .buttonStyle(PrimaryButton()).accessibilityIdentifier("nameEditSave")
-                                    .disabled(nameText.trimmingCharacters(in: .whitespaces).isEmpty)
-                            }
-                        } else {
-                            Button { nameText = store.savedName ?? ""; editingName = true } label: {
-                                HStack { Text(store.savedName ?? "Add your name"); Spacer(); Text("Edit").font(.subheadline.bold()) }
-                                    .padding(.vertical, 6)
-                            }.foregroundColor(p.ink).accessibilityIdentifier("nameRow")
-                        }
-                    }
-                    Card {
-                        Text("Colours").font(.headline).foregroundColor(p.ink)
-                        ForEach(AppTheme.allCases) { t in
-                            Button { themeRaw = t.rawValue; store.saveTheme(t.rawValue) } label: {
-                                HStack { Text(t.label); Spacer(); if AppTheme.from(themeRaw) == t { SproutBox(on: true, size: 22) } }
-                                    .padding(.vertical, 6)
-                            }.foregroundColor(p.ink).accessibilityIdentifier("theme-" + t.rawValue)
-                        }
-                    }
-                    Card {
-                        Text("Motion").font(.headline).foregroundColor(p.ink)
-                        Picker("Motion", selection: $motion) {
-                            Text("System").tag("system"); Text("Reduced").tag("reduced"); Text("Off").tag("off")
-                        }.pickerStyle(.segmented).accessibilityIdentifier("motionPicker")
-                        Text("System follows your phone's Reduce Motion setting.").font(.caption).foregroundColor(p.soft)
-                    }
-                    Card {
-                        Text("Alerts").font(.headline).foregroundColor(p.ink)
-                        Toggle("Quiet hours (10pm to 7am)", isOn: $quiet).tint(p.accent).foregroundColor(p.ink)
-                        Picker("Digest", selection: $digest) {
-                            Text("Instant").tag("Instant"); Text("Daily").tag("Daily"); Text("Weekly").tag("Weekly")
-                        }.pickerStyle(.segmented).accessibilityIdentifier("digestPicker")
-                        Text("Saved on this phone. Push alerts are not switched on yet.").font(.caption).foregroundColor(p.soft)
-                    }
-                    Card {
-                        Text("Privacy and your data").font(.headline).foregroundColor(p.ink)
-                        Text("What we keep: your sign-in email, and the tasks and notes you write. They are saved to your own account.").font(.subheadline).foregroundColor(p.ink)
-                        Text("What we do not keep: no AI keys, no passwords for other services, no location, no contacts.").font(.subheadline).foregroundColor(p.ink)
-                        Text("Nobody else can see your tasks and notes. Your name and colour pick are saved to your account. Alert settings stay on this phone.").font(.subheadline).foregroundColor(p.ink)
-                        Text("You can delete everything below. It cannot be undone.").font(.footnote).foregroundColor(p.soft)
-                        ShareLink(item: store.exportText.isEmpty ? "No notes yet." : store.exportText) { Text("Export my notes") }.buttonStyle(SoftButton()).accessibilityIdentifier("exportNotes")
-                        Button("Delete my account") { confirmDelete = true }
-                            .buttonStyle(SoftButton()).accessibilityIdentifier("deleteAccount")
-                        if !store.deleteMessage.isEmpty { Text(store.deleteMessage).font(.footnote).foregroundColor(p.ink).accessibilityIdentifier("deleteMessage") }
-                    }
-                    Card {
-                        Text("Account").font(.headline).foregroundColor(p.ink)
-                        Text(store.user?.isAnonymous == true ? "Guest (not saved to an email yet)" : (store.user?.email ?? "")).foregroundColor(p.soft)
-                        Button("Replay Pip's guide", action: replayTour).buttonStyle(SoftButton())
-                        Button("Sign out") { store.signOut() }.buttonStyle(SoftButton())
-                    }
-                }.padding()
-            }
-            .background(p.bg).navigationTitle("More")
-            .alert("Delete your account?", isPresented: $confirmDelete) {
-                Button("Delete everything", role: .destructive) { Task { await store.deleteAccount() } }
-                Button("Cancel", role: .cancel) {}
-            } message: { Text("This removes your tasks, notes and sign-in. It cannot be undone.") }
-        }
     }
 }

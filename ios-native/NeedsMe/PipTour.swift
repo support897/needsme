@@ -2,7 +2,7 @@ import SwiftUI
 
 struct PipTour: View {
     var onClose: () -> Void
-    /// Takes the user to the screen Pip is talking about (tab index: 0 Home, 1 Tasks, 2 Notes, 3 AI, 4 More).
+    /// Takes the user to the screen Pip is talking about (tab index: 0 Home, 1 Needs Me, 2 Projects, 3 Notes, 4 More).
     var goTo: (Int) -> Void = { _ in }
     private let tabs = [0, 0, 1, 2, 3, 4, 0]
     @Environment(\.palette) var p
@@ -12,10 +12,10 @@ struct PipTour: View {
     private let stops: [(String, String, String)] = [
         ("pip-welcome", "Hi, I'm Pip!", "I'll show you around in under a minute. You can skip any time."),
         ("pip-point-show", "Home", "Home shows what needs you first, then your projects."),
-        ("pip-point-show", "Tasks", "All open and finished to-dos live here."),
+        ("pip-point-show", "Needs Me", "Anything that needs your decision waits here, grouped by project."),
+        ("pip-point-show", "Projects", "Every project has its own colour and shows how much is done."),
         ("pip-point-show", "Notes & prompts", "Keep ideas and AI prompts in one place, sorted by project and AI."),
-        ("pip-welcome", "Connect an AI", "Set up an AI in about 60 seconds. Tap Copy setup prompt for help."),
-        ("pip-point-show", "Colours", "In More, pick White, Dark, Beige, Brand or match your phone."),
+        ("pip-welcome", "More", "Tasks, your AIs, Changes and Settings live in More. Connect an AI in about 60 seconds, in Connections."),
         ("pip-celebrate", "You are ready!", "Pick one small step to begin."),
     ]
     var body: some View {
