@@ -203,7 +203,6 @@
 				};
 			};
 			buildConfigurationList = 132F3D3B4B46B132566BD7F4 /* Build configuration list for PBXProject "NeedsMe" */;
-			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -216,6 +215,7 @@
 				320E176F509B43A784701D3A /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 			);
 			preferredProjectObjectVersion = 77;
+			productRefGroup = 44F466382086983DFE0649A8 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -287,7 +287,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
-				CURRENT_PROJECT_VERSION = 341;
+				CURRENT_PROJECT_VERSION = 126;
 				DEVELOPMENT_TEAM = GZ9Z6BPTFR;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -309,7 +309,7 @@
 				CODE_SIGN_ENTITLEMENTS = NeedsMe/NeedsMe.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 341;
+				CURRENT_PROJECT_VERSION = 126;
 				DEVELOPMENT_TEAM = GZ9Z6BPTFR;
 				INFOPLIST_FILE = NeedsMe/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -330,7 +330,7 @@
 				CODE_SIGN_ENTITLEMENTS = NeedsMe/NeedsMe.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 341;
+				CURRENT_PROJECT_VERSION = 126;
 				DEVELOPMENT_TEAM = GZ9Z6BPTFR;
 				INFOPLIST_FILE = NeedsMe/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -404,7 +404,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
-				CURRENT_PROJECT_VERSION = 341;
+				CURRENT_PROJECT_VERSION = 126;
 				DEVELOPMENT_TEAM = GZ9Z6BPTFR;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
