@@ -182,7 +182,10 @@ final class Store: ObservableObject {
                     }
                 }
                 devs.sort { ($0.lastSeen ?? .distantPast) > ($1.lastSeen ?? .distantPast) }
-                Task { @MainActor in self?.agentControls = controls; self?.devices = devs }
+                // Build 342: apply on the spot. Firestore calls this on the main queue and its snapshot already holds
+                // her own pending writes. The old Task hop let a stale snapshot land AFTER her tap and undo it.
+                if Thread.isMainThread { MainActor.assumeIsolated { self?.agentControls = controls; self?.devices = devs } }
+                else { Task { @MainActor in self?.agentControls = controls; self?.devices = devs } }
             })
         }
         if let c = col("settings") {
@@ -365,7 +368,12 @@ final class Store: ObservableObject {
                 try await group.waitForAll()
             }
             // Build 342: the account's registry page goes too (it was left behind). Must run while still signed in.
-            try? await registryDoc?.delete()
+            // Probe (evidence/b342-breakin.log): the live rules answered 403 to an owner delete of this page, but allow
+            // an owner write. So if the delete is refused, empty the page instead (no room or prompt ids left behind).
+            if let r = registryDoc {
+                do { try await r.delete() }
+                catch { try? await r.setData(["rooms": [String](), "prompts": [String](), "updatedAt": FieldValue.serverTimestamp()]) }
+            }
             try await u.delete()
             deleteMessage = ""
             try? Auth.auth().signOut()

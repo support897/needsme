@@ -31,3 +31,10 @@
 - NOT DONE YET: the full word-by-word walk, legs 4-14 driven by hand (only the 21 XCUITests ran), break-in test (leg 12)
   by hand, delete-sweep proof by owner-side read of _relayRegistry (leg 13).
 - Allowed open lines unchanged: per-agent level picker, keys-pull host half, giving page, Claude key / credits.
+
+## FOLLOW-UP PASS STATE (2026-11-17 ~07:30)
+- Blocked: Firestore free-plan daily read quota is EXHAUSTED (REST returns 429 "Quota exceeded"; evidence/b342-breakin.log).
+  My three full suite runs plus repeats of test20 helped burn it. No more app or Firestore driving until it resets.
+- Compare piles: the full word-by-word screen walk against the design page was NOT done (needs the app driving; quota).
+  Evidence available is the 21 XCUITests of run 1 only (see POLAR-FINISH.md). SAME / DIFFERENT BY HER WORD / NOT DONE YET not re-sorted.
+- NOT DONE YET (named): full compare walk, legs 4-14 by hand, break-in reads (inconclusive: 429), registry gone-read.
