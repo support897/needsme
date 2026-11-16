@@ -68,3 +68,12 @@ Tree pulled to tip f7c9935b (fast-forward, no clone). Note: the tree's `origin` 
 1. Wait for quota reset (or upgrade the Firebase plan: owner money step, never done by me).
 2. Owner updates rules for _relayRegistry delete.
 3. I rerun break-in reads, then compare + legs 4-14, then ship 343.
+
+## BUILD 343 SHIP (2026-11-17) - landed
+- Commits: 951f0ed (build 343 stamped by hand, ios-native.tar.gz repacked from final tree, push trigger restored; content = race fix + registry fallback from fae2dbf), 8744515 (trigger removed again). Remote read-back: ls-remote showed 951f0ed then 8744515 on github/qa-fixes-2026-10-26.
+- CI run #29: attempt 1 hit a GitHub macOS runner capacity error after 15m ("job not acquired", "Internal server error"). Attempt 2 (my re-run) built and archived fine but export failed: "bundle version must be higher than the previously uploaded version: 343". Reason: attempt 1 had already uploaded 343. Attempt 2's red status is that duplicate, not a bad build. I did not re-ship as 344 (Ilse's word).
+- ASC read-back: reported by Ilse, not read by me: build 343 VALID, id 90ee8f83-01d0-4469-83e5-04a1abf56d84, uploaded 2026-11-16T14:36:23-08:00, first of 46 builds, first in both tester groups.
+- Not proven: CI went red on #29, so there is no green CI run for 343. The suite is still not fully green (see above).
+
+## PAUSED until the Firestore quota resets (~18:00, per Ilse), on the same 343 bytes
+Break-in reads (leg 12), registry gone-read, full compare, legs 4-14 + FEELS lines, test20 reruns. Rules still need an owner-delete on _relayRegistry/{uid} (owner: backend/Security).
