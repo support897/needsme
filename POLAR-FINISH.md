@@ -50,7 +50,7 @@ Tree pulled to tip f7c9935b (fast-forward, no clone). Note: the tree's `origin` 
 ### Registry delete - REAL FAULT found, not fixable in the app alone
 - Probe (evidence/b342-breakin.log): signed-up throwaway account A wrote its own _relayRegistry/A (200), then DELETE of that page by A returned 403. Live rules allow the write but refuse the owner delete. So the build 342 delete sweep fails silently (the try? swallows it): the page is still left behind.
 - App fix on tree (not shipped): if the delete is refused, overwrite the page with empty rooms/prompts so no ids stay. A page still remains.
-- Needs the real cure: Firestore rules must allow owner delete on _relayRegistry/{uid}. Owner: backend/Security. I have no console access.
+- CORRECTION: the rules cure LANDED at 07:24 (reported by Ilse/Security, not verified by me): Security added the owner-delete arm on _relayRegistry/{uid}, ruleset 8e131c2d, probe-proven by them (A deletes own page 200, B and anon still 403). My 403 above was against the old rules. The 343 sweep rides the live arm.
 - Owner-side gone-read: Could not check (no admin access; quota 429).
 
 ### Break-in test (leg 12) - Could not check
@@ -66,7 +66,7 @@ Tree pulled to tip f7c9935b (fast-forward, no clone). Note: the tree's `origin` 
 
 ### Next
 1. Wait for quota reset (or upgrade the Firebase plan: owner money step, never done by me).
-2. Owner updates rules for _relayRegistry delete.
+2. (Done by Security at 07:24, ruleset 8e131c2d - see correction above.)
 3. I rerun break-in reads, then compare + legs 4-14, then ship 343.
 
 ## BUILD 343 SHIP (2026-11-17) - landed
@@ -76,4 +76,4 @@ Tree pulled to tip f7c9935b (fast-forward, no clone). Note: the tree's `origin` 
 - Not proven: CI went red on #29, so there is no green CI run for 343. The suite is still not fully green (see above).
 
 ## PAUSED until the Firestore quota resets (~18:00, per Ilse), on the same 343 bytes
-Break-in reads (leg 12), registry gone-read, full compare, legs 4-14 + FEELS lines, test20 reruns. Rules still need an owner-delete on _relayRegistry/{uid} (owner: backend/Security).
+Break-in reads (leg 12), registry gone-read, full compare, legs 4-14 + FEELS lines, test20 reruns.
