@@ -23,3 +23,11 @@
   accessToken) -> Firebase. Needs only what the tree holds: iOS client ID in FirebaseOptions and the reversed
   client ID URL scheme in Info.plist. onOpenURL hands the return URL to the SDK. Cancel = GIDSignInError.canceled
   -> quiet return. Apple stays native.
+
+## Three piles - STATE AT FINISH (honest: the full word-by-word walk of every screen was NOT done this pass)
+- Job one (doors) is the only part of the compare done. Google door: changed to native SDK (NOT DONE -> fixed in code,
+  real-phone proof pending Ilse's phone test). Apple door: unchanged, native by code.
+- SAME AS THE PAGE / DIFFERENT BY HER WORD: not re-walked this pass. Prior 341 compare stands in COMPARE-DRAFT.md.
+- NOT DONE YET: the full word-by-word walk, legs 4-14 driven by hand (only the 21 XCUITests ran), break-in test (leg 12)
+  by hand, delete-sweep proof by owner-side read of _relayRegistry (leg 13).
+- Allowed open lines unchanged: per-agent level picker, keys-pull host half, giving page, Claude key / credits.
