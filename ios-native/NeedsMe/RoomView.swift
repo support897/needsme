@@ -625,6 +625,7 @@ struct RoomView: View {
                         loopBar
                         chipsBar
                     }.padding(.horizontal, 18).padding(.bottom, 12)
+                    }
                 }
                 .onChange(of: engine.shown.count) { _ in
                     if let last = engine.shown.last { proxy.scrollTo(last.id, anchor: .bottom) }
