@@ -904,6 +904,13 @@ final class NeedsMeDemoShots: XCTestCase {
         if !more.isHittable { app.buttons["tab-Home"].tap(); pause(1) }
         more.tap(); pause(1)
     }
+    func openRow(_ id: String) -> Bool {
+        goMore()
+        let r = app.buttons[id]
+        guard r.waitForExistence(timeout: 8) else { return false }
+        for _ in 0..<8 { if r.isHittable && r.frame.midY < app.frame.height - 130 { break }; app.swipeUp(); pause(0.5) }
+        r.tap(); pause(1.5); return true
+    }
     func back() { let b = app.navigationBars.buttons.firstMatch; if b.exists { b.tap(); pause(1) } }
 
     func testNineScreens() {
@@ -920,8 +927,8 @@ final class NeedsMeDemoShots: XCTestCase {
         for _ in 0..<5 { if app.buttons["Skip guide"].exists { app.buttons["Skip guide"].tap() }; pause(1); if !app.staticTexts["Tour 1 of 7"].exists { break } }
         pause(2); shot("D2-home")
         // 7 Tasks, 4 Rooms, 5 a room (all from More)
-        goMore(); if tapIf(app.buttons["moreTasks"]) { pause(2); shot("D7-tasks"); back() }
-        goMore(); if tapIf(app.buttons["moreGroupChat"]) {
+        if openRow("moreTasks") { shot("D7-tasks"); back() }
+        if openRow("moreGroupChat") {
             pause(2); shot("D4-rooms")
             if tapIf(hit(app.buttons.matching(identifier: "room-Launch week")), 5) { pause(2); shot("D5-room") }
         }
@@ -932,7 +939,7 @@ final class NeedsMeDemoShots: XCTestCase {
         // 8 notes
         app.buttons["tab-Notes"].tap(); pause(2); shot("D8-notes")
         // 9 settings
-        goMore(); if tapIf(app.buttons["settingsRow"]) { pause(2); shot("D9-settings"); app.swipeUp(); pause(1); shot("D9b-settings-below") }
+        if openRow("settingsRow") { shot("D9-settings"); app.swipeUp(); pause(1); shot("D9b-settings-below") }
         // 3 a need cleared
         app.buttons["tab-Home"].tap(); pause(2)
         let d = app.buttons["heroDone"]
