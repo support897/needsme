@@ -138,19 +138,63 @@ struct SettingsView: View {
     @AppStorage("nm_digest") private var digest = "Daily"
     @AppStorage("nm_quiet") private var quiet = true
     @State private var confirmDelete = false
+    @AppStorage("nm_first_launch") private var firstLaunch = 0.0
+    @ObservedObject private var conns = AIConnections.shared
+    var pipDays: Int { firstLaunch == 0 ? 1 : max(1, Int(Date().timeIntervalSince1970 - firstLaunch) / 86400 + 1) }
+    var aiDays: Int { Set(store.tasks.filter { $0.isDone && !$0.doneBy.isEmpty && $0.doneBy != "user" }.map { $0.doneDate }).count }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 Card {
-                    Text("Colours").font(.headline).foregroundColor(p.ink)
-                    ForEach(AppTheme.allCases) { t in
-                        Button { themeRaw = t.rawValue; store.saveTheme(t.rawValue) } label: {
-                            HStack { Text(t.label); Spacer(); if AppTheme.from(themeRaw) == t { SproutBox(on: true, size: 22) } }
-                                .padding(.vertical, 6)
-                        }.foregroundColor(p.ink).accessibilityIdentifier("theme-" + t.rawValue)
+                    HStack(spacing: 14) {
+                        PipArt(pose: .welcome, height: 64)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(store.savedName ?? "You").font(.system(size: 18, weight: .bold)).foregroundColor(.loam)
+                            Text("Pip has been with you \(pipDays) days").font(.system(size: 12.5)).foregroundColor(.muted)
+                            Text("\(aiDays) days your AIs worked for you").font(.system(size: 12.5)).foregroundColor(.muted)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                }.accessibilityIdentifier("settingsProfile")
+                Card {
+                    Text("Your AIs").font(.headline).foregroundColor(.loam)
+                    if conns.connected.isEmpty { Text("No AI is connected yet.").font(.subheadline).foregroundColor(.muted) }
+                    ForEach(conns.connected) { a in
+                        HStack(spacing: 12) {
+                            AIFace(label: a.label, size: 38)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(a.label).font(.system(size: 15, weight: .bold)).foregroundColor(.loam)
+                                Text("Connected · in \(store.rooms.count) rooms").font(.system(size: 12)).foregroundColor(.muted)
+                            }
+                            Spacer()
+                            Toggle("", isOn: Binding(get: { !store.agentPaused(a.id) }, set: { on in var c = store.agentControl(a.id); c.paused = !on; store.setAgentControl(a.id, c) }))
+                                .labelsHidden().tint(.sprout).accessibilityLabel("\(a.label) on")
+                        }
                     }
                 }
+                Card {
+                    Text("Look").font(.headline).foregroundColor(.loam)
+                    HStack(spacing: 12) {
+                        ForEach([AppTheme.white, .beige, .dark]) { t in
+                            Button { themeRaw = t.rawValue; store.saveTheme(t.rawValue) } label: {
+                                VStack(spacing: 6) {
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .fill(t == .dark ? Color.loam : (t == .beige ? Color.bone : Color.sproutPale))
+                                        .frame(height: 54)
+                                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.from(themeRaw) == t ? Color.sprout : Color.loam.opacity(0.1), lineWidth: AppTheme.from(themeRaw) == t ? 3 : 1))
+                                    Text(t.label).font(.system(size: 12, weight: .semibold)).foregroundColor(.loam)
+                                }
+                            }.buttonStyle(.plain).accessibilityIdentifier("theme-" + t.rawValue)
+                        }
+                    }
+                }
+                HStack(spacing: 10) {
+                    Image(systemName: "lock").foregroundColor(.sproutDeep)
+                    Text("Your AIs are yours alone. Never shared. Never mixed. Never seen by anyone else.").font(.system(size: 13, weight: .semibold)).foregroundColor(.loam)
+                }
+                .padding(14).frame(maxWidth: .infinity, alignment: .leading)
+                .background(LinearGradient(colors: [.sproutPale, .bone], startPoint: .leading, endPoint: .trailing)).clipShape(RoundedRectangle(cornerRadius: 20))
                 Card {
                     Text("Motion").font(.headline).foregroundColor(p.ink)
                     Picker("Motion", selection: $motion) {
@@ -246,7 +290,9 @@ struct SettingsView: View {
                 }
             }.padding()
         }
-        .background(p.bg).navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
+        .onAppear { if firstLaunch == 0 { firstLaunch = Date().timeIntervalSince1970 } }
+        .hidesTabBar()
+        .background(Color.clear).navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
         .alert("Delete your account?", isPresented: $confirmDelete) {
             Button("Delete everything", role: .destructive) { Task { await store.deleteAccount() } }
             Button("Cancel", role: .cancel) {}

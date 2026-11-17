@@ -424,22 +424,84 @@ final class RoomEngine: ObservableObject {
 struct RoomsListView: View {
     @EnvironmentObject var store: Store
     @Environment(\.palette) var p
+    @ObservedObject private var conns = AIConnections.shared
     @State private var asking = false
     @State private var title = ""
     @State private var projectFilter = ""
     @State private var roomToDelete: RoomItem?
+    @State private var searching = false
+    @State private var query = ""
 
     var shownRooms: [RoomItem] {
-        projectFilter.isEmpty ? store.rooms : store.rooms.filter { $0.project == projectFilter }
+        let byProject = projectFilter.isEmpty ? store.rooms : store.rooms.filter { $0.project == projectFilter }
+        return query.isEmpty ? byProject : byProject.filter { $0.title.localizedCaseInsensitiveContains(query) }
+    }
+    func openNeed(_ r: RoomItem) -> NeedItem? { store.needs.first { $0.roomId == r.id && $0.status == "open" } }
+    var needRooms: Int { Set(store.needs.filter { $0.status == "open" }.map { $0.roomId }).count }
+
+    func faceState(_ a: AIAccount, _ r: RoomItem) -> FaceState {
+        if let n = openNeed(r), n.ai == a.label { return .needs }
+        if RoomEngine.isWorking(a.id) { return .working }
+        return .none
+    }
+
+    func roomCard(_ r: RoomItem) -> some View {
+        let n = openNeed(r)
+        let accts = conns.connected
+        let working = accts.first { RoomEngine.isWorking($0.id) }
+        let state = n != nil ? "needs" : (working != nil ? "work" : "done")
+        let line: String = {
+            if let n { return "\(n.ai) asks: \(n.text)" }
+            if let w = working { return "\(w.label) is working now." }
+            if accts.isEmpty { return "No AI is connected yet." }
+            return "Everything handled. Pip is pleased."
+        }()
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                NavigationLink { RoomView(room: r, store: store) } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(r.title).font(.system(size: 16, weight: .bold)).foregroundColor(.loam)
+                        if !r.project.isEmpty { Text(r.project).font(.system(size: 11.5)).foregroundColor(.muted) }
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                }.buttonStyle(.plain).accessibilityIdentifier("room-" + r.title)
+                if state == "needs" { CountPill(text: "needs you") }
+                if state == "work" { CountPill(text: "working", light: true) }
+                if state == "done" { Text("all clear").font(.system(size: 12, weight: .heavy)).padding(.horizontal, 10).padding(.vertical, 4).background(Color(hex: 0xE6DFCF)).foregroundColor(.muted).clipShape(Capsule()) }
+                Button { roomToDelete = r } label: {
+                    Image(systemName: "trash").font(.system(size: 14)).foregroundColor(.faint).frame(width: 36, height: 36).contentShape(Rectangle())
+                }.accessibilityLabel("Delete room \(r.title)").accessibilityIdentifier("deleteRoom-" + r.title)
+            }
+            HStack(spacing: 14) {
+                if !accts.isEmpty {
+                    HStack(spacing: -9) {
+                        ForEach(accts) { a in AIFace(label: a.label, size: 34, state: faceState(a, r)).overlay(Circle().stroke(Color.cardTone, lineWidth: 2)) }
+                    }
+                }
+                Text(line).font(.system(size: 13)).foregroundColor(Color(hex: 0x4A4235)).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 14).background(Color.cardTone).clipShape(RoundedRectangle(cornerRadius: 24))
+        .shadow(color: Color.loam.opacity(0.07), radius: 12, y: 6)
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                Text("One room for all your AIs. Mention an AI with its name to ask it. An AI that is not connected never takes part.")
-                    .font(.subheadline).foregroundColor(p.soft)
+                Text("\(conns.connected.count) of your AIs talking, \(store.rooms.count) rooms").font(.system(size: 12.5)).foregroundColor(.muted)
+                HStack(spacing: 12) {
+                    PipArt(pose: .welcome, height: 54)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(needRooms > 0 ? (needRooms == 1 ? "1 room needs you" : "\(needRooms) rooms need you") : "All your rooms are calm").font(.system(size: 14.5, weight: .bold)).foregroundColor(.loam)
+                        Text("One room for all your AIs. Mention an AI with its name to ask it.").font(.system(size: 12)).foregroundColor(.muted)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 14).padding(.vertical, 12)
+                .background(LinearGradient(colors: [.sproutPale, .bone], startPoint: .leading, endPoint: .trailing)).clipShape(RoundedRectangle(cornerRadius: 24))
+                Text("An AI that is not connected never takes part.").font(.system(size: 12)).foregroundColor(.muted)
                 Button("New group chat") { title = ""; asking = true }
                     .buttonStyle(PrimaryButton()).accessibilityIdentifier("newRoom")
+                if searching { TextField("Search rooms", text: $query).textFieldStyle(.roundedBorder).accessibilityIdentifier("roomSearch") }
                 if !store.projects.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack {
@@ -451,30 +513,16 @@ struct RoomsListView: View {
                     }
                 }
                 if shownRooms.isEmpty {
-                    Text(store.rooms.isEmpty ? "No rooms yet." : "No rooms for this project yet.").foregroundColor(p.soft).accessibilityIdentifier("noRooms")
+                    Text(store.rooms.isEmpty ? "No rooms yet." : "No rooms for this project yet.").foregroundColor(.muted).accessibilityIdentifier("noRooms")
                 }
-                ForEach(shownRooms) { r in
-                    Card {
-                        HStack(spacing: 10) {
-                            NavigationLink { RoomView(room: r, store: store) } label: {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(r.title).font(.headline).foregroundColor(p.ink)
-                                    if !r.project.isEmpty { Text(r.project).font(.caption).foregroundColor(p.soft) }
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            }.buttonStyle(.plain).accessibilityIdentifier("room-" + r.title)
-                            Button { roomToDelete = r } label: {
-                                Image(systemName: "trash").foregroundColor(p.soft).frame(width: 44, height: 44).contentShape(Rectangle())
-                            }.accessibilityLabel("Delete room \(r.title)").accessibilityIdentifier("deleteRoom-" + r.title)
-                        }
-                    }
-                }
+                ForEach(shownRooms) { r in roomCard(r) }
                 if !store.roomError.isEmpty {
-                    Text(store.roomError).font(.footnote).foregroundColor(p.soft).accessibilityIdentifier("roomError")
+                    Text(store.roomError).font(.footnote).foregroundColor(.muted).accessibilityIdentifier("roomError")
                 }
-            }.padding()
+            }.padding(.horizontal, 18).padding(.bottom, 12)
         }
-        .background(p.bg).navigationTitle("AI Group Chat")
+        .background(Color.clear).navigationTitle("Rooms")
+        .toolbar { ToolbarItem(placement: .navigationBarTrailing) { SearchIconButton(on: $searching) } }
         .alert("Name your room", isPresented: $asking) {
             TextField("Room name", text: $title)
             Button("Create") {
@@ -496,7 +544,7 @@ struct RoomsListView: View {
 
     func filterChip(_ t: String, _ on: Bool, _ a: @escaping () -> Void) -> some View {
         Button(t, action: a).font(.subheadline.bold()).padding(.horizontal, 14).padding(.vertical, 8).frame(minHeight: 44)
-            .background(on ? p.ink : p.card).foregroundColor(on ? p.bg : p.ink).clipShape(Capsule())
+            .background(on ? Color.loam : Color.cardTone).foregroundColor(on ? Color.bone : Color.loam).clipShape(Capsule())
     }
 }
 
@@ -519,109 +567,167 @@ struct RoomView: View {
         if !proj.isEmpty { s += " · Project: " + proj }
         return s
     }
+    var tasksMade: Int { store.tasks.filter { $0.sourceRoom == engine.title }.count }
+
+    func faceInfo(_ a: AIAccount) -> (FaceState, String) {
+        if engine.working.contains(a.id) { return (.working, "writing now") }
+        if store.agentPaused(a.id) { return (.none, "paused") }
+        if store.needs.contains(where: { $0.roomId == engine.roomId && $0.status == "open" && $0.ai == a.label }) { return (.needs, "needs you") }
+        return (.none, "listening")
+    }
+
+    var facesCard: some View {
+        HStack {
+            if conns.connected.isEmpty {
+                Text("No AI is connected yet.").font(.system(size: 13)).foregroundColor(.muted).padding(.vertical, 8)
+            }
+            ForEach(conns.connected) { a in
+                let info = faceInfo(a)
+                VStack(spacing: 6) {
+                    AIFace(label: a.label, size: 46, state: info.0)
+                    Text(a.label).font(.system(size: 12, weight: .bold)).foregroundColor(.loam)
+                    Text(info.1).font(.system(size: 11)).foregroundColor(.muted)
+                }.frame(maxWidth: .infinity)
+            }
+        }
+        .padding(.horizontal, 8).padding(.vertical, 12).background(Color.cardTone).clipShape(RoundedRectangle(cornerRadius: 22))
+        .shadow(color: Color.loam.opacity(0.07), radius: 10, y: 5)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            Text("AIs answer while this room is open.")
-                .font(.footnote).foregroundColor(p.soft)
-                .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal).padding(.top, 8)
-                .accessibilityIdentifier("roomNote")
-            Text(participantsLine)
-                .font(.footnote).foregroundColor(p.soft)
-                .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal)
-                .accessibilityIdentifier("roomParticipants")
+            VStack(spacing: 8) {
+                Text("\(conns.connected.count) AIs here · \(tasksMade) tasks made").font(.system(size: 12)).foregroundColor(.muted)
+                facesCard
+                Text("AIs answer while this room is open.")
+                    .font(.footnote).foregroundColor(.muted)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityIdentifier("roomNote")
+                Text(participantsLine)
+                    .font(.footnote).foregroundColor(.muted)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityIdentifier("roomParticipants")
+            }.padding(.horizontal, 18).padding(.top, 4)
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 10) {
                         ForEach(engine.shown) { m in bubble(m).id(m.id) }
                         ForEach(Array(engine.working).sorted(), id: \.self) { id in
-                            Text("\(conns.displayName(id)) is writing").font(.footnote).foregroundColor(p.soft)
+                            Text("\(conns.displayName(id)) is writing").font(.footnote).foregroundColor(.muted)
                         }
-                    }.padding()
+                    }.padding(.horizontal, 18).padding(.vertical, 12)
                 }
                 .onChange(of: engine.shown.count) { _ in
                     if let last = engine.shown.last { proxy.scrollTo(last.id, anchor: .bottom) }
                 }
             }
             if !store.roomError.isEmpty {
-                Text(store.roomError).font(.footnote).foregroundColor(p.soft).padding(.horizontal)
+                Text(store.roomError).font(.footnote).foregroundColor(.muted).padding(.horizontal)
                     .accessibilityIdentifier("roomError")
             }
             loopBar
             composer
         }
-        .background(p.bg).navigationTitle(engine.title).navigationBarTitleDisplayMode(.inline)
+        .background(Color.clear).navigationTitle(engine.title).navigationBarTitleDisplayMode(.inline)
+        .toolbar { ToolbarItem(placement: .navigationBarTrailing) { PipArt(pose: .welcome, height: 34) } }
         .onAppear { RoomEngine.retireBackground(engine.roomId); engine.start() }
         .onDisappear { engine.close() }
+        .hidesTabBar()
     }
 
     @ViewBuilder func bubble(_ m: RoomMessage) -> some View {
         if m.author == "system" {
-            Text(m.text).font(.footnote).foregroundColor(p.soft).frame(maxWidth: .infinity, alignment: .center)
+            Text(m.text).font(.footnote).foregroundColor(.muted).frame(maxWidth: .infinity, alignment: .center)
         } else {
             let mine = m.author == store.user?.uid
-            VStack(alignment: .leading, spacing: 4) {
-                Text(mine ? "You" : conns.displayName(m.author))
-                    .font(.caption.bold()).foregroundColor(p.soft)
-                Text(m.text).foregroundColor(p.ink)
-                if m.needsYou {
-                    Text("Needs you").font(.caption.bold()).padding(.horizontal, 8).padding(.vertical, 3)
-                        .background(p.chip).clipShape(Capsule()).foregroundColor(p.ink)
+            if mine {
+                HStack { Spacer(minLength: 60)
+                    Text(m.text).font(.system(size: 14)).foregroundColor(.bone).padding(.horizontal, 14).padding(.vertical, 11)
+                        .background(Color.loam).clipShape(BubbleShape(tl: 20, tr: 6, bl: 20, br: 20))
+                }
+            } else {
+                HStack(alignment: .bottom, spacing: 10) {
+                    AIFace(label: conns.displayName(m.author), size: 34)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(conns.displayName(m.author)).font(.system(size: 11, weight: .bold)).foregroundColor(.muted)
+                        Text(m.text).font(.system(size: 14)).foregroundColor(.loam)
+                        if m.needsYou {
+                            Text("Needs you").font(.caption.bold()).padding(.horizontal, 8).padding(.vertical, 3)
+                                .background(Color.sproutPale).clipShape(Capsule()).foregroundColor(.loam)
+                        }
+                    }
+                    .padding(.horizontal, 14).padding(.vertical, 11)
+                    .background(Color.cardTone).clipShape(BubbleShape(tl: 6, tr: 20, bl: 20, br: 20))
+                    .shadow(color: Color.loam.opacity(0.06), radius: 6, y: 3)
+                    Spacer(minLength: 40)
                 }
             }
-            .padding(12).frame(maxWidth: .infinity, alignment: .leading)
-            .background(mine ? p.chip : p.card).clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(p.line, lineWidth: 1))
         }
     }
 
     var loopBar: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
-                Button("File this talk") { engine.fileThisTalk() }
-                    .buttonStyle(.bordered).tint(p.ink).disabled(engine.reading)
-                    .accessibilityIdentifier("fileTalk")
+                Button { engine.fileThisTalk() } label: {
+                    Label("File this talk", systemImage: "sparkle").font(.system(size: 13, weight: .semibold))
+                }
+                .buttonStyle(.bordered).tint(.loam).disabled(engine.reading)
+                .accessibilityIdentifier("fileTalk")
                 Button("Show the list") { engine.showList() }
-                    .buttonStyle(.bordered).tint(p.ink)
+                    .font(.system(size: 13, weight: .semibold))
+                    .buttonStyle(.bordered).tint(.loam)
                     .accessibilityIdentifier("showList")
             }
             if !engine.fileNote.isEmpty {
-                Text(engine.fileNote).font(.footnote).foregroundColor(p.soft).accessibilityIdentifier("fileNote")
+                HStack(spacing: 10) {
+                    Image(systemName: "sparkle").foregroundColor(.loam)
+                    Text(engine.fileNote).font(.system(size: 12.5, weight: .semibold)).foregroundColor(.loam).accessibilityIdentifier("fileNote")
+                }
+                .padding(.horizontal, 12).padding(.vertical, 10)
+                .background(LinearGradient(colors: [.sproutPale, .bone], startPoint: .leading, endPoint: .trailing))
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.sprout, style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])))
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal).padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 18).padding(.vertical, 6)
     }
 
     var composer: some View {
         VStack(alignment: .leading, spacing: 8) {
             if conns.connected.isEmpty {
                 Text("No AI is connected yet. Add a key in the Connect screen, then mention it here.")
-                    .font(.footnote).foregroundColor(p.soft)
+                    .font(.footnote).foregroundColor(.muted)
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack {
                         ForEach(conns.connected) { a in
                             Button("@" + a.label) { draft += (draft.isEmpty || draft.hasSuffix(" ") ? "" : " ") + "@" + a.label + " " }
-                                .buttonStyle(.bordered).tint(p.ink).accessibilityIdentifier("chip-" + a.id)
+                                .buttonStyle(.bordered).tint(.loam).accessibilityIdentifier("chip-" + a.id)
                         }
                     }
                 }
             }
             HStack(spacing: 8) {
-                TextField("Message", text: $draft, axis: .vertical)
-                    .textFieldStyle(.roundedBorder).lineLimit(1...4)
+                TextField("Say something to your AIs", text: $draft, axis: .vertical)
+                    .lineLimit(1...4).padding(.leading, 12)
                     .accessibilityIdentifier("roomComposer")
                 if !engine.working.isEmpty {
-                    Button("Stop") { engine.stop() }.buttonStyle(.bordered).tint(p.ink).accessibilityIdentifier("roomStop")
+                    Button("Stop") { engine.stop() }.buttonStyle(.bordered).tint(.loam).accessibilityIdentifier("roomStop")
                 }
-                Button("Send") {
+                Button {
                     let t = draft; draft = ""; engine.send(t)
+                } label: {
+                    Image(systemName: "paperplane").font(.system(size: 18, weight: .semibold)).foregroundColor(.loam)
+                        .frame(width: 42, height: 42).background(Color.sprout).clipShape(Circle())
                 }
-                .buttonStyle(.borderedProminent).tint(p.accent)
                 .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .opacity(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1)
+                .accessibilityLabel("Send")
                 .accessibilityIdentifier("roomSend")
             }
+            .padding(.horizontal, 8).padding(.vertical, 7).background(Color.cardTone).clipShape(RoundedRectangle(cornerRadius: 30))
+            .shadow(color: Color.loam.opacity(0.14), radius: 14, y: 8)
         }
-        .padding().background(p.card)
+        .padding(.horizontal, 14).padding(.top, 6).padding(.bottom, 8)
     }
 }

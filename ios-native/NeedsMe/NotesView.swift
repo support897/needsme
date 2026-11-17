@@ -12,6 +12,7 @@ enum NotePlace: String, CaseIterable {
 struct NotesView: View {
     @EnvironmentObject var store: Store
     @Environment(\.palette) var p
+    @EnvironmentObject var router: TabRouter
     @State private var place: NotePlace = .notes
     @State private var query = ""
     @State private var filter = ""
@@ -38,14 +39,20 @@ struct NotesView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    HStack(spacing: 8) {
+                    Text(place == .notes ? "Written by your AIs, kept for you" : "Your prompts, kept for you")
+                        .font(.system(size: 12.5)).foregroundColor(.muted)
+                    HStack(spacing: 6) {
                         ForEach(NotePlace.allCases, id: \.self) { pl in
-                            Button(pl.rawValue) { place = pl; showArchived = false }
-                                .font(.subheadline.bold()).padding(.horizontal, 12).padding(.vertical, 8)
-                                .background(place == pl ? p.ink : p.card).foregroundColor(place == pl ? p.bg : p.ink).clipShape(Capsule())
-                                .accessibilityIdentifier(pl.id)
+                            Button { place = pl; showArchived = false } label: {
+                                Text(pl.rawValue).font(.system(size: 13, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.75)
+                                    .frame(maxWidth: .infinity).padding(.vertical, 9)
+                                    .background(place == pl ? Color.loam : Color.clear)
+                                    .foregroundColor(place == pl ? Color.bone : Color.muted)
+                                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                            }.buttonStyle(.plain).accessibilityIdentifier(pl.id)
                         }
                     }
+                    .padding(5).background(Color.loam.opacity(0.06)).clipShape(RoundedRectangle(cornerRadius: 18))
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack {
                             chip("All", filter.isEmpty) { filter = "" }
@@ -57,17 +64,17 @@ struct NotesView: View {
                     case .scheduled: waitingList
                     case .notes: notesList
                     }
-                }.padding()
+                }.padding(.horizontal, 18).padding(.bottom, 12)
             }
             .searchable(text: $query)
-            .background(p.bg).navigationTitle(place.rawValue)
-            .toolbar { Button { if place == .notes { newNote = true } else { newPrompt = true } } label: { SproutPlus() }.accessibilityLabel("New").accessibilityIdentifier("newItem") }
+            .background(Color.clear).navigationTitle(place == .notes ? "Notes" : place.rawValue)
+            .onChange(of: router.noteTick) { _ in if place == .notes { newNote = true } else { newPrompt = true } }
             .sheet(isPresented: $newNote) { NoteSheet(note: nil) }
             .sheet(item: $openNote) { n in NoteSheet(note: n) }
             .sheet(isPresented: $newPrompt) { PromptSheet(prompt: nil) { flash($0) } }
             .sheet(item: $openPrompt) { n in PromptSheet(prompt: n) { flash($0) } }
             .overlay(alignment: .bottom) {
-                if !toast.isEmpty { Text(toast).padding(12).background(p.ink).foregroundColor(p.bg).clipShape(Capsule()).padding(.bottom, 12).transition(.opacity) }
+                if !toast.isEmpty { Text(toast).padding(12).background(Color.loam).foregroundColor(Color.bone).clipShape(Capsule()).padding(.bottom, 96).transition(.opacity) }
             }
         }
     }
@@ -118,22 +125,38 @@ struct NotesView: View {
             Button("Archived (\(archivedCount))") { showArchived = true }.buttonStyle(SoftButton()).accessibilityIdentifier("showArchived")
         }
         if noteList.isEmpty { Text(showArchived ? "Nothing archived." : "No notes yet. Tap + to start one.").foregroundColor(p.soft) }
-        ForEach(noteList) { n in
-            Card {
-                Button { openNote = n } label: {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(n.title).font(.headline).foregroundColor(p.ink)
-                        if !n.body.isEmpty { Text(NoteText.preview(n.body)).font(.subheadline).foregroundColor(p.soft).lineLimit(3) }
-                    }.frame(maxWidth: .infinity, alignment: .leading)
-                }.buttonStyle(.plain)
+        HStack(alignment: .top, spacing: 12) {
+            VStack(spacing: 12) { ForEach(Array(noteList.enumerated()).filter { $0.offset % 2 == 0 }, id: \.element.id) { _, n in noteCard(n) } }
+            VStack(spacing: 12) { ForEach(Array(noteList.enumerated()).filter { $0.offset % 2 == 1 }, id: \.element.id) { _, n in noteCard(n) } }
+                .padding(.top, noteList.count > 1 ? 26 : 0)
+        }
+    }
+
+    /// A note as a soft card. Tinted Sprout when one of your AIs wrote it.
+    func noteCard(_ n: NoteItem) -> some View {
+        let fromAI = !n.ai.isEmpty
+        return VStack(alignment: .leading, spacing: 8) {
+            Button { openNote = n } label: {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text((n.projects.first ?? "Note").uppercased()).font(.system(size: 11, weight: .heavy)).tracking(0.9).foregroundColor(.sproutDeep)
+                    Text(n.title).font(.system(size: 15.5, weight: .bold)).foregroundColor(.loam).multilineTextAlignment(.leading)
+                    if !n.body.isEmpty { Text(NoteText.preview(n.body)).font(.system(size: 12.5)).foregroundColor(Color(hex: 0x4A4235)).lineLimit(4).multilineTextAlignment(.leading) }
+                }.frame(maxWidth: .infinity, alignment: .leading)
+            }.buttonStyle(.plain)
+            HStack {
+                if fromAI { AIFace(label: n.ai, size: 26) }
+                Spacer()
                 projectRow(n)
-                if showArchived {
-                    Button("Restore") { store.setArchived(n, false); flash("Restored.") }.buttonStyle(PrimaryButton()).accessibilityIdentifier("restore-" + n.id)
-                } else {
-                    Button("Archive") { store.setArchived(n, true); flash("Archived.") }.buttonStyle(SoftButton()).accessibilityIdentifier("archive-" + n.id)
-                }
+            }
+            if showArchived {
+                Button("Restore") { store.setArchived(n, false); flash("Restored.") }.buttonStyle(PrimaryButton()).accessibilityIdentifier("restore-" + n.id)
+            } else {
+                Button("Archive") { store.setArchived(n, true); flash("Archived.") }.font(.system(size: 12, weight: .semibold)).foregroundColor(.muted).accessibilityIdentifier("archive-" + n.id)
             }
         }
+        .padding(14).frame(maxWidth: .infinity, alignment: .leading)
+        .background(Group { if fromAI { LinearGradient(colors: [.sproutPale, .cardTone], startPoint: .topLeading, endPoint: .bottomTrailing) } else { Color.cardTone } })
+        .clipShape(RoundedRectangle(cornerRadius: 24)).shadow(color: Color.loam.opacity(0.07), radius: 12, y: 6)
     }
 
     /// One tap to fix a wrong guess: existing projects plus None. Her pick overrides the stamp.
@@ -153,7 +176,7 @@ struct NotesView: View {
     func flash(_ s: String) { toast = s; DispatchQueue.main.asyncAfter(deadline: .now() + 2) { toast = "" } }
     func chip(_ t: String, _ on: Bool, _ a: @escaping () -> Void) -> some View {
         Button(t, action: a).font(.subheadline.bold()).padding(.horizontal, 14).padding(.vertical, 8)
-            .background(on ? p.ink : p.card).foregroundColor(on ? p.bg : p.ink).clipShape(Capsule())
+            .background(on ? Color.loam : Color.cardTone).foregroundColor(on ? Color.bone : Color.loam).clipShape(Capsule())
     }
     func tag(_ t: String) -> some View {
         Text(t).font(.caption.bold()).padding(.horizontal, 10).padding(.vertical, 4).background(p.chip).foregroundColor(p.ink).clipShape(Capsule())

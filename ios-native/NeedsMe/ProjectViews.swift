@@ -4,68 +4,118 @@ struct ProjectView: View {
     let name: String
     @EnvironmentObject var store: Store
     @Environment(\.palette) var p
+    @State private var seg = 0
     var projectNeeds: [NeedItem] {
         let roomIds = Set(store.rooms.filter { $0.project == name }.map { $0.id })
         return store.needs.filter { $0.status == "open" && roomIds.contains($0.roomId) }
     }
     var projectRooms: [RoomItem] { store.rooms.filter { $0.project == name } }
+    var tasksHere: [TaskItem] { store.tasks.filter { $0.area == name } }
+    var aiNames: [String] {
+        var seen: [String] = []
+        for t in tasksHere { for n in [t.sourceBy, t.doneBy] where !n.isEmpty && n != "user" && !seen.contains(n) { seen.append(n) } }
+        for n in projectNeeds where !seen.contains(n.ai) { seen.append(n.ai) }
+        return seen
+    }
+
+    func who(_ t: TaskItem) -> String { t.doneBy.isEmpty || t.doneBy == "user" ? t.sourceBy : t.doneBy }
+
+    func taskRow(_ t: TaskItem) -> some View {
+        LookRow(lead: { CheckCircle(on: t.isDone, working: !t.isDone && !t.sourceRoom.isEmpty) }, title: t.title,
+                sub: t.stamp.isEmpty ? (t.isDone ? "Done" : "") : t.stamp,
+                trail: { if !who(t).isEmpty { AIFace(label: who(t), size: 34) } })
+    }
 
     var body: some View {
         let pr = store.progress(name)
+        let prog = pr.total > 0 ? Double(pr.done) / Double(pr.total) : 0
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                Card {
-                    HStack(spacing: 8) {
-                        Circle().fill(ProjectColor.color(name)).frame(width: 12, height: 12)
-                        Text("\(pr.done) of \(pr.total) tasks done").font(.headline).foregroundColor(p.ink)
+                HStack(spacing: 14) {
+                    RoundedRectangle(cornerRadius: 17).fill(ProjectColor.color(name)).frame(width: 58, height: 58)
+                        .overlay(Image(systemName: "rectangle.on.rectangle").font(.system(size: 26, weight: .medium)).foregroundColor(.loam))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("PROJECT").font(.system(size: 11, weight: .bold)).tracking(1.1).foregroundColor(.faint)
+                        Text(name).font(.system(size: 22, weight: .bold)).foregroundColor(.loam)
                     }
-                    if let pct = store.percentDone(name) {
-                        Text("\(pct)% done, counted from this project's tasks").font(.subheadline).foregroundColor(p.soft)
-                        ProgressView(value: Double(pr.done), total: Double(max(pr.total, 1))).tint(ProjectColor.color(name))
-                    } else {
-                        Text("Progress not yet measurable. This project has no tasks yet.").font(.subheadline).foregroundColor(p.soft)
-                    }
+                    Spacer()
                 }
-                if !projectNeeds.isEmpty {
-                    Text("Needs your attention").font(.title3.bold()).foregroundColor(p.ink)
-                    ForEach(projectNeeds) { n in
-                        Card {
-                            Text("\(n.ai) needs you").font(.headline).foregroundColor(p.ink)
-                            Text(n.text).font(.subheadline).foregroundColor(p.ink)
-                            Button("Done") { store.resolveNeed(n) }.buttonStyle(SoftButton()).frame(maxWidth: 140)
+                HStack(spacing: 16) {
+                    RingGauge(progress: prog, size: 100, line: 12) {
+                        VStack(spacing: 0) {
+                            Text("\(pr.done)/\(pr.total)").font(.system(size: 22, weight: .bold)).foregroundColor(.loam)
+                            Text("done").font(.system(size: 12)).foregroundColor(.muted)
                         }
                     }
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("\(pr.done) of \(pr.total) tasks done").font(.system(size: 16, weight: .bold)).foregroundColor(.loam)
+                        if let pct = store.percentDone(name) {
+                            Text("\(pct)% done, counted from this project's tasks").font(.system(size: 12)).foregroundColor(.muted)
+                        } else {
+                            Text("Progress not yet measurable. This project has no tasks yet.").font(.system(size: 12)).foregroundColor(.muted)
+                        }
+                        if !aiNames.isEmpty {
+                            HStack(spacing: 8) {
+                                FaceStack(labels: aiNames, size: 28)
+                                Text(aiNames.count == 1 ? "1 AI on it" : "\(aiNames.count) AIs on it").font(.system(size: 12)).foregroundColor(.muted)
+                            }
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(16)
+                .background(LinearGradient(colors: [.sproutPale, .cardTone], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .clipShape(RoundedRectangle(cornerRadius: 24)).shadow(color: Color.loam.opacity(0.07), radius: 12, y: 6)
+                PillTabs(items: ["All tasks", "Recent", "Done"], selection: $seg)
+                if seg == 0 {
+                    if !projectNeeds.isEmpty {
+                        SectionLabel(text: "Needs you (\(projectNeeds.count))")
+                        ForEach(projectNeeds) { n in
+                            LookRow(needs: true, lead: { CheckCircle(on: false, working: true) }, title: n.text, sub: "\(n.ai) needs you",
+                                    trail: { HStack(spacing: 8) {
+                                        AIFace(label: n.ai, size: 34, state: .needs)
+                                        Button("Done") { store.resolveNeed(n) }.font(.system(size: 12, weight: .bold)).padding(.horizontal, 10).padding(.vertical, 6)
+                                            .background(Color.loam).foregroundColor(.bone).clipShape(Capsule())
+                                    } })
+                        }
+                    }
+                    let open = tasksHere.filter { !$0.isDone }
+                    if !open.isEmpty {
+                        SectionLabel(text: "In motion (\(open.count))")
+                        ForEach(open) { t in taskRow(t) }
+                    }
+                    let done = tasksHere.filter { $0.isDone }
+                    if !done.isEmpty {
+                        SectionLabel(text: "Done (\(done.count))")
+                        ForEach(done) { t in taskRow(t) }
+                    }
+                    if tasksHere.isEmpty { Text("No tasks in this project yet.").foregroundColor(.muted) }
+                } else if seg == 1 {
+                    let recent = Array(tasksHere.sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }.prefix(5))
+                    if recent.isEmpty { Text("No tasks in this project yet.").foregroundColor(.muted) }
+                    ForEach(recent) { t in taskRow(t) }
+                } else {
+                    let done = tasksHere.filter { $0.isDone }
+                    if done.isEmpty { Text("Nothing done in this project yet.").foregroundColor(.muted) }
+                    ForEach(done) { t in taskRow(t) }
                 }
                 if !projectRooms.isEmpty {
-                    Text("Rooms").font(.title3.bold()).foregroundColor(p.ink)
+                    SectionLabel(text: "Rooms")
                     ForEach(projectRooms) { r in
                         NavigationLink { RoomView(room: r, store: store) } label: {
-                            Card { Text(r.title).font(.headline).foregroundColor(p.ink) }
+                            LookRow(lead: { Image(systemName: "bubble.left.and.bubble.right").foregroundColor(.loam).frame(width: 26) }, title: r.title, trail: { Image(systemName: "chevron.right").foregroundColor(.faint) })
                         }.buttonStyle(.plain)
                     }
                 }
-                Text("Tasks").font(.title3.bold()).foregroundColor(p.ink)
-                let ts = store.tasks.filter { $0.area == name }
-                if ts.isEmpty { Text("No tasks in this project yet.").foregroundColor(p.soft) }
-                ForEach(ts) { t in
-                    Card {
-                        HStack { SproutBox(on: t.isDone, size: 22)
-                            Text(t.title).foregroundColor(p.ink).strikethrough(t.isDone) }
-                        if !t.stamp.isEmpty { Text(t.stamp).font(.caption2).foregroundColor(p.soft) }
-                    }
-                }
-                Text("Notes and prompts").font(.title3.bold()).foregroundColor(p.ink)
                 let ns = store.notes.filter { $0.projects.contains(name) && !$0.archived }
-                if ns.isEmpty { Text("No notes in this project yet.").foregroundColor(p.soft) }
+                SectionLabel(text: "Notes and prompts")
+                if ns.isEmpty { Text("No notes in this project yet.").foregroundColor(.muted) }
                 ForEach(ns) { n in
-                    Card {
-                        Text(n.title).font(.headline).foregroundColor(p.ink)
-                        Text(n.isPrompt ? "Prompt for \(n.ai)" : "Note").font(.caption.bold()).foregroundColor(p.soft)
-                    }
+                    LookRow(lead: { Image(systemName: "doc.text").foregroundColor(.loam).frame(width: 26) }, title: n.title, sub: n.isPrompt ? "Prompt for \(n.ai)" : "Note", trail: { EmptyView() })
                 }
-            }.padding()
+            }.padding(.horizontal, 18).padding(.bottom, 12)
         }
-        .background(p.bg)
+        .background(Color.clear)
         .navigationTitle(name).navigationBarTitleDisplayMode(.inline)
     }
 }

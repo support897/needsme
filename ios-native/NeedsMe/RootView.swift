@@ -16,6 +16,7 @@ struct RootView: View {
     var body: some View {
         ZStack {
             p.bg.ignoresSafeArea()
+            if p.gradient { LookBackdrop().ignoresSafeArea() }
             if store.user == nil {
                 AuthView()
             } else {
@@ -59,7 +60,7 @@ extension RootView {
             Spacer()
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
-                    PipImage(size: 44)
+                    PipArt(pose: .welcome, height: 52)
                     Text("What's your name?").font(.headline).foregroundColor(p.ink)
                 }
                 TextField("Your name", text: $nameDraft).textFieldStyle(.roundedBorder).textContentType(.givenName)
@@ -76,31 +77,58 @@ extension RootView {
                     .disabled(nameDraft.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
-            .padding(18).background(p.card).clipShape(RoundedRectangle(cornerRadius: 22))
-            .overlay(RoundedRectangle(cornerRadius: 22).stroke(p.line))
-            .padding(12).padding(.bottom, 56).shadow(radius: 12, y: 4)
+            .padding(18).background(p.card).clipShape(RoundedRectangle(cornerRadius: 24))
+            .padding(12).padding(.bottom, 56).shadow(color: Color.loam.opacity(0.18), radius: 16, y: 6)
             .accessibilityElement(children: .contain).accessibilityIdentifier("nameAsk")
         }
     }
 }
 
-/// The mobile shape of the HTML section 2 order: bottom tabs are Home, Needs Me, Projects,
-/// Notes and More. More opens the remaining destinations in the same sidebar order.
+/// The approved bottom bar: Home, Needs Me, one big round plus, Projects, Notes. Everything else
+/// (Tasks, Rooms, Settings and the rest) opens from the Sprout N on Home, the same More list as before.
 struct MainTabs: View {
     @Binding var tab: Int
     var replayTour: () -> Void
     @EnvironmentObject var store: Store
     @Environment(\.palette) var p
+    @StateObject private var router = TabRouter()
+    @State private var title = ""
+    @State private var area = ""
+
+    func layer<V: View>(_ i: Int, @ViewBuilder _ v: () -> V) -> some View {
+        v().opacity(tab == i ? 1 : 0).allowsHitTesting(tab == i).accessibilityHidden(tab != i)
+    }
+
     var body: some View {
-        TabView(selection: $tab) {
-            HomeView().tabItem { Label("Home", systemImage: "house") }.tag(0)
-            NeedsMeView().tabItem { Label("Needs Me", systemImage: "bell") }.tag(1)
-                .badge(store.needs.filter { $0.status == "open" }.count)
-            ProjectsView().tabItem { Label("Projects", systemImage: "folder") }.tag(2)
-            NotesView().tabItem { Label("Notes", systemImage: "note.text") }.tag(3)
-            MoreView(replayTour: replayTour).tabItem { Label("More", systemImage: "ellipsis") }.tag(4)
+        ZStack(alignment: .bottom) {
+            ZStack {
+                layer(0) { HomeView(goMore: { tab = 4 }) }
+                layer(1) { NeedsMeView() }
+                layer(2) { ProjectsView() }
+                layer(3) { NotesView() }
+                layer(4) { MoreView(replayTour: replayTour) }
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: router.hideBar ? 0 : 84) }
+            if !router.hideBar { LookTabBar(tab: $tab) }
         }
-        .tint(p.ink)
+        .environmentObject(router)
+        .sheet(isPresented: $router.adding) {
+            NavigationStack {
+                Form {
+                    TextField("What needs doing?", text: $title)
+                    Picker("Project", selection: $area) { Text("None").tag(""); ForEach(store.projects, id: \.self) { Text($0).tag($0) } }
+                    TextField("Or a new project name", text: $area)
+                }
+                .navigationTitle("New task")
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) { Button("Cancel") { router.adding = false } }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Save") { store.addTask(title, area: area, due: ""); title = ""; area = ""; router.adding = false }
+                            .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                }
+            }.presentationDetents([.medium])
+        }
     }
 }
 
@@ -118,7 +146,7 @@ struct Card<Content: View>: View {
     @ViewBuilder var content: Content
     var body: some View {
         content.padding(16).frame(maxWidth: .infinity, alignment: .leading)
-            .background(p.card).clipShape(RoundedRectangle(cornerRadius: 18))
-            .overlay(RoundedRectangle(cornerRadius: 18).stroke(p.line, lineWidth: 1))
+            .background(p.card).clipShape(RoundedRectangle(cornerRadius: 24))
+            .shadow(color: Color.loam.opacity(p.isDark ? 0 : 0.07), radius: 12, y: 6)
     }
 }

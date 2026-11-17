@@ -42,7 +42,7 @@ struct ConnectView: View {
                     WorkToolsCard()
                     CustomMCPCard()
                 }.padding()
-        }.background(p.bg).navigationTitle("Connections")
+        }.background(p.chip).navigationTitle("Connections")
     }
     func step(_ n: Int, _ t: String) -> some View {
         HStack(spacing: 10) {
@@ -168,12 +168,12 @@ struct CustomMCPCard: View {
             }
             TextField("Server name", text: $name)
                 .autocorrectionDisabled()
-                .padding(10).background(p.bg).clipShape(RoundedRectangle(cornerRadius: 10))
+                .padding(10).background(p.chip).clipShape(RoundedRectangle(cornerRadius: 10))
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(p.line, lineWidth: 1))
                 .foregroundColor(p.ink).accessibilityIdentifier("mcpName")
             TextField("Server address", text: $address)
                 .autocorrectionDisabled().textInputAutocapitalization(.never)
-                .padding(10).background(p.bg).clipShape(RoundedRectangle(cornerRadius: 10))
+                .padding(10).background(p.chip).clipShape(RoundedRectangle(cornerRadius: 10))
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(p.line, lineWidth: 1))
                 .foregroundColor(p.ink).accessibilityIdentifier("mcpAddress")
             Button("Save server") {
@@ -224,14 +224,14 @@ struct KeysCard: View {
     func field(_ placeholder: String, _ text: Binding<String>) -> some View {
         TextField(placeholder, text: text)
             .autocorrectionDisabled()
-            .padding(10).background(p.bg).clipShape(RoundedRectangle(cornerRadius: 10))
+            .padding(10).background(p.chip).clipShape(RoundedRectangle(cornerRadius: 10))
             .overlay(RoundedRectangle(cornerRadius: 10).stroke(p.line, lineWidth: 1))
             .foregroundColor(p.ink)
     }
     func secure(_ placeholder: String, _ text: Binding<String>) -> some View {
         SecureField(placeholder, text: text)
             .autocorrectionDisabled().textInputAutocapitalization(.never)
-            .padding(10).background(p.bg).clipShape(RoundedRectangle(cornerRadius: 10))
+            .padding(10).background(p.chip).clipShape(RoundedRectangle(cornerRadius: 10))
             .overlay(RoundedRectangle(cornerRadius: 10).stroke(p.line, lineWidth: 1))
             .foregroundColor(p.ink)
     }
@@ -269,7 +269,7 @@ struct KeysCard: View {
             }
             if let n = notes[a.id], !n.isEmpty { Text(n).font(.footnote).foregroundColor(p.soft) }
         }
-        .padding(12).background(p.bg.opacity(0.5)).clipShape(RoundedRectangle(cornerRadius: 12))
+        .padding(12).background(p.chip).clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     func commitLabel(_ a: AIAccount) {
@@ -290,6 +290,6 @@ struct KeysCard: View {
                     .buttonStyle(SoftButton()).accessibilityIdentifier("cancelNew-" + prov.rawValue)
             }
         }
-        .padding(12).background(p.bg.opacity(0.5)).clipShape(RoundedRectangle(cornerRadius: 12))
+        .padding(12).background(p.chip).clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }

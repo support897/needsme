@@ -3,87 +3,125 @@ import SwiftUI
 struct TasksView: View {
     @EnvironmentObject var store: Store
     @Environment(\.palette) var p
-    @State private var adding = false
-    @State private var title = ""
-    @State private var area = ""
+    @State private var seg = 0
+    @State private var searching = false
+    @State private var query = ""
 
     /// AI work carries a room stamp; everything else is hers (HTML section 9 owner types).
     func isAIWork(_ t: TaskItem) -> Bool { !t.sourceRoom.isEmpty }
-    var mine: [TaskItem] { store.tasks.filter { !isAIWork($0) }.sorted { !$0.isDone && $1.isDone } }
-    var aiWork: [TaskItem] { store.tasks.filter { isAIWork($0) }.sorted { !$0.isDone && $1.isDone } }
+    func hit(_ t: TaskItem) -> Bool { query.isEmpty || t.title.localizedCaseInsensitiveContains(query) }
+    var openNeeds: [NeedItem] { store.needs.filter { $0.status == "open" && (query.isEmpty || $0.text.localizedCaseInsensitiveContains(query)) } }
+    var overdue: [TaskItem] { store.tasks.filter { $0.isOverdue && hit($0) } }
+    var mineOpen: [TaskItem] { store.tasks.filter { !isAIWork($0) && !$0.isDone && hit($0) } }
+    var aiOpen: [TaskItem] { store.tasks.filter { isAIWork($0) && !$0.isDone && hit($0) } }
+    var doneToday: [TaskItem] { store.tasks.filter { $0.isDone && $0.doneDate == Store.today && hit($0) } }
+    var doneEarlier: [TaskItem] { store.tasks.filter { $0.isDone && $0.doneDate != Store.today && hit($0) } }
+    func who(_ t: TaskItem) -> String { t.doneBy.isEmpty || t.doneBy == "user" ? t.sourceBy : t.doneBy }
 
-    func row(_ t: TaskItem) -> some View {
-        HStack {
-            Button {
-                store.toggle(t)
-            } label: { SproutBox(on: t.isDone, size: 26) }
-                .buttonStyle(.borderless)
-                .accessibilityLabel(t.isDone ? "Mark not done" : "Mark done")
-            NavigationLink { TaskDetailView(taskId: t.id) } label: {
-                VStack(alignment: .leading) {
-                    Text(t.title).strikethrough(t.isDone).foregroundColor(p.ink)
-                    if !t.area.isEmpty { Text(t.area).font(.caption).foregroundColor(p.soft) }
-                    if !t.stamp.isEmpty { Text(t.stamp).font(.caption2).foregroundColor(p.soft) }
-                    if isAIWork(t) {
-                        Text(t.isDone ? "AI work · Completed" : "AI work · Waiting").font(.caption2).foregroundColor(p.soft)
+    func rowBox<V: View>(_ v: V) -> some View {
+        v.listRowBackground(Color.clear).listRowSeparator(.hidden).listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+    }
+
+    func row(_ t: TaskItem, needs: Bool = false) -> some View {
+        LookRow(needs: needs,
+                lead: {
+                    Button { store.toggle(t) } label: { CheckCircle(on: t.isDone, working: !t.isDone && isAIWork(t)) }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel(t.isDone ? "Mark not done" : "Mark done")
+                },
+                title: t.title,
+                sub: [t.area, t.isDone ? "" : (isAIWork(t) ? "AI work · Waiting" : ""), t.isDone && isAIWork(t) ? "AI work · Completed" : ""].filter { !$0.isEmpty }.joined(separator: " · "),
+                trail: {
+                    HStack(spacing: 6) {
+                        if !who(t).isEmpty { AIFace(label: who(t), size: 34, state: needs ? .needs : .none) }
+                        NavigationLink { TaskDetailView(taskId: t.id) } label: { Image(systemName: "chevron.right").font(.system(size: 12, weight: .bold)).foregroundColor(.faint).frame(width: 28, height: 40) }
+                            .accessibilityIdentifier("taskOpen-" + t.title)
                     }
-                }
-            }.buttonStyle(.plain).accessibilityIdentifier("taskOpen-" + t.title)
-        }
-        .listRowBackground(p.card)
+                })
         .swipeActions { Button("Delete", role: .destructive) { store.deleteTask(t) } }
+    }
+
+    var summary: some View {
+        HStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 2) { Text("Open").font(.system(size: 12)).foregroundColor(.muted)
+                Text("\(store.tasks.filter { !$0.isDone }.count)").font(.system(size: 30, weight: .bold)).foregroundColor(.loam) }.frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: 2) { Text("Needs you").font(.system(size: 12)).foregroundColor(.muted)
+                Text("\(store.needs.filter { $0.status == "open" }.count)").font(.system(size: 30, weight: .bold)).foregroundColor(.loam) }.frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: 2) { Text("Done today").font(.system(size: 12)).foregroundColor(.muted)
+                Text("\(store.tasks.filter { $0.isDone && $0.doneDate == Store.today }.count)").font(.system(size: 30, weight: .bold)).foregroundColor(Color(hex: 0x6E8A22)) }.frame(maxWidth: .infinity, alignment: .leading)
+            PipArt(pose: .welcome, height: 58)
+        }
+        .padding(.horizontal, 16).padding(.vertical, 14).background(Color.cardTone).clipShape(RoundedRectangle(cornerRadius: 24))
+        .shadow(color: Color.loam.opacity(0.07), radius: 12, y: 6)
+    }
+
+    func header(_ text: String, _ trailing: String = "") -> some View {
+        rowBox(SectionLabel(text: text, trailing: trailing))
     }
 
     var body: some View {
         List {
+            rowBox(Text("Made by your AIs from the talk").font(.system(size: 12.5)).foregroundColor(.muted))
+            rowBox(summary)
+            rowBox(PillTabs(items: ["All", "Needs you", "Mine", "AIs"], selection: $seg))
+            if searching {
+                rowBox(TextField("Search tasks", text: $query).textFieldStyle(.roundedBorder).accessibilityIdentifier("taskSearch"))
+            }
             if !store.message.isEmpty {
-                Text(store.message).font(.footnote.weight(.medium)).foregroundColor(.red).accessibilityIdentifier("taskMessage")
-                    .listRowBackground(p.card)
+                rowBox(Text(store.message).font(.footnote.weight(.medium)).foregroundColor(.red).accessibilityIdentifier("taskMessage"))
             }
             if store.kindnessOffer {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Nice work, that one is done.").font(.headline).foregroundColor(p.ink)
+                rowBox(VStack(alignment: .leading, spacing: 8) {
+                    Text("Nice work, that one is done.").font(.headline).foregroundColor(.loam)
                     Text("Kindness keeps NeedsMe free for the next person who needs a hand.")
-                        .font(.subheadline).foregroundColor(p.soft)
+                        .font(.subheadline).foregroundColor(.muted)
                     HStack {
                         NavigationLink { KindnessView() } label: {
-                            Text("Join the AI kindness revolution").font(.subheadline.bold()).foregroundColor(p.ink)
+                            Text("Join the AI kindness revolution").font(.subheadline.bold()).foregroundColor(.loam)
                         }.accessibilityIdentifier("kindnessMoment")
                         Spacer()
-                        Button("Not now") { store.kindnessOffer = false }.font(.subheadline).foregroundColor(p.soft)
+                        Button("Not now") { store.kindnessOffer = false }.font(.subheadline).foregroundColor(.muted)
                     }
                 }
-                .listRowBackground(p.card)
+                .padding(16).background(LinearGradient(colors: [.sproutPale, .cardTone], startPoint: .leading, endPoint: .trailing))
+                .clipShape(RoundedRectangle(cornerRadius: 20)))
             }
-            if store.tasks.isEmpty && store.message.isEmpty {
-                Text("No tasks yet. Tap + to add your first one.").foregroundColor(p.soft).listRowBackground(p.card)
+            if store.tasks.isEmpty && store.needs.isEmpty && store.message.isEmpty {
+                rowBox(Text("No tasks yet. Tap + to add your first one.").foregroundColor(.muted))
             }
-            if !mine.isEmpty {
-                Section("Your tasks") { ForEach(mine) { t in row(t) } }
+            if seg == 0 || seg == 1 {
+                if !openNeeds.isEmpty || (seg == 0 && !overdue.isEmpty) {
+                    header("Needs you (\(openNeeds.count + (seg == 0 ? overdue.count : 0)))", "rising to the top")
+                    ForEach(openNeeds) { n in
+                        rowBox(LookRow(needs: true, lead: { CheckCircle(on: false, working: true) }, title: n.text,
+                                       sub: "\(n.ai) needs you",
+                                       trail: { HStack(spacing: 8) { AIFace(label: n.ai, size: 34, state: .needs)
+                                           Button("Done") { store.resolveNeed(n) }.font(.system(size: 12, weight: .bold)).padding(.horizontal, 10).padding(.vertical, 6)
+                                               .background(Color.loam).foregroundColor(.bone).clipShape(Capsule()).buttonStyle(.borderless)
+                                       } }))
+                    }
+                    if seg == 0 { ForEach(overdue) { t in rowBox(row(t, needs: true)) } }
+                } else if seg == 1 {
+                    rowBox(Text("Nothing needs you right now.").foregroundColor(.muted))
+                }
             }
-            if !aiWork.isEmpty {
-                Section("AI Work Queue") { ForEach(aiWork) { t in row(t) } }
+            if seg == 0 || seg == 2 {
+                if !mineOpen.isEmpty { header("Your tasks (\(mineOpen.count))"); ForEach(mineOpen) { t in rowBox(row(t)) } }
             }
+            if seg == 0 || seg == 3 {
+                if !aiOpen.isEmpty { header("Your AIs are on it (\(aiOpen.count))"); ForEach(aiOpen) { t in rowBox(row(t)) } }
+            }
+            if seg != 1 {
+                let d = doneToday.filter { seg == 0 || (seg == 2 ? !isAIWork($0) : isAIWork($0)) }
+                let e = doneEarlier.filter { seg == 0 || (seg == 2 ? !isAIWork($0) : isAIWork($0)) }
+                if !d.isEmpty { header("Done today (\(d.count))", "well done"); ForEach(d) { t in rowBox(row(t)) } }
+                if !e.isEmpty { header("Earlier (\(e.count))"); ForEach(e) { t in rowBox(row(t)) } }
+            }
+            rowBox(Color.clear.frame(height: 24))
         }
-            .scrollContentBackground(.hidden).background(p.bg)
-            .navigationTitle("Tasks")
-            .toolbar { Button { adding = true } label: { SproutPlus() }.accessibilityLabel("Add a task") }
-            .sheet(isPresented: $adding) {
-                NavigationStack {
-                    Form {
-                        TextField("What needs doing?", text: $title)
-                        Picker("Project", selection: $area) { Text("None").tag(""); ForEach(store.projects, id: \.self) { Text($0).tag($0) } }
-                        TextField("Or a new project name", text: $area)
-                    }
-                    .navigationTitle("New task")
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) { Button("Cancel") { adding = false } }
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button("Save") { store.addTask(title, area: area, due: ""); title = ""; area = ""; adding = false }.disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
-                        }
-                    }
-                }.presentationDetents([.medium])
-            }
+        .listStyle(.plain).scrollContentBackground(.hidden).background(Color.clear)
+        .navigationTitle("Tasks")
+        .toolbar { ToolbarItem(placement: .navigationBarTrailing) { SearchIconButton(on: $searching) } }
     }
 }
 

@@ -26,71 +26,74 @@ struct NeedsMeView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 14) {
                     if allClear {
-                        Card {
-                            HStack(spacing: 12) {
-                                PipImage(size: 48)
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Nothing needs you right now").font(.headline).foregroundColor(p.ink)
-                                    Text("When an AI needs a decision, an answer or a login, it waits here for you.")
-                                        .font(.subheadline).foregroundColor(p.soft)
-                                }
+                        HStack(spacing: 12) {
+                            PipArt(pose: .welcome, height: 70)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Nothing needs you right now").font(.headline).foregroundColor(.loam)
+                                Text("When an AI needs a decision, an answer or a login, it waits here for you.")
+                                    .font(.subheadline).foregroundColor(.muted)
                             }
-                        }.accessibilityIdentifier("needsAllClear")
+                        }
+                        .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+                        .background(LinearGradient(colors: [.sproutPale, .cardTone], startPoint: .leading, endPoint: .trailing))
+                        .clipShape(RoundedRectangle(cornerRadius: 24))
+                        .accessibilityElement(children: .contain).accessibilityIdentifier("needsAllClear")
                     }
                     ForEach(groups, id: \.project) { g in
                         VStack(alignment: .leading, spacing: 10) {
                             HStack(spacing: 8) {
                                 if !g.project.isEmpty { Circle().fill(ProjectColor.color(g.project)).frame(width: 12, height: 12) }
-                                Text(g.project.isEmpty ? "No project yet" : g.project).font(.title3.bold()).foregroundColor(p.ink)
+                                Text(g.project.isEmpty ? "No project yet" : g.project).font(.title3.bold()).foregroundColor(.loam)
                                 Spacer()
-                                Text(g.items.count == 1 ? "1 needs you" : "\(g.items.count) need you")
-                                    .font(.subheadline.bold()).foregroundColor(p.soft)
+                                CountPill(text: g.items.count == 1 ? "1 needs you" : "\(g.items.count) need you")
                             }
                             ForEach(g.items) { n in needCard(n) }
                         }
                     }
                     if !overdue.isEmpty {
-                        Text("Overdue").font(.title3.bold()).foregroundColor(p.ink)
+                        SectionLabel(text: "Overdue")
                         ForEach(overdue) { t in
-                            Card {
-                                Text("Overdue: \(t.title)").font(.headline).foregroundColor(p.ink)
-                                Text("Due \(t.dueOn)").font(.caption).foregroundColor(p.soft)
-                            }
+                            LookRow(needs: true, lead: { CheckCircle(on: false, working: true) }, title: "Overdue: \(t.title)", sub: "Due \(t.dueOn)", trail: { EmptyView() })
                         }
                     }
                     if !unsorted.isEmpty {
-                        Text("Needs a project").font(.title3.bold()).foregroundColor(p.ink)
+                        SectionLabel(text: "Needs a project")
                         ForEach(unsorted) { n in
-                            Card {
-                                Text("Needs a project: \(n.title)").font(.headline).foregroundColor(p.ink)
-                                Text("Open Notes and pick a project for it.").font(.caption).foregroundColor(p.soft)
-                            }
+                            LookRow(lead: { Image(systemName: "doc.text").foregroundColor(.loam).frame(width: 26) }, title: "Needs a project: \(n.title)", sub: "Open Notes and pick a project for it.", trail: { EmptyView() })
                         }
                     }
-                }.padding()
+                }.padding(.horizontal, 18).padding(.bottom, 12)
             }
-            .background(p.bg).navigationTitle("Needs Me")
+            .background(Color.clear).navigationTitle("Needs Me")
         }
     }
 
     func needCard(_ n: NeedItem) -> some View {
-        Card {
-            Text("\(n.ai) needs you").font(.headline).foregroundColor(p.ink)
-            Text(n.text).font(.subheadline).foregroundColor(p.ink)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                AIFace(label: n.ai, size: 34, state: .needs)
+                Text("\(n.ai) needs you").font(.system(size: 16, weight: .bold)).foregroundColor(.loam)
+            }
+            Text(n.text).font(.system(size: 14.5)).foregroundColor(.loam)
             HStack(spacing: 8) {
                 if let room = store.rooms.first(where: { $0.id == n.roomId }) {
                     NavigationLink { RoomView(room: room, store: store) } label: {
-                        Text("Open the room").font(.system(.body, design: .rounded).weight(.semibold))
+                        Text("Open the room").font(.system(size: 14, weight: .semibold))
                             .padding(.vertical, 10).padding(.horizontal, 14)
-                            .background(p.chip).foregroundColor(p.ink).clipShape(Capsule())
+                            .background(Color.cardTone.opacity(0.9)).foregroundColor(.loam).clipShape(Capsule())
                     }.accessibilityIdentifier("needOpen-" + n.id)
                 }
                 Button("Done") { store.resolveNeed(n) }.buttonStyle(SoftButton()).frame(maxWidth: 120)
                     .accessibilityIdentifier("needDone-" + n.id)
             }
-        }.accessibilityIdentifier("need-" + n.id)
+        }
+        .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+        .background(LinearGradient(colors: [.sproutMid, Color(hex: 0xE8EDCB), Color(hex: 0xF4F0E4)], startPoint: .topLeading, endPoint: .bottomTrailing))
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .shadow(color: Color.loam.opacity(0.07), radius: 10, y: 5)
+        .accessibilityElement(children: .contain).accessibilityIdentifier("need-" + n.id)
     }
 }
 
@@ -108,51 +111,39 @@ struct ProjectsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 12) {
                     NavigationLink { YourProgressView() } label: {
-                        Card {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Your Progress").font(.headline).foregroundColor(p.ink)
-                                    Text("Look what moved forward").font(.subheadline).foregroundColor(p.soft)
-                                }
-                                Spacer()
-                                Image(systemName: "chevron.right").foregroundColor(p.soft)
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Your Progress").font(.headline).foregroundColor(.loam)
+                                Text("Look what moved forward").font(.subheadline).foregroundColor(.muted)
                             }
+                            Spacer()
+                            Image(systemName: "chevron.right").foregroundColor(.muted)
                         }
+                        .padding(16).background(LinearGradient(colors: [.sproutPale, .cardTone], startPoint: .leading, endPoint: .trailing))
+                        .clipShape(RoundedRectangle(cornerRadius: 24)).shadow(color: Color.loam.opacity(0.06), radius: 10, y: 5)
                     }.buttonStyle(.plain).accessibilityIdentifier("yourProgress")
                     if store.projects.isEmpty {
                         Text("No projects yet. A project appears when a task or a note names one.")
-                            .foregroundColor(p.soft).accessibilityIdentifier("noProjects")
+                            .foregroundColor(.muted).accessibilityIdentifier("noProjects")
                     }
                     ForEach(store.projects, id: \.self) { name in
                         let pr = store.progress(name)
+                        let k = needsCount(name)
                         NavigationLink { ProjectView(name: name) } label: {
-                            Card {
-                                HStack(spacing: 8) {
-                                    Circle().fill(ProjectColor.color(name)).frame(width: 12, height: 12)
-                                    Text(name).font(.headline).foregroundColor(p.ink)
-                                    Spacer()
-                                    if let pct = store.percentDone(name) {
-                                        Text("\(pct)% done").font(.subheadline.bold()).foregroundColor(p.soft)
-                                    }
+                            VStack(alignment: .leading, spacing: 6) {
+                                ProjectCardLook(name: name, done: pr.done, total: pr.total)
+                                if pr.total == 0 {
+                                    Text("This project has notes, but no tasks yet.").font(.system(size: 12)).foregroundColor(.muted).padding(.horizontal, 6)
                                 }
-                                if pr.total > 0 {
-                                    Text("\(pr.done) of \(pr.total) tasks done").font(.subheadline).foregroundColor(p.soft)
-                                    ProgressView(value: Double(pr.done), total: Double(pr.total)).tint(ProjectColor.color(name))
-                                        .accessibilityLabel("\(name) progress")
-                                } else {
-                                    Text("Progress not yet measurable. This project has notes, but no tasks yet.")
-                                        .font(.subheadline).foregroundColor(p.soft)
-                                }
-                                let k = needsCount(name)
-                                if k > 0 { Text(k == 1 ? "1 needs you" : "\(k) need you").font(.caption.bold()).foregroundColor(p.ink) }
+                                if k > 0 { Text(k == 1 ? "1 needs you" : "\(k) need you").font(.system(size: 12, weight: .bold)).foregroundColor(.loam).padding(.horizontal, 6) }
                             }
                         }.buttonStyle(.plain).accessibilityIdentifier("project-" + name)
                     }
-                }.padding()
+                }.padding(.horizontal, 18).padding(.bottom, 12)
             }
-            .background(p.bg).navigationTitle("Projects")
+            .background(Color.clear).navigationTitle("Projects")
         }
     }
 }

@@ -10,49 +10,68 @@ struct AuthView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 14) {
-                Spacer()
-                PipImage(size: 84).accessibilityIdentifier("doorPip")
-                Text("NeedsMe Ai").font(.largeTitle.bold()).foregroundColor(p.ink)
-                    .accessibilityIdentifier("doorWordmark")
-                Text("See what is moving, what is blocked, and what needs you.")
-                    .font(.subheadline).foregroundColor(p.soft)
-                    .multilineTextAlignment(.center)
-                    .accessibilityIdentifier("doorPromise")
-                Spacer().frame(height: 10)
-                SignInWithAppleButton(.continue,
-                    onRequest: { store.prepareApple($0) },
-                    onCompletion: { r in Task { await store.finishApple(r) } })
-                    .signInWithAppleButtonStyle(p.isDark ? .white : .black)
-                    .frame(height: 52).clipShape(RoundedRectangle(cornerRadius: 14))
-                    .accessibilityIdentifier("appleButton")
+            VStack(spacing: 0) {
+                Spacer(minLength: 20)
+                ZStack {
+                    Circle().fill(RadialGradient(colors: [Color.sproutPale, Color.sproutPale.opacity(0)], center: .center, startRadius: 0, endRadius: 125))
+                        .frame(width: 250, height: 250)
+                    Circle().stroke(Color.sprout.opacity(0.7), style: StrokeStyle(lineWidth: 2, dash: [5, 5])).frame(width: 198, height: 198)
+                    PipArt(pose: .welcome, height: 162).accessibilityIdentifier("doorPip")
+                    AIFace(label: "Claude", size: 46).offset(x: -92, y: -62)
+                    AIFace(label: "Gemini", size: 46).offset(x: 96, y: -34)
+                    AIFace(label: "ChatGPT", size: 46).offset(x: 62, y: 84)
+                }.frame(height: 250)
+                HStack(spacing: 10) {
+                    SproutMark(size: 34)
+                    Text("NeedsMe Ai").font(.system(size: 34, weight: .heavy)).tracking(-0.6).foregroundColor(.loam)
+                        .accessibilityIdentifier("doorWordmark")
+                }.padding(.top, 6)
+                Text("All your AIs, in one room.\nWe tell you when something needs you.")
+                    .font(.system(size: 16)).foregroundColor(.muted).multilineTextAlignment(.center).lineSpacing(3)
+                    .padding(.top, 10).accessibilityIdentifier("doorPromise")
+                Spacer(minLength: 24)
+                VStack(spacing: 12) {
+                    SignInWithAppleButton(.continue,
+                        onRequest: { store.prepareApple($0) },
+                        onCompletion: { r in Task { await store.finishApple(r) } })
+                        .signInWithAppleButtonStyle(.black)
+                        .frame(height: 54).clipShape(RoundedRectangle(cornerRadius: 19))
+                        .shadow(color: Color.loam.opacity(0.3), radius: 13, y: 7)
+                        .accessibilityIdentifier("appleButton")
 
-                Button { Task { await store.googleDoor() } } label: {
-                    HStack { Image(systemName: "g.circle.fill"); Text("Continue with Google").fontWeight(.semibold) }
-                        .frame(maxWidth: .infinity).frame(height: 52)
-                        .background(p.card).foregroundColor(p.ink)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(p.line, lineWidth: 1.5))
-                }.accessibilityIdentifier("googleButton")
+                    Button { Task { await store.googleDoor() } } label: {
+                        HStack(spacing: 10) {
+                            ZStack { Circle().fill(Color.loam); Text("G").font(.system(size: 11, weight: .heavy)).foregroundColor(.bone) }.frame(width: 24, height: 24)
+                            Text("Continue with Google").font(.system(size: 17, weight: .bold))
+                        }
+                        .frame(maxWidth: .infinity).frame(height: 54)
+                        .background(Color.cardTone).foregroundColor(.loam)
+                        .clipShape(RoundedRectangle(cornerRadius: 19))
+                        .overlay(RoundedRectangle(cornerRadius: 19).stroke(Color(hex: 0xDDD6C6), lineWidth: 1.5))
+                    }.accessibilityIdentifier("googleButton")
 
-                NavigationLink {
-                    EmailDoorView(signingUp: $signingUp)
-                } label: {
-                    HStack(spacing: 6) { Image(systemName: "envelope.fill"); Text("Email").fontWeight(.semibold) }
-                        .font(.subheadline).foregroundColor(p.ink)
-                        .padding(.horizontal, 18).padding(.vertical, 8)
-                        .background(p.chip).clipShape(Capsule())
-                }.accessibilityIdentifier("emailButton")
+                    NavigationLink {
+                        EmailDoorView(signingUp: $signingUp)
+                    } label: {
+                        HStack(spacing: 8) { Image(systemName: "envelope"); Text("Email").fontWeight(.bold) }
+                            .font(.system(size: 15)).foregroundColor(.loam)
+                            .padding(.horizontal, 22).padding(.vertical, 12)
+                            .background(Color.loam.opacity(0.07)).clipShape(RoundedRectangle(cornerRadius: 20))
+                    }.accessibilityIdentifier("emailButton")
 
-                if !store.message.isEmpty {
-                    Text(store.message).font(.footnote.weight(.medium)).foregroundColor(p.isDark ? Color(red: 1, green: 0.62, blue: 0.62) : Color(red: 0.7, green: 0.1, blue: 0.1))
-                        .multilineTextAlignment(.center).accessibilityIdentifier("authMessage")
-                }
-                Spacer()
+                    if !store.message.isEmpty {
+                        Text(store.message).font(.footnote.weight(.medium)).foregroundColor(Color(red: 0.7, green: 0.1, blue: 0.1))
+                            .multilineTextAlignment(.center).accessibilityIdentifier("authMessage")
+                    }
+                    HStack(spacing: 6) {
+                        Image(systemName: "lock").font(.system(size: 12))
+                        Text("Your AIs are yours alone. Never shared.").font(.system(size: 12))
+                    }.foregroundColor(.muted).padding(.top, 2)
+                }.padding(.horizontal, 24)
+                Spacer(minLength: 40)
             }
-            .padding(24)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(p.bg)
+            .background(DoorBackdrop().ignoresSafeArea())
         }
     }
 }

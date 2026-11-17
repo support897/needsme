@@ -50,6 +50,11 @@ final class NeedsMeUITests: XCTestCase {
         }
     }
     /// Opens a More destination by its row identifier, scrolling the menu when needed.
+    /// More opens from the Sprout N on Home; go Home first when it is not on screen.
+    func goMore() {
+        if !app.buttons["tab-More"].exists { app.buttons["tab-Home"].tap() }
+        app.buttons["tab-More"].tap()
+    }
     func openMore(_ id: String, _ ready: @escaping () -> Bool) {
         let rowEl = app.buttons[id]
         // Right after sign-in the tab bar can exist before it has a valid hit point
@@ -57,7 +62,7 @@ final class NeedsMeUITests: XCTestCase {
         // tab never switched). Re-tap until the row exists — same retry discipline as
         // tapUntil/openAddTask. The assertion below is unchanged.
         for _ in 0..<4 {
-            app.tabBars.buttons["More"].tap()
+            goMore()
             if rowEl.waitForExistence(timeout: 6) { break }
         }
         wait(rowEl, 10, "More row missing: " + id)
@@ -80,7 +85,7 @@ final class NeedsMeUITests: XCTestCase {
         let pw = app.secureTextFields.firstMatch; pw.tap(); pw.typeText(pass); submitCreds()
         for _ in 0..<3 {
             let t0 = Date().addingTimeInterval(12)
-            while Date() < t0 { if app.tabBars.buttons["Projects"].exists { return (mail, pass) }; Thread.sleep(forTimeInterval: 0.5) }
+            while Date() < t0 { if app.buttons["tab-Projects"].exists { return (mail, pass) }; Thread.sleep(forTimeInterval: 0.5) }
             if app.buttons["emailSubmit"].exists && app.staticTexts["authMessage"].exists == false { app.buttons["emailSubmit"].tap() }
         }
         return (mail, pass)
@@ -118,11 +123,11 @@ final class NeedsMeUITests: XCTestCase {
         tapUntil(app.buttons["Back"]) { self.text("Tour 1 of 7").exists }; wait(text("Tour 1 of 7"))
         for n in 2...7 { tapUntil(app.buttons["Next"]) { self.text("Tour \(n) of 7").exists }; wait(text("Tour \(n) of 7")) }
         shot("02-tour-7"); tapUntil(app.buttons["Finish tour"]) { !self.app.buttons["Finish tour"].exists }
-        wait(text("All clear")); wait(text("Needs your attention")); wait(text("Continue where you left off")); wait(text("Recent wins")); shot("03-home-allclear")
+        wait(text("All clear")); wait(text("Today's needs")); shot("03-home-allclear")
         XCTAssertTrue(app.otherElements["homeSummary"].exists || text("Needs you").exists, "home summary tiles missing")
 
-        app.tabBars.buttons["Needs Me"].tap(); wait(text("Nothing needs you right now"), 15, "Needs Me empty state missing. SCREEN: " + screenText()); shot("03-needsme-empty")
-        app.tabBars.buttons["Projects"].tap(); wait(app.buttons["yourProgress"], 10, "Your Progress link missing"); shot("03-projects")
+        app.buttons["tab-Needs Me"].tap(); wait(text("Nothing needs you right now"), 15, "Needs Me empty state missing. SCREEN: " + screenText()); shot("03-needsme-empty")
+        app.buttons["tab-Projects"].tap(); wait(app.buttons["yourProgress"], 10, "Your Progress link missing"); shot("03-projects")
 
         openMore("moreTasks") { self.app.buttons["Add a task"].exists }
         openAddTask()
@@ -134,13 +139,13 @@ final class NeedsMeUITests: XCTestCase {
         wait(text("Nice work, that one is done."), 10, "kindness moment did not show after marking done"); shot("04-kindness-moment")
         backToMoreRoot()
 
-        app.tabBars.buttons["Home"].tap(); wait(text("UITestProject"), 20, "project progress not shown"); shot("05-home-project")
+        app.buttons["tab-Home"].tap(); wait(text("UITestProject"), 20, "project progress not shown"); shot("05-home-project")
         app.buttons["inboxButton"].tap(); wait(text("Inbox is empty"), 10, "inbox empty state missing. SCREEN: " + screenText()); shot("05-inbox")
         app.navigationBars.buttons.firstMatch.tap()
         app.buttons["project-UITestProject"].tap(); wait(text("1 of 1 tasks done"), 10, "project page missing. SCREEN: " + screenText()); shot("05-project-page")
         app.navigationBars.buttons.firstMatch.tap()
 
-        app.tabBars.buttons["Notes"].tap()
+        app.buttons["tab-Notes"].tap()
         app.buttons["New"].tap()
         let nb = app.textViews["noteBody"]; wait(nb, 10, "new note did not open typing"); nb.typeText("UI test note about UITestProject")
         shot("06-note-typing")
@@ -158,7 +163,7 @@ final class NeedsMeUITests: XCTestCase {
         mp.buttons["System"].tap()
         let dg = app.segmentedControls["digestPicker"]; wait(dg, 10, "digest setting missing")
         dg.buttons["Weekly"].tap(); XCTAssertTrue(dg.buttons["Weekly"].isSelected, "Weekly digest did not select"); shot("08-alerts")
-        for th in ["Dark", "Brand", "Beige", "White"] {
+        for th in ["Loam", "Bone", "Brand"] {
             let b = app.buttons.containing(NSPredicate(format: "label CONTAINS %@", th)).firstMatch; wait(b); b.tap(); shot("08-theme-" + th)
         }
         backToMoreRoot()
@@ -196,11 +201,11 @@ final class NeedsMeUITests: XCTestCase {
         let p2 = app.secureTextFields.firstMatch; p2.tap(); p2.typeText(pass); submitCreds()
         for _ in 0..<3 {
             let t0 = Date().addingTimeInterval(12)
-            while Date() < t0 { if app.tabBars.buttons["Projects"].exists { break }; Thread.sleep(forTimeInterval: 0.5) }
-            if app.tabBars.buttons["Projects"].exists { break }
+            while Date() < t0 { if app.buttons["tab-Projects"].exists { break }; Thread.sleep(forTimeInterval: 0.5) }
+            if app.buttons["tab-Projects"].exists { break }
             if app.buttons["emailSubmit"].exists { app.buttons["emailSubmit"].tap() }
         }
-        wait(app.tabBars.buttons["Projects"], 30, "sign-in after sign-out failed")
+        wait(app.buttons["tab-Projects"], 30, "sign-in after sign-out failed")
         openMore("moreTasks") { self.text("Persist me").exists }
         wait(text("Persist me"), 20, "task did not persist after sign-in"); shot("12-persisted")
     }
@@ -209,7 +214,7 @@ final class NeedsMeUITests: XCTestCase {
     func test04_PrivacyAndDeleteAccount() {
         let (mail, pass) = signUpFresh()
         tapUntil(app.buttons["Skip guide"]) { !self.app.buttons["Skip guide"].exists }
-        wait(app.tabBars.buttons["More"], 30, "no tab bar after sign-up")
+        wait(app.buttons["tab-More"], 30, "no tab bar after sign-up")
         openMore("settingsRow") { self.text("Privacy and your data").exists }
         wait(text("Privacy and your data"), 10, "privacy text missing"); shot("13-privacy")
         let del = app.buttons["Delete my account"]; wait(del, 10, "delete button missing")
@@ -223,7 +228,7 @@ final class NeedsMeUITests: XCTestCase {
         let pw = app.secureTextFields.firstMatch; pw.tap(); pw.typeText(pass); submitCreds()
         if !app.staticTexts["authMessage"].waitForExistence(timeout: 15) { app.buttons["emailSubmit"].tap() }
         wait(app.staticTexts["authMessage"], 30, "deleted account could still sign in"); shot("13-cannot-sign-in")
-        XCTAssertFalse(app.tabBars.buttons["Projects"].exists, "deleted account signed in")
+        XCTAssertFalse(app.buttons["tab-Projects"].exists, "deleted account signed in")
     }
 
     // 05 Connections screen: a secure key field and a Test connection button for each own key AI,
@@ -231,7 +236,7 @@ final class NeedsMeUITests: XCTestCase {
     func test05_ConnectKeyFields() {
         _ = signUpFresh()
         tapUntil(app.buttons["Skip guide"]) { !self.app.buttons["Skip guide"].exists }
-        wait(app.tabBars.buttons["More"], 30, "no tab bar after sign-up")
+        wait(app.buttons["tab-More"], 30, "no tab bar after sign-up")
         openMore("moreConnections") { self.app.buttons["Copy setup prompt"].exists }
         wait(app.staticTexts["connectionStatus"], 10, "connection status missing")
         for id in ["chatgpt", "claude", "gemini", "perplexity", "grok"] {
@@ -258,7 +263,7 @@ final class NeedsMeUITests: XCTestCase {
     func test06_RoomCreateAndSend() {
         _ = signUpFresh()
         tapUntil(app.buttons["Skip guide"]) { !self.app.buttons["Skip guide"].exists }
-        wait(app.tabBars.buttons["More"], 30, "no tab bar after sign-up")
+        wait(app.buttons["tab-More"], 30, "no tab bar after sign-up")
         openMore("moreGroupChat") { self.app.buttons["newRoom"].exists }
         wait(app.buttons["newRoom"], 10, "New group chat missing"); app.buttons["newRoom"].tap()
         let field = app.alerts.textFields.firstMatch; wait(field, 10, "room name box missing")
@@ -276,7 +281,7 @@ final class NeedsMeUITests: XCTestCase {
     func test07_RoomLoopControls() {
         _ = signUpFresh()
         tapUntil(app.buttons["Skip guide"]) { !self.app.buttons["Skip guide"].exists }
-        wait(app.tabBars.buttons["More"], 30, "no tab bar after sign-up")
+        wait(app.buttons["tab-More"], 30, "no tab bar after sign-up")
         openMore("moreGroupChat") { self.app.buttons["newRoom"].exists }
         app.buttons["newRoom"].tap()
         let field = app.alerts.textFields.firstMatch; wait(field, 10, "room name box missing")
@@ -296,8 +301,8 @@ final class NeedsMeUITests: XCTestCase {
     func test08_NotesPlacesAndNoDelete() {
         _ = signUpFresh()
         tapUntil(app.buttons["Skip guide"]) { !self.app.buttons["Skip guide"].exists }
-        wait(app.tabBars.buttons["Notes"], 30, "no tab bar after sign-up")
-        app.tabBars.buttons["Notes"].tap()
+        wait(app.buttons["tab-Notes"], 30, "no tab bar after sign-up")
+        app.buttons["tab-Notes"].tap()
         for name in ["Prompts Sent", "Prompts Scheduled", "Notes"] { wait(app.buttons[name], 10, name + " place missing") }
         shot("17-notes-places")
         app.buttons["newItem"].tap()
@@ -316,9 +321,9 @@ final class NeedsMeUITests: XCTestCase {
     func test09_ThemePickerNames() {
         _ = signUpFresh()
         tapUntil(app.buttons["Skip guide"]) { !self.app.buttons["Skip guide"].exists }
-        wait(app.tabBars.buttons["More"], 30, "no tab bar after sign-up")
-        openMore("settingsRow") { self.app.buttons.containing(NSPredicate(format: "label BEGINSWITH %@", "White")).firstMatch.exists }
-        for name in ["White", "Dark", "Beige", "Brand"] {
+        wait(app.buttons["tab-More"], 30, "no tab bar after sign-up")
+        openMore("settingsRow") { self.app.buttons.containing(NSPredicate(format: "label BEGINSWITH %@", "Brand")).firstMatch.exists }
+        for name in ["Brand", "Loam", "Bone"] {
             let b = app.buttons.containing(NSPredicate(format: "label BEGINSWITH %@", name)).firstMatch
             wait(b, 10, name + " pick missing")
         }
@@ -387,7 +392,7 @@ final class NeedsMeUITests: XCTestCase {
         wait(app.buttons["room-Cancel room"], 20, "room not listed")
         backToMoreRoot()
         // Schedule a prompt into that room, then cancel it from Prompts Scheduled.
-        app.tabBars.buttons["Notes"].tap()
+        app.buttons["tab-Notes"].tap()
         app.buttons["Prompts Scheduled"].tap()
         app.buttons["newItem"].tap()
         let pt = app.textFields["promptText"]; wait(pt, 10, "prompt sheet missing"); pt.tap(); pt.typeText("Cancel me prompt")
@@ -419,7 +424,7 @@ final class NeedsMeUITests: XCTestCase {
     func test14_MenuOrderSettingsAndKindness() {
         _ = signUpFresh()
         tapUntil(app.buttons["Skip guide"]) { !self.app.buttons["Skip guide"].exists }
-        app.tabBars.buttons["More"].tap()
+        goMore()
         let kind = app.buttons["kindnessItem"]; wait(kind, 10, "kindness item missing in More")
         let me = app.buttons["meRow"]; wait(me, 10, "Me row missing in More")
         XCTAssertTrue(kind.frame.minY < me.frame.minY, "kindness item is not at the very top of the menu")
@@ -630,8 +635,8 @@ final class NeedsMeUITests: XCTestCase {
             return false
         }
         tapUntil(app.buttons["Skip guide"]) { !self.app.buttons["Skip guide"].exists }
-        wait(app.tabBars.buttons["Notes"], 30, "no tab bar after sign-up")
-        app.tabBars.buttons["Notes"].tap()
+        wait(app.buttons["tab-Notes"], 30, "no tab bar after sign-up")
+        app.buttons["tab-Notes"].tap()
         app.buttons["newItem"].tap()
         let nb = app.textViews["noteBody"]; wait(nb, 10, "new note did not open"); nb.typeText("Picture note body")
         app.buttons["noteDone"].tap()
@@ -795,11 +800,11 @@ final class NeedsMeUITests: XCTestCase {
         let p2 = app.secureTextFields.firstMatch; p2.tap(); p2.typeText(pass); submitCreds()
         for _ in 0..<3 {
             let t0 = Date().addingTimeInterval(12)
-            while Date() < t0 { if app.tabBars.buttons["Projects"].exists { break }; Thread.sleep(forTimeInterval: 0.5) }
-            if app.tabBars.buttons["Projects"].exists { break }
+            while Date() < t0 { if app.buttons["tab-Projects"].exists { break }; Thread.sleep(forTimeInterval: 0.5) }
+            if app.buttons["tab-Projects"].exists { break }
             if app.buttons["emailSubmit"].exists { app.buttons["emailSubmit"].tap() }
         }
-        wait(app.tabBars.buttons["Projects"], 30, "sign-in after sign-out failed")
+        wait(app.buttons["tab-Projects"], 30, "sign-in after sign-out failed")
         openMore("moreWorkforce") { self.app.buttons["agentPause-claude"].exists }
         let pause2 = app.buttons["agentPause-claude"]; scrollTo(pause2)
         wait(app.staticTexts["agentPaused-claude"], 20, "pause did not persist across sign-in. SCREEN: " + screenText())

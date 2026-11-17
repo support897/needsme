@@ -303,8 +303,11 @@ final class Store: ObservableObject {
     func finishApple(_ result: Result<ASAuthorization, Error>) async {
         switch result {
         case .failure(let e):
-            if (e as NSError).code == ASAuthorizationError.canceled.rawValue { message = "Apple sign-in was cancelled."; return }
-            message = "Apple sign-in did not finish. Try email for now."
+            let n = e as NSError
+            // 1001 is the person closing the Apple sheet: a quiet return, no error line.
+            if n.domain == ASAuthorizationError.errorDomain && n.code == ASAuthorizationError.canceled.rawValue { message = ""; return }
+            // 1000 is "unknown": say so plainly with the code, never hide the real error.
+            message = n.code == ASAuthorizationError.unknown.rawValue ? "Apple could not start (1000). Try again, or use Google or email." : "Apple sign-in did not finish (\(n.code)). Try Google or email."
         case .success(let auth):
             guard let c = auth.credential as? ASAuthorizationAppleIDCredential, let t = c.identityToken, let id = String(data: t, encoding: .utf8) else { message = "Apple sent nothing back. Try again."; return }
             let cred = OAuthProvider.appleCredential(withIDToken: id, rawNonce: nonce, fullName: c.fullName)
@@ -316,7 +319,7 @@ final class Store: ObservableObject {
     nonisolated static func isDoorCancel(_ e: Error) -> Bool {
         let n = e as NSError
         if n.domain == "com.apple.AuthenticationServices.WebAuthenticationSession" && n.code == 1 { return true }
-        if n.domain == "com.apple.AuthenticationServices.AuthorizationError" && n.code == 1000 { return true }
+        if n.domain == "com.apple.AuthenticationServices.AuthorizationError" && n.code == 1001 { return true }
         return n.localizedDescription.lowercased().contains("cancel")
     }
     /// Google door (build 342): the NATIVE Google Sign-In SDK, not Firebase's web redirect handler.
