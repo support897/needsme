@@ -15,6 +15,7 @@
 		4C906ED779D7257E9A1AA1CE /* Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AFA73D2E0B523164735FC9D /* Store.swift */; };
 		5109AF526C770780CD6DB056 /* RoomView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE026907D18E404297A9AA5B /* RoomView.swift */; };
 		5EF86B872184F9945E236450 /* PipTour.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34F621D6D3730A4DB25C0A73 /* PipTour.swift */; };
+		62272AAF17411FD6EAF7C3B9 /* ProjectImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC641EC33A55CD8E3F715357 /* ProjectImport.swift */; };
 		77CF66E49E9380C7F5515638 /* MoreScreens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83939FD64D8E6264F32435D0 /* MoreScreens.swift */; };
 		826BA9BFDCA2CB060EE84A50 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A58F61EA10424347D4B39716 /* RootView.swift */; };
 		84C95AED89CACC6A1DB14347 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = D7D804D4F8D1AEE2A4F61371 /* GoogleSignIn */; };
@@ -69,6 +70,7 @@
 		D8DA0710E97C7E03687B9C3C /* SproutIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SproutIcons.swift; sourceTree = "<group>"; };
 		E33868990EA00000561735EC /* ChangesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangesView.swift; sourceTree = "<group>"; };
 		E616EBDDBE9C7C2FFB487CFF /* NeedsMe.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NeedsMe.entitlements; sourceTree = "<group>"; };
+		EC641EC33A55CD8E3F715357 /* ProjectImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectImport.swift; sourceTree = "<group>"; };
 		EE026907D18E404297A9AA5B /* RoomView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomView.swift; sourceTree = "<group>"; };
 		EEAECF1299E36B557EDD4580 /* NeedsMeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NeedsMeApp.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -114,6 +116,7 @@
 				8EEBA3F288FA0897CD32EDF8 /* NeedsMeScreens.swift */,
 				00158EC2EA1AFB03A1D577A4 /* NotesView.swift */,
 				34F621D6D3730A4DB25C0A73 /* PipTour.swift */,
+				EC641EC33A55CD8E3F715357 /* ProjectImport.swift */,
 				0A787BA80A6F8EA7472AFCA8 /* ProjectViews.swift */,
 				BD75EF7E77389DD4E5F6AE60 /* PromptSender.swift */,
 				EE026907D18E404297A9AA5B /* RoomView.swift */,
@@ -265,6 +268,7 @@
 				2ABCC6A4BA2427E7CC5F71C3 /* NeedsMeScreens.swift in Sources */,
 				CAD878245E9875ABE1449D43 /* NotesView.swift in Sources */,
 				5EF86B872184F9945E236450 /* PipTour.swift in Sources */,
+				62272AAF17411FD6EAF7C3B9 /* ProjectImport.swift in Sources */,
 				9AC7797FA2CCBE4A391E2720 /* ProjectViews.swift in Sources */,
 				BD39F749DA93B693AB31CDA0 /* PromptSender.swift in Sources */,
 				5109AF526C770780CD6DB056 /* RoomView.swift in Sources */,
