@@ -46,7 +46,7 @@ struct MoreView: View {
                     row("Operations", "waveform.path.ecg", "moreOperations") { OperationsView() }
                     Button("Replay Pip's guide", action: replayTour).buttonStyle(SoftButton())
                     row("Settings", "gearshape", "settingsRow") { SettingsView() }
-                }.padding()
+                }.padding().padding(.bottom, 100)
             }
             .lookBg().navigationTitle("More")
         }
@@ -138,7 +138,7 @@ struct SettingsView: View {
     @AppStorage("nm_digest") private var digest = "Daily"
     @AppStorage("nm_quiet") private var quiet = true
     @State private var confirmDelete = false
-    @AppStorage("nm_first_launch") private var firstLaunch = 0.0
+    private var firstLaunch: Double { UserDefaults.standard.double(forKey: "nm_first_launch") }
     @ObservedObject private var conns = AIConnections.shared
     var pipDays: Int { firstLaunch == 0 ? 1 : max(1, Int(Date().timeIntervalSince1970 - firstLaunch) / 86400 + 1) }
     var aiDays: Int { Set(store.tasks.filter { $0.isDone && !$0.doneBy.isEmpty && $0.doneBy != "user" }.map { $0.doneDate }).count }
@@ -290,7 +290,6 @@ struct SettingsView: View {
                 }
             }.padding()
         }
-        .onAppear { if firstLaunch == 0 { firstLaunch = Date().timeIntervalSince1970 } }
         .hidesTabBar()
         .lookBg().navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
         .alert("Delete your account?", isPresented: $confirmDelete) {

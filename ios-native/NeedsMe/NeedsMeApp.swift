@@ -24,6 +24,7 @@ struct NeedsMeApp: App {
 
     init() {
         FirebaseBoot.ensure()
+        if UserDefaults.standard.object(forKey: "nm_first_launch") == nil { UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "nm_first_launch") }
         if CommandLine.arguments.contains("-uitest-reset") {
             try? Auth.auth().signOut()
             UserDefaults.standard.removeObject(forKey: "nm_tour_done")
