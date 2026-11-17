@@ -145,7 +145,7 @@ struct Card<Content: View>: View {
     @Environment(\.palette) var p
     @ViewBuilder var content: Content
     var body: some View {
-        content.padding(16).frame(maxWidth: .infinity, alignment: .leading)
+        VStack(alignment: .leading, spacing: 10) { content }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
             .background(p.card).clipShape(RoundedRectangle(cornerRadius: 24))
             .shadow(color: Color.loam.opacity(p.isDark ? 0 : 0.07), radius: 12, y: 6)
     }
