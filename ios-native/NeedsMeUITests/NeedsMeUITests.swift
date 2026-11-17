@@ -62,6 +62,7 @@ final class NeedsMeUITests: XCTestCase {
     }
     func goMore() {
         let more = app.buttons["tab-More"]
+        if app.buttons["kindnessItem"].isHittable { return }
         if !more.isHittable { app.buttons["tab-Home"].tap() }
         let end = Date().addingTimeInterval(8)
         while Date() < end && !more.isHittable { Thread.sleep(forTimeInterval: 0.3) }
@@ -81,7 +82,11 @@ final class NeedsMeUITests: XCTestCase {
             if top.isHittable { break }
         }
         wait(rowEl, 10, "More row missing: " + id)
-        for _ in 0..<6 where !rowEl.isHittable { app.swipeUp() }
+        // Scroll until the row sits clear of the floating bar, or the tap lands on the bar.
+        for _ in 0..<8 {
+            if rowEl.isHittable && rowEl.frame.midY < app.frame.height - 120 { break }
+            app.swipeUp()
+        }
         rowEl.tap()
         let end = Date().addingTimeInterval(15)
         while Date() < end { if ready() { return }; Thread.sleep(forTimeInterval: 0.3) }
