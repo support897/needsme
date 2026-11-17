@@ -436,6 +436,7 @@ final class NeedsMeUITests: XCTestCase {
         XCTAssertTrue(gone, "cancelled prompt still listed as scheduled"); shot("22-prompt-cancelled")
         // Delete the room.
         openMore("moreGroupChat") { self.app.buttons["room-Cancel room"].exists }
+        app.buttons["room-Cancel room"].press(forDuration: 1.2)
         let del = app.buttons["deleteRoom-Cancel room"]; wait(del, 10, "room delete control missing")
         del.tap()
         let confirm = app.alerts.buttons["Delete the room"]; wait(confirm, 10, "delete confirm missing"); shot("23-room-delete-confirm")
@@ -930,8 +931,10 @@ final class NeedsMeDemoShots: XCTestCase {
         if openRow("moreTasks") { shot("D7-tasks"); back() }
         if openRow("moreGroupChat") {
             pause(2); shot("D4-rooms")
-            if tapIf(hit(app.buttons.matching(identifier: "room-Launch week")), 5) { pause(2); shot("D5-room") }
+            if tapIf(hit(app.buttons.matching(identifier: "room-Launch week")), 5) { pause(2); shot("D5-room"); back() }
+            back()
         }
+        if !app.buttons["tab-Projects"].isHittable { back() }
         // 6 project
         app.buttons["tab-Projects"].tap(); pause(2); shot("D6a-projects")
         let pr = hit(app.buttons.matching(identifier: "project-Website launch"))

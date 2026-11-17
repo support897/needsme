@@ -441,6 +441,7 @@ struct RoomsListView: View {
         return query.isEmpty ? byProject : byProject.filter { $0.title.localizedCaseInsensitiveContains(query) }
     }
     func openNeed(_ r: RoomItem) -> NeedItem? { store.needs.first { $0.roomId == r.id && $0.status == "open" } }
+    var newThings: Int { store.needs.filter { $0.status == "open" }.count }
     var needRooms: Int { Set(store.needs.filter { $0.status == "open" }.map { $0.roomId }).count }
 
     func faceState(_ a: AIAccount, _ r: RoomItem) -> FaceState {
@@ -465,15 +466,11 @@ struct RoomsListView: View {
                 NavigationLink { RoomView(room: r, store: store) } label: {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(r.title).font(.system(size: 16, weight: .bold)).foregroundColor(.loam)
-                        if !r.project.isEmpty { Text(r.project).font(.system(size: 11.5)).foregroundColor(.muted) }
                     }.frame(maxWidth: .infinity, alignment: .leading)
                 }.buttonStyle(.plain).accessibilityIdentifier("room-" + r.title)
                 if state == "needs" { CountPill(text: "needs you") }
                 if state == "work" { CountPill(text: "working", light: true) }
                 if state == "done" { Text("all clear").font(.system(size: 12, weight: .heavy)).padding(.horizontal, 10).padding(.vertical, 4).background(Color(hex: 0xE6DFCF)).foregroundColor(.muted).clipShape(Capsule()) }
-                Button { roomToDelete = r } label: {
-                    Image(systemName: "trash").font(.system(size: 14)).foregroundColor(.faint).frame(width: 36, height: 36).contentShape(Rectangle())
-                }.accessibilityLabel("Delete room \(r.title)").accessibilityIdentifier("deleteRoom-" + r.title)
             }
             HStack(spacing: 14) {
                 if !accts.isEmpty {
@@ -486,6 +483,7 @@ struct RoomsListView: View {
         }
         .padding(.horizontal, 16).padding(.vertical, 14).background(Color.cardTone).clipShape(RoundedRectangle(cornerRadius: 24))
         .shadow(color: Color.loam.opacity(0.07), radius: 12, y: 6)
+        .contextMenu { Button(role: .destructive) { roomToDelete = r } label: { Label("Delete room", systemImage: "trash") }.accessibilityIdentifier("deleteRoom-" + r.title) }
     }
 
     var body: some View {
@@ -495,17 +493,27 @@ struct RoomsListView: View {
                 HStack(spacing: 12) {
                     PipArt(pose: .welcome, height: 54)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(needRooms > 0 ? (needRooms == 1 ? "1 room needs you" : "\(needRooms) rooms need you") : "All your rooms are calm").font(.system(size: 14.5, weight: .bold)).foregroundColor(.loam)
-                        Text("One room for all your AIs. Mention an AI with its name to ask it.").font(.system(size: 12)).foregroundColor(.muted)
+                        Text(newThings == 0 ? "All your rooms are calm" : (newThings == 1 ? "1 new thing from your AIs" : "\(newThings) new things from your AIs")).font(.system(size: 14.5, weight: .bold)).foregroundColor(.loam)
+                        Text(newThings == 0 ? "One room for all your AIs. Mention an AI by name." : "Open them in Needs Me.").font(.system(size: 12)).foregroundColor(.muted)
                     }
                     Spacer(minLength: 0)
+                    if newThings > 0 {
+                        NavigationLink { NeedsMeView() } label: {
+                            Text("See").font(.system(size: 13, weight: .bold)).padding(.horizontal, 14).padding(.vertical, 7)
+                                .background(Color.loam).foregroundColor(.sprout).clipShape(Capsule())
+                        }.accessibilityIdentifier("roomsSee")
+                    }
                 }
                 .padding(.horizontal, 14).padding(.vertical, 12)
                 .background(LinearGradient(colors: [.sproutPale, .bone], startPoint: .leading, endPoint: .trailing)).clipShape(RoundedRectangle(cornerRadius: 24))
+                if searching { TextField("Search rooms", text: $query).textFieldStyle(.roundedBorder).accessibilityIdentifier("roomSearch") }
+                if shownRooms.isEmpty {
+                    Text(store.rooms.isEmpty ? "No rooms yet." : "No rooms for this project yet.").foregroundColor(.muted).accessibilityIdentifier("noRooms")
+                }
+                ForEach(shownRooms) { r in roomCard(r) }
                 Text("An AI that is not connected never takes part.").font(.system(size: 12)).foregroundColor(.muted)
                 Button("New group chat") { title = ""; asking = true }
                     .buttonStyle(PrimaryButton()).accessibilityIdentifier("newRoom")
-                if searching { TextField("Search rooms", text: $query).textFieldStyle(.roundedBorder).accessibilityIdentifier("roomSearch") }
                 if !store.projects.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack {
@@ -516,10 +524,6 @@ struct RoomsListView: View {
                         }
                     }
                 }
-                if shownRooms.isEmpty {
-                    Text(store.rooms.isEmpty ? "No rooms yet." : "No rooms for this project yet.").foregroundColor(.muted).accessibilityIdentifier("noRooms")
-                }
-                ForEach(shownRooms) { r in roomCard(r) }
                 if !store.roomError.isEmpty {
                     Text(store.roomError).font(.footnote).foregroundColor(.muted).accessibilityIdentifier("roomError")
                 }
@@ -605,18 +609,22 @@ struct RoomView: View {
             }.padding(.horizontal, 18).padding(.top, 4)
             ScrollViewReader { proxy in
                 ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
                     LazyVStack(alignment: .leading, spacing: 10) {
                         ForEach(engine.shown) { m in bubble(m).id(m.id) }
                         ForEach(Array(engine.working).sorted(), id: \.self) { id in
                             Text("\(conns.displayName(id)) is writing").font(.footnote).foregroundColor(.muted)
                         }
+                    }.padding(.horizontal, 18).padding(.top, 12)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Color.clear.frame(height: 260)
                         Text("AIs answer while this room is open.")
                             .font(.footnote).foregroundColor(.muted).accessibilityIdentifier("roomNote")
                         Text(participantsLine)
                             .font(.footnote).foregroundColor(.muted).accessibilityIdentifier("roomParticipants")
                         loopBar
                         chipsBar
-                    }.padding(.horizontal, 18).padding(.vertical, 12)
+                    }.padding(.horizontal, 18).padding(.bottom, 12)
                 }
                 .onChange(of: engine.shown.count) { _ in
                     if let last = engine.shown.last { proxy.scrollTo(last.id, anchor: .bottom) }
@@ -654,15 +662,10 @@ struct RoomView: View {
                         .background(Color.loam).clipShape(BubbleShape(tl: 20, tr: 6, bl: 20, br: 20))
                 }
             } else {
-                HStack(alignment: .bottom, spacing: 10) {
+                HStack(alignment: .top, spacing: 10) {
                     AIFace(label: conns.displayName(m.author), size: 34)
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(conns.displayName(m.author)).font(.system(size: 11, weight: .bold)).foregroundColor(.muted)
                         Text(m.text).font(.system(size: 14)).foregroundColor(.loam)
-                        if m.needsYou {
-                            Text("Needs you").font(.caption.bold()).padding(.horizontal, 8).padding(.vertical, 3)
-                                .background(Color.sproutPale).clipShape(Capsule()).foregroundColor(.loam)
-                        }
                     }
                     .padding(.horizontal, 14).padding(.vertical, 11)
                     .background(Color.cardTone).clipShape(BubbleShape(tl: 6, tr: 20, bl: 20, br: 20))
@@ -756,8 +759,7 @@ struct RoomView: View {
                         .frame(width: 42, height: 42).background(Color.sprout).clipShape(Circle())
                 }
                 .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                .opacity(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1)
-                .accessibilityLabel("Send")
+                                .accessibilityLabel("Send")
                 .accessibilityIdentifier("roomSend")
             }
             .padding(.horizontal, 8).padding(.vertical, 7).background(Color.cardTone).clipShape(RoundedRectangle(cornerRadius: 30))

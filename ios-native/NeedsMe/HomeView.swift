@@ -8,6 +8,7 @@ struct HomeView: View {
     @Environment(\.palette) var p
     @ObservedObject private var conns = AIConnections.shared
     @State private var seg = 0
+    @State private var didPick = false
     @State private var clearedTitle: String?
     @State private var clearedAI = ""
 
@@ -72,7 +73,8 @@ struct HomeView: View {
             let key = df.string(from: d)
             let ts = store.tasks.filter { $0.isDone && $0.doneDate == key }
             let ai = ts.filter { !$0.doneBy.isEmpty && $0.doneBy != "user" }.count
-            return (wf.string(from: d), ts.count - ai, ai, back == 0)
+            let letter = Store.demo ? ["M", "T", "W", "T", "F", "S", "S"][6 - back] : wf.string(from: d)
+            return (letter, ts.count - ai, ai, back == 0)
         }
     }
     var weekTotal: Int { doneByDay.reduce(0) { $0 + $1.you + $1.ai } }
@@ -95,13 +97,14 @@ struct HomeView: View {
                     if let t = clearedTitle { clearedCard(t) } else { heroCard }
                     if clearedTitle != nil { risingNext }
                     PillTabs(items: ["Overview", "Needs you", "Done"], selection: $seg)
-                    if seg == 0 { overview }
+                    if seg == 0 || seg == 1 { overview }
                     if seg == 1 { needsList }
                     if seg == 2 { doneList }
                 }.padding(.horizontal, 18).padding(.bottom, 12)
             }
             .lookBg()
             .toolbar(.hidden, for: .navigationBar)
+            .onAppear { if !openNeeds.isEmpty && !didPick { seg = 1; didPick = true } }
         }
     }
 
@@ -130,15 +133,14 @@ struct HomeView: View {
                         .frame(maxWidth: 190, alignment: .leading).fixedSize(horizontal: false, vertical: true)
                     Text(h.title).font(.system(size: 21, weight: .bold)).foregroundColor(.loam).lineLimit(3)
                         .frame(maxWidth: 205, alignment: .leading).padding(.top, 6).padding(.bottom, 10)
+                        .contentShape(Rectangle())
+                        .onTapGesture { if let n = openNeeds.first { clear(need: n) } else if let t = overdue.first { clear(task: t) } }
+                        .accessibilityAddTraits(.isButton).accessibilityIdentifier("heroDone")
                     HStack(spacing: 8) {
                         if !h.who.isEmpty { AIFace(label: h.who, size: 24) }
                         Text(h.line).font(.system(size: 12.5, weight: .semibold)).foregroundColor(.loam)
                             .frame(maxWidth: 160, alignment: .leading).fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 4)
-                        Button("Done") { if let n = openNeeds.first { clear(need: n) } else if let t = overdue.first { clear(task: t) } }
-                            .font(.system(size: 13, weight: .bold)).padding(.horizontal, 14).padding(.vertical, 7)
-                            .background(Color.loam).foregroundColor(.bone).clipShape(Capsule())
-                            .accessibilityIdentifier("heroDone")
                     }.padding(.bottom, 12)
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
                         Text(h.total > 0 ? "\(h.done)/\(h.total)" : "0/0").font(.system(size: 34, weight: .heavy)).foregroundColor(.loam)
@@ -236,13 +238,13 @@ struct HomeView: View {
     // MARK: the cards under it
 
     var ringCard: some View {
-        let total = clearedCount + openNeeds.count
+        let total = clearedCount + openNeeds.count + overdue.count
         let prog = total > 0 ? Double(clearedCount) / Double(total) : 0
         return HStack(spacing: 16) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Today's needs").font(.system(size: 15, weight: .bold)).foregroundColor(.loam)
                 CountPill(text: "\(clearedCount)/\(total) cleared")
-                Text(total == 0 ? "Nothing has needed you yet." : (openNeeds.isEmpty ? "All cleared. Nice one." : "\(clearedCount) cleared so far."))
+                Text(total == 0 ? "Nothing has needed you yet." : (openNeeds.isEmpty && overdue.isEmpty ? "All cleared. Nice one." : "\(clearedCount) cleared so far."))
                     .font(.system(size: 12)).foregroundColor(.muted)
             }
             Spacer()

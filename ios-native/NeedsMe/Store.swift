@@ -924,7 +924,7 @@ extension Store {
         let yest: String = { let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: cal.date(byAdding: .day, value: -1, to: Date()) ?? Date()) }()
         func tk(_ id: String, _ title: String, _ area: String, done: Bool = false, due: String = "", ai: String = "", doneToday: Bool = false) -> TaskItem {
             var x = TaskItem(id: id, title: title, status: done ? "done" : "open", dueOn: due, area: area)
-            if !ai.isEmpty { x.sourceRoom = "Launch week"; x.sourceDate = t; x.sourceBy = ai }
+            if !ai.isEmpty { x.sourceRoom = ["w1", "w2", "w3", "d1", "d2"].contains(id) ? "Launch week" : area; x.sourceDate = t; x.sourceBy = ai }
             if done { x.doneDate = doneToday ? t : yest; x.doneBy = ai.isEmpty ? "user" : ai }
             return x
         }
@@ -952,7 +952,13 @@ extension Store {
             tk("d4", "Site map", "Website launch", done: true, ai: "ChatGPT", doneToday: true),
             tk("d5", "Header image", "Website launch", done: true, ai: "Gemini", doneToday: true)]
         for i in 6...9 { ts.append(tk("d\(i)", "Earlier step \(i)", "Website launch", done: true, ai: "Claude")) }
-        for i in 1...4 { ts.append(tk("e\(i)", "Setup step \(i)", "Website launch", ai: i % 2 == 0 ? "Gemini" : "Claude")) }
+        let spread = [1, 1, 1, 2, 2, 2, 2, 3, 3, 4, 4, 4, 4, 4, 5, 5, 6, 6, 6, 6, 6]
+        for (k, back) in spread.enumerated() {
+            var x = tk("x\(k)", "Earlier step \(k)", k % 2 == 0 ? "Pricing" : "Blog posts", done: true, ai: k % 2 == 0 ? "Claude" : "Gemini")
+            x.doneDate = { let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: cal.date(byAdding: .day, value: -back, to: Date()) ?? Date()) }()
+            ts.append(x)
+        }
+        for i in 1...2 { ts.append(tk("e\(i)", "Setup step \(i)", "Website launch", ai: i % 2 == 0 ? "Gemini" : "Claude")) }
         tasks = ts
         func note(_ id: String, _ title: String, _ body: String, _ proj: String, _ ai: String) -> NoteItem {
             var n = NoteItem(id: id, title: title, body: body, project: proj, ai: ai, isPrompt: false)

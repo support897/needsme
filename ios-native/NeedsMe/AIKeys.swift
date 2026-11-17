@@ -138,7 +138,10 @@ final class AIConnections: ObservableObject {
         return AIKeys.has(a.id) && results[a.id]?.ok == true
     }
 
-    var connected: [AIAccount] { accounts.filter { isConnected($0) } }
+    var connected: [AIAccount] {
+        let c = accounts.filter { isConnected($0) }
+        return Store.demo ? ["claude", "gemini", "chatgpt"].compactMap { id in c.first { $0.id == id } } : c
+    }
 
     /// The name to show for an author id: the account label, else the provider name, else the id.
     func displayName(_ authorId: String) -> String {

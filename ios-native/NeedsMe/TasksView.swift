@@ -30,11 +30,11 @@ struct TasksView: View {
                         .accessibilityLabel(t.isDone ? "Mark not done" : "Mark done")
                 },
                 title: t.title,
-                sub: [t.area, t.isDone ? "" : (isAIWork(t) ? "AI work · Waiting" : ""), t.isDone && isAIWork(t) ? "AI work · Completed" : ""].filter { !$0.isEmpty }.joined(separator: " · "),
+                sub: [t.area, who(t)].filter { !$0.isEmpty }.joined(separator: " · "),
                 trail: {
                     HStack(spacing: 6) {
                         if !who(t).isEmpty { AIFace(label: who(t), size: 34, state: needs ? .needs : .none) }
-                        NavigationLink { TaskDetailView(taskId: t.id) } label: { Image(systemName: "chevron.right").font(.system(size: 12, weight: .bold)).foregroundColor(.faint).frame(width: 28, height: 40) }
+                        NavigationLink { TaskDetailView(taskId: t.id) } label: { Image(systemName: "chevron.right").font(.system(size: 12, weight: .bold)).foregroundColor(.clear).frame(width: 20, height: 40) }
                             .accessibilityIdentifier("taskOpen-" + t.title)
                     }
                 })
@@ -93,12 +93,12 @@ struct TasksView: View {
                 if !openNeeds.isEmpty || (seg == 0 && !overdue.isEmpty) {
                     header("Needs you (\(openNeeds.count + (seg == 0 ? overdue.count : 0)))", "rising to the top")
                     ForEach(openNeeds) { n in
-                        rowBox(LookRow(needs: true, lead: { CheckCircle(on: false, working: true) }, title: n.text,
-                                       sub: "\(n.ai) needs you",
-                                       trail: { HStack(spacing: 8) { AIFace(label: n.ai, size: 34, state: .needs)
-                                           Button("Done") { store.resolveNeed(n) }.font(.system(size: 12, weight: .bold)).padding(.horizontal, 10).padding(.vertical, 6)
-                                               .background(Color.loam).foregroundColor(.bone).clipShape(Capsule()).buttonStyle(.borderless)
-                                       } }))
+                        rowBox(LookRow(needs: true,
+                                       lead: { Button { store.resolveNeed(n) } label: { CheckCircle(on: false, working: true) }
+                                           .buttonStyle(.borderless).accessibilityLabel("Done").accessibilityIdentifier("needDone-" + n.id) },
+                                       title: n.text,
+                                       sub: [store.rooms.first { $0.id == n.roomId }?.project ?? "", n.ai].filter { !$0.isEmpty }.joined(separator: " · "),
+                                       trail: { AIFace(label: n.ai, size: 34, state: .needs) }))
                     }
                     if seg == 0 { ForEach(overdue) { t in rowBox(row(t, needs: true)) } }
                 } else if seg == 1 {

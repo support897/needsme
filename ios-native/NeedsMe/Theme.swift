@@ -334,9 +334,6 @@ struct LookTabBar: View {
             VStack(spacing: 3) {
                 ZStack(alignment: .topTrailing) {
                     Image(systemName: icon).font(.system(size: 20, weight: .medium))
-                    if idx == 1 && needsCount > 0 {
-                        Circle().fill(Color.sprout).frame(width: 9, height: 9).overlay(Circle().stroke(Color.cardTone, lineWidth: 2)).offset(x: 5, y: -2)
-                    }
                 }
                 Text(name).font(.system(size: 10.5, weight: .semibold))
                 Circle().fill(tab == idx ? Color.sprout : Color.clear).frame(width: 5, height: 5)
