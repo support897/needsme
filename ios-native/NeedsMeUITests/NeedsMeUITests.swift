@@ -958,6 +958,7 @@ final class NeedsMeDemoShots: XCTestCase {
         tp(app.buttons["tab-Notes"]); pause(2); shot("D8-notes")
         // 9 settings
         if openRow("settingsRow") { shot("D9-settings"); app.swipeUp(); pause(1); shot("D9b-settings-below") }
+        back()
         // 3 a need cleared
         tp(app.buttons["tab-Home"]); pause(2)
         let d = app.buttons["heroDone"]
