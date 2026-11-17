@@ -134,6 +134,7 @@ final class AIConnections: ObservableObject {
 
     func isConnected(_ a: AIAccount) -> Bool {
         _ = keyTick
+        if Store.demo { return ["claude", "chatgpt", "gemini"].contains(a.id) }
         return AIKeys.has(a.id) && results[a.id]?.ok == true
     }
 

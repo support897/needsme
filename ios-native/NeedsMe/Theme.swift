@@ -365,7 +365,7 @@ struct LookTabBar: View {
             item(3, "doc.text", "Notes")
         }
         .padding(.horizontal, 10).frame(height: 66)
-        .background(Color.cardTone).clipShape(RoundedRectangle(cornerRadius: 28))
+        .background(RoundedRectangle(cornerRadius: 28).fill(Color.cardTone))
         .shadow(color: Color.loam.opacity(0.14), radius: 14, y: 8)
         .padding(.horizontal, 14).padding(.bottom, 6)
     }

@@ -63,6 +63,10 @@ final class RoomEngine: ObservableObject {
     }
 
     func start() {
+        if Store.demo {
+            messages = Store.demoMessages.map { var x = $0; if x.author == "user" { x.author = store.user?.uid ?? "me" }; return x }
+            return
+        }
         guard listener == nil, let c = store.roomMessagesCollection(roomId) else { return }
         RoomEngine.live[roomId] = self
         listener = c.order(by: "createdAt").addSnapshotListener { [weak self] snap, err in
@@ -597,16 +601,7 @@ struct RoomView: View {
     var body: some View {
         VStack(spacing: 0) {
             VStack(spacing: 8) {
-                Text("\(conns.connected.count) AIs here · \(tasksMade) tasks made").font(.system(size: 12)).foregroundColor(.muted)
                 facesCard
-                Text("AIs answer while this room is open.")
-                    .font(.footnote).foregroundColor(.muted)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .accessibilityIdentifier("roomNote")
-                Text(participantsLine)
-                    .font(.footnote).foregroundColor(.muted)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .accessibilityIdentifier("roomParticipants")
             }.padding(.horizontal, 18).padding(.top, 4)
             ScrollViewReader { proxy in
                 ScrollView {
@@ -615,6 +610,12 @@ struct RoomView: View {
                         ForEach(Array(engine.working).sorted(), id: \.self) { id in
                             Text("\(conns.displayName(id)) is writing").font(.footnote).foregroundColor(.muted)
                         }
+                        Text("AIs answer while this room is open.")
+                            .font(.footnote).foregroundColor(.muted).accessibilityIdentifier("roomNote")
+                        Text(participantsLine)
+                            .font(.footnote).foregroundColor(.muted).accessibilityIdentifier("roomParticipants")
+                        loopBar
+                        chipsBar
                     }.padding(.horizontal, 18).padding(.vertical, 12)
                 }
                 .onChange(of: engine.shown.count) { _ in
@@ -625,11 +626,18 @@ struct RoomView: View {
                 Text(store.roomError).font(.footnote).foregroundColor(.muted).padding(.horizontal)
                     .accessibilityIdentifier("roomError")
             }
-            loopBar
             composer
         }
-        .lookBg().navigationTitle(engine.title).navigationBarTitleDisplayMode(.inline)
-        .toolbar { ToolbarItem(placement: .navigationBarTrailing) { PipArt(pose: .welcome, height: 34) } }
+        .lookBg().navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                VStack(spacing: 1) {
+                    Text(engine.title).font(.system(size: 17, weight: .bold)).foregroundColor(.loam)
+                    Text("\(conns.connected.count) AIs here · \(tasksMade) tasks made").font(.system(size: 12)).foregroundColor(.muted)
+                }
+            }
+            ToolbarItem(placement: .navigationBarTrailing) { PipArt(pose: .welcome, height: 34) }
+        }
         .onAppear { RoomEngine.retireBackground(engine.roomId); engine.start() }
         .onDisappear { engine.close() }
         .hidesTabBar()
@@ -637,7 +645,7 @@ struct RoomView: View {
 
     @ViewBuilder func bubble(_ m: RoomMessage) -> some View {
         if m.author == "system" {
-            Text(m.text).font(.footnote).foregroundColor(.muted).frame(maxWidth: .infinity, alignment: .center)
+            systemCard(m.text)
         } else {
             let mine = m.author == store.user?.uid
             if mine {
@@ -662,6 +670,28 @@ struct RoomView: View {
                     Spacer(minLength: 40)
                 }
             }
+        }
+    }
+
+    @ViewBuilder func systemCard(_ text: String) -> some View {
+        let parts = text.split(separator: "\n", maxSplits: 1).map(String.init)
+        let made = parts.count == 2 && (parts[0].hasPrefix("Task made") || parts[0].hasPrefix("Note made"))
+        if made {
+            HStack(spacing: 10) {
+                Image(systemName: parts[0].hasPrefix("Task") ? "sparkle" : "doc.text").foregroundColor(.loam)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(parts[0]).font(.system(size: 12.5, weight: .bold)).foregroundColor(.loam)
+                    Text(parts[1]).font(.system(size: 12.5)).foregroundColor(.muted)
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 12).padding(.vertical, 10)
+            .background(LinearGradient(colors: [.sproutPale, .bone], startPoint: .leading, endPoint: .trailing))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.sprout, style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])))
+            .padding(.leading, 44)
+        } else {
+            Text(text).font(.footnote).foregroundColor(.muted).frame(maxWidth: .infinity, alignment: .center)
         }
     }
 
@@ -692,7 +722,7 @@ struct RoomView: View {
         .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 18).padding(.vertical, 6)
     }
 
-    var composer: some View {
+    var chipsBar: some View {
         VStack(alignment: .leading, spacing: 8) {
             if conns.connected.isEmpty {
                 Text("No AI is connected yet. Add a key in the Connect screen, then mention it here.")
@@ -707,6 +737,11 @@ struct RoomView: View {
                     }
                 }
             }
+        }
+    }
+
+    var composer: some View {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 TextField("Say something to your AIs", text: $draft, axis: .vertical)
                     .lineLimit(1...4).padding(.leading, 12)

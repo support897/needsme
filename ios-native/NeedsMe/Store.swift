@@ -159,6 +159,7 @@ final class Store: ObservableObject {
         cloudTheme = nil; cloudThemeLoaded = false; cloudName = nil
         roomsFresh = false; promptsFresh = false; registrySynced = false
         guard user != nil else { return }
+        if Store.demo { loadDemo(); return }
         registerDevice()
         if let c = col("settings") {
             handles.append(c.addSnapshotListener { [weak self] s, _ in
@@ -911,4 +912,67 @@ extension Store {
     func dependencyTasks(_ t: TaskItem) -> [TaskItem] {
         t.dependsOn.compactMap { id in tasks.first { $0.id == id } }
     }
+}
+
+// MARK: demo data (only with the launch flag -uitest-demo; never on for real people)
+extension Store {
+    nonisolated static var demo: Bool { CommandLine.arguments.contains("-uitest-demo") }
+
+    func loadDemo() {
+        let t = Store.today
+        let cal = Calendar.current
+        let yest: String = { let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: cal.date(byAdding: .day, value: -1, to: Date()) ?? Date()) }()
+        func tk(_ id: String, _ title: String, _ area: String, done: Bool = false, due: String = "", ai: String = "", doneToday: Bool = false) -> TaskItem {
+            var x = TaskItem(id: id, title: title, status: done ? "done" : "open", dueOn: due, area: area)
+            if !ai.isEmpty { x.sourceRoom = "Launch week"; x.sourceDate = t; x.sourceBy = ai }
+            if done { x.doneDate = doneToday ? t : yest; x.doneBy = ai.isEmpty ? "user" : ai }
+            return x
+        }
+        cloudName = "Ilse"; cloudThemeLoaded = true
+        rooms = [RoomItem(id: "r-launch", title: "Launch week", project: "Launch checklist"),
+                 RoomItem(id: "r-pricing", title: "Pricing", project: "Website launch"),
+                 RoomItem(id: "r-blog", title: "Blog posts", project: "Website launch"),
+                 RoomItem(id: "r-review", title: "Weekly review", project: "Website launch")]
+        needs = [NeedItem(id: "n1", text: "Approve the launch checklist", ai: "Claude", roomId: "r-launch", status: "open"),
+                 NeedItem(id: "n2", text: "Reply to Gemini on pricing", ai: "Gemini", roomId: "r-pricing", status: "open"),
+                 NeedItem(id: "n3", text: "Sign off the logo", ai: "Claude", roomId: "r-launch", status: "done"),
+                 NeedItem(id: "n4", text: "Pick the tone", ai: "ChatGPT", roomId: "r-blog", status: "done")]
+        var ts: [TaskItem] = [
+            tk("a1", "Draft the list", "Launch checklist", done: true), tk("a2", "Check the links", "Launch checklist", done: true),
+            tk("a3", "Add the dates", "Launch checklist", done: true), tk("a4", "Get your yes", "Launch checklist"), tk("a5", "Send it out", "Launch checklist"),
+            tk("w1", "Approve launch checklist", "Website launch", ai: "Claude"),
+            tk("w2", "Pick a launch date", "Website launch", due: yest, ai: "ChatGPT"),
+            tk("w3", "Announcement post", "Website launch", ai: "ChatGPT"),
+            tk("w4", "Draft post 2 of 3", "Blog posts", ai: "ChatGPT"),
+            tk("w5", "Check competitor prices", "Pricing", ai: "Gemini"),
+            tk("w6", "Write welcome email", "Website launch"),
+            tk("d1", "Final copy for checklist", "Website launch", done: true, ai: "Claude", doneToday: true),
+            tk("d2", "Pricing page copy", "Website launch", done: true, ai: "Gemini", doneToday: true),
+            tk("d3", "Logo files", "Website launch", done: true, ai: "Claude", doneToday: true),
+            tk("d4", "Site map", "Website launch", done: true, ai: "ChatGPT", doneToday: true),
+            tk("d5", "Header image", "Website launch", done: true, ai: "Gemini", doneToday: true)]
+        for i in 6...9 { ts.append(tk("d\(i)", "Earlier step \(i)", "Website launch", done: true, ai: "Claude")) }
+        for i in 1...4 { ts.append(tk("e\(i)", "Setup step \(i)", "Website launch", ai: i % 2 == 0 ? "Gemini" : "Claude")) }
+        tasks = ts
+        func note(_ id: String, _ title: String, _ body: String, _ proj: String, _ ai: String) -> NoteItem {
+            var n = NoteItem(id: id, title: title, body: body, project: proj, ai: ai, isPrompt: false)
+            n.projects = [proj]; n.createdAt = Date(); n.updatedAt = Date(); return n
+        }
+        notes = [note("m1", "Announcement outline", "Three beats: why now, what is new, what to do next.", "Launch", "ChatGPT"),
+                 note("m2", "Weekly review", "Nine things closed. Two carried over, no stress.", "Review", "Claude"),
+                 note("m3", "Pricing options", "Monthly first, yearly as the quiet second choice.", "Pricing", "Gemini"),
+                 note("m4", "Tone of voice", "Short, warm, and plain. No hype words.", "Brand", "ChatGPT"),
+                 note("m5", "Launch day rules", "Post at 9. Reply within the hour.", "Launch", "Claude"),
+                 note("m6", "Questions for Ilse", "Which logo version goes on the site?", "Open", "Gemini")]
+    }
+
+    static let demoMessages: [RoomMessage] = {
+        func m(_ i: String, _ a: String, _ t: String, _ n: Bool = false) -> RoomMessage { RoomMessage(id: i, author: a, text: t, needsYou: n, createdAt: Date()) }
+        return [m("1", "claude", "Checklist is ready. Five steps, three are done. I need your yes on step four.", true),
+                m("2", "user", "Looks good. Go ahead with step four."),
+                m("3", "gemini", "Pricing data is in. I put two options in the Pricing room."),
+                m("4", "system", "Task made from this talk\nPick a launch date"),
+                m("5", "chatgpt", "I can start the announcement post once the date is set."),
+                m("6", "system", "Note made\nAnnouncement outline")]
+    }()
 }

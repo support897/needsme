@@ -146,35 +146,45 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Card {
-                    HStack(spacing: 14) {
-                        PipArt(pose: .welcome, height: 64)
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(store.savedName ?? "You").font(.system(size: 18, weight: .bold)).foregroundColor(.loam)
-                            Text("Pip has been with you \(pipDays) days").font(.system(size: 12.5)).foregroundColor(.muted)
-                            Text("\(aiDays) days your AIs worked for you").font(.system(size: 12.5)).foregroundColor(.muted)
-                        }
-                        Spacer(minLength: 0)
+                HStack(spacing: 14) {
+                    PipArt(pose: .welcome, height: 76)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(store.savedName ?? "You").font(.system(size: 20, weight: .bold)).foregroundColor(.loam)
+                        Text("Pip has been with you \(pipDays) days").font(.system(size: 12.5)).foregroundColor(.muted)
+                        Text("\(aiDays) days your AIs worked for you").font(.system(size: 12.5, weight: .bold)).foregroundColor(.sproutDeep)
                     }
-                }.accessibilityIdentifier("settingsProfile")
-                Card {
-                    Text("Your AIs").font(.headline).foregroundColor(.loam)
-                    if conns.connected.isEmpty { Text("No AI is connected yet.").font(.subheadline).foregroundColor(.muted) }
-                    ForEach(conns.connected) { a in
-                        HStack(spacing: 12) {
-                            AIFace(label: a.label, size: 38)
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(a.label).font(.system(size: 15, weight: .bold)).foregroundColor(.loam)
-                                Text("Connected · in \(store.rooms.count) rooms").font(.system(size: 12)).foregroundColor(.muted)
-                            }
-                            Spacer()
-                            Toggle("", isOn: Binding(get: { !store.agentPaused(a.id) }, set: { on in var c = store.agentControl(a.id); c.paused = !on; store.setAgentControl(a.id, c) }))
-                                .labelsHidden().tint(.sprout).accessibilityLabel("\(a.label) on")
-                        }
-                    }
+                    Spacer(minLength: 0)
                 }
+                .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+                .background(LinearGradient(colors: [.sproutMid, .sproutPale, .bone], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .clipShape(RoundedRectangle(cornerRadius: 26))
+                .accessibilityIdentifier("settingsProfile")
+                HStack {
+                    Text("YOUR AIS").font(.system(size: 13, weight: .bold)).tracking(0.7).foregroundColor(.muted)
+                    Spacer()
+                    NavigationLink { ConnectView() } label: { Text("+ ADD").font(.system(size: 13, weight: .bold)).tracking(0.7).foregroundColor(.sproutDeep) }
+                        .accessibilityIdentifier("settingsAddAI")
+                }.padding(.horizontal, 4).padding(.top, 4)
+                if conns.connected.isEmpty {
+                    Card { Text("No AI is connected yet.").font(.subheadline).foregroundColor(.muted) }
+                }
+                ForEach(conns.connected) { a in
+                    HStack(spacing: 12) {
+                        AIFace(label: a.label, size: 42)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(a.label).font(.system(size: 16, weight: .bold)).foregroundColor(.loam)
+                            Text("Connected · in \(store.rooms.count) rooms").font(.system(size: 12)).foregroundColor(.muted)
+                        }
+                        Spacer()
+                        Toggle("", isOn: Binding(get: { !store.agentPaused(a.id) }, set: { on in var c = store.agentControl(a.id); c.paused = !on; store.setAgentControl(a.id, c) }))
+                            .labelsHidden().tint(.sprout).accessibilityLabel("\(a.label) on")
+                    }
+                    .padding(.horizontal, 14).padding(.vertical, 10).frame(maxWidth: .infinity, alignment: .leading)
+                    .background(p.card).clipShape(RoundedRectangle(cornerRadius: 20))
+                    .shadow(color: Color.loam.opacity(0.06), radius: 8, y: 4)
+                }
+                SectionLabel(text: "Look")
                 Card {
-                    Text("Look").font(.headline).foregroundColor(.loam)
                     HStack(spacing: 12) {
                         ForEach([AppTheme.white, .beige, .dark]) { t in
                             Button { themeRaw = t.rawValue; store.saveTheme(t.rawValue) } label: {
@@ -189,12 +199,22 @@ struct SettingsView: View {
                         }
                     }
                 }
-                HStack(spacing: 10) {
-                    Image(systemName: "lock").foregroundColor(.sproutDeep)
-                    Text("Your AIs are yours alone. Never shared. Never mixed. Never seen by anyone else.").font(.system(size: 13, weight: .semibold)).foregroundColor(.loam)
+                SectionLabel(text: "Privacy")
+                HStack(spacing: 12) {
+                    Image(systemName: "lock").font(.system(size: 18)).foregroundColor(.loam)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Your AIs are yours alone").font(.system(size: 15.5, weight: .bold)).foregroundColor(.loam)
+                        Text("Never shared. Never mixed. Never seen by anyone else.").font(.system(size: 12)).foregroundColor(.muted)
+                    }
+                    Spacer(minLength: 0)
                 }
                 .padding(14).frame(maxWidth: .infinity, alignment: .leading)
-                .background(LinearGradient(colors: [.sproutPale, .bone], startPoint: .leading, endPoint: .trailing)).clipShape(RoundedRectangle(cornerRadius: 20))
+                .background(p.card).clipShape(RoundedRectangle(cornerRadius: 20))
+                .shadow(color: Color.loam.opacity(0.06), radius: 8, y: 4)
+                Button { store.signOut() } label: {
+                    Text("Sign out").font(.system(size: 16, weight: .bold)).foregroundColor(.muted).frame(maxWidth: .infinity).padding(.vertical, 8)
+                }.accessibilityIdentifier("signOut")
+                SectionLabel(text: "More settings")
                 Card {
                     Text("Motion").font(.headline).foregroundColor(p.ink)
                     Picker("Motion", selection: $motion) {
@@ -286,7 +306,6 @@ struct SettingsView: View {
                 Card {
                     Text("Account").font(.headline).foregroundColor(p.ink)
                     Text(store.user?.isAnonymous == true ? "Guest (not saved to an email yet)" : (store.user?.email ?? "")).foregroundColor(p.soft)
-                    Button("Sign out") { store.signOut() }.buttonStyle(SoftButton()).accessibilityIdentifier("signOut")
                 }
             }.padding()
         }

@@ -36,7 +36,7 @@ struct HomeView: View {
             let pr = proj.isEmpty ? (done: 0, total: 0) : store.progress(proj)
             let chips = openNeeds.dropFirst().prefix(2).map { $0.text } + (overdue.prefix(1).map { $0.title })
             if pr.total > 0 {
-                return Hero(title: n.text, who: n.ai, line: "\(n.ai) is waiting on your yes.", done: pr.done, total: pr.total, label: "tasks done", chips: Array(chips.prefix(2)))
+                return Hero(title: n.text, who: n.ai, line: "\(n.ai) is waiting on your yes.", done: pr.done, total: pr.total, label: "steps ready", chips: Array(chips.prefix(2)))
             }
             return Hero(title: n.text, who: n.ai, line: "\(n.ai) is waiting on your yes.", done: clearedCount, total: clearedCount + openNeeds.count, label: "needs cleared", chips: Array(chips.prefix(2)))
         }

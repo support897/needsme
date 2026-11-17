@@ -884,3 +884,59 @@ final class NeedsMeUITests: XCTestCase {
         shot("28-apple-door")
     }
 }
+
+/// Picture-compare shots. Runs the app with the demo data switch and takes the nine screens
+/// as the approved pictures show them. It never fails the suite: it only takes pictures.
+final class NeedsMeDemoShots: XCTestCase {
+    let app = XCUIApplication()
+    override func setUp() { continueAfterFailure = true; app.launchArguments = ["-uitest-reset", "-uitest-noask", "-uitest-demo"]; app.launch() }
+    func shot(_ name: String) {
+        if let dir = ProcessInfo.processInfo.environment["SHOT_DIR"] {
+            try? XCUIScreen.main.screenshot().pngRepresentation.write(to: URL(fileURLWithPath: dir + "/" + name + ".png"))
+        }
+        let a = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a)
+    }
+    func pause(_ s: Double) { Thread.sleep(forTimeInterval: s) }
+    func tapIf(_ e: XCUIElement, _ t: TimeInterval = 10) -> Bool { if e.waitForExistence(timeout: t) { e.tap(); return true }; return false }
+    func hit(_ q: XCUIElementQuery) -> XCUIElement { q.allElementsBoundByIndex.first(where: { $0.isHittable }) ?? q.firstMatch }
+    func goMore() {
+        let more = app.buttons["tab-More"]
+        if !more.isHittable { app.buttons["tab-Home"].tap(); pause(1) }
+        more.tap(); pause(1)
+    }
+    func back() { let b = app.navigationBars.buttons.firstMatch; if b.exists { b.tap(); pause(1) } }
+
+    func testNineScreens() {
+        guard app.buttons["emailButton"].waitForExistence(timeout: 30) else { shot("D-FAIL-door"); return }
+        pause(1); shot("D1-door")
+        app.buttons["emailButton"].tap()
+        let email = app.textFields["you@example.com"]
+        guard email.waitForExistence(timeout: 15) else { shot("D-FAIL-email"); return }
+        email.tap(); email.typeText("nmui.tests+nmui\(Int.random(in: 100000000...999999999))@example.com")
+        let pw = app.secureTextFields.firstMatch; pw.tap(); pw.typeText("Nm" + UUID().uuidString.prefix(10) + "!")
+        let go = app.keyboards.buttons["Go"]
+        if go.waitForExistence(timeout: 3) { go.tap() } else { app.buttons["emailSubmit"].tap() }
+        guard app.staticTexts["Tour 1 of 7"].waitForExistence(timeout: 60) else { shot("D-FAIL-tour"); return }
+        for _ in 0..<5 { if app.buttons["Skip guide"].exists { app.buttons["Skip guide"].tap() }; pause(1); if !app.staticTexts["Tour 1 of 7"].exists { break } }
+        pause(2); shot("D2-home")
+        // 7 Tasks, 4 Rooms, 5 a room (all from More)
+        goMore(); if tapIf(app.buttons["moreTasks"]) { pause(2); shot("D7-tasks"); back() }
+        goMore(); if tapIf(app.buttons["moreGroupChat"]) {
+            pause(2); shot("D4-rooms")
+            if tapIf(hit(app.buttons.matching(identifier: "room-Launch week")), 5) { pause(2); shot("D5-room") }
+        }
+        // 6 project
+        app.buttons["tab-Projects"].tap(); pause(2); shot("D6a-projects")
+        let pr = hit(app.buttons.matching(identifier: "project-Website launch"))
+        if pr.exists { pr.tap(); pause(2); shot("D6-project") }
+        // 8 notes
+        app.buttons["tab-Notes"].tap(); pause(2); shot("D8-notes")
+        // 9 settings
+        goMore(); if tapIf(app.buttons["settingsRow"]) { pause(2); shot("D9-settings"); app.swipeUp(); pause(1); shot("D9b-settings-below") }
+        // 3 a need cleared
+        app.buttons["tab-Home"].tap(); pause(2)
+        let d = app.buttons["heroDone"]
+        if d.waitForExistence(timeout: 10) { d.tap(); pause(1.2); shot("D3-cleared") }
+        app.buttons["tab-Needs Me"].tap(); pause(2); shot("D10-needsme")
+    }
+}
