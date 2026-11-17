@@ -105,6 +105,8 @@ final class AIConnections: ObservableObject {
     @Published private(set) var results: [String: AITestResult] = [:]
     @Published private(set) var keyTick = 0
     @Published var testing: Set<String> = []
+    /// Real seconds the last connect test took on this phone, by account id (tap to Connected).
+    @Published var connectSeconds: [String: Double] = [:]
 
     private init() {
         if let d = UserDefaults.standard.data(forKey: AIConnections.accountsKey),
@@ -223,7 +225,9 @@ final class AIConnections: ObservableObject {
             return
         }
         testing.insert(a.id)
+        let began = Date()
         let outcome = await AIClient.test(a, key: key)
+        connectSeconds[a.id] = Date().timeIntervalSince(began)
         testing.remove(a.id)
         switch outcome {
         case .success:

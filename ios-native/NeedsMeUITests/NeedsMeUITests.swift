@@ -872,6 +872,19 @@ final class NeedsMeUITests: XCTestCase {
 
     // 17 The Apple door: tapping it raises Apple's own sheet or alert, and closing it returns
     // to a clean standing door (the drive records what this simulator shows).
+    // 22 Bring projects in from an export file: the reader counts, skips repeats, files each one
+    func test22_ImportProjectsFromExport() {
+        app.terminate(); app.launchArguments = ["-uitest-reset", "-uitest-noask", "-uitest-importsample"]; app.launch()
+        _ = signUpFresh()
+        wait(app.buttons["tab-Projects"], 30)
+        tapUntil(app.buttons["Skip guide"]) { !self.app.buttons["Skip guide"].exists }
+        openMore("moreConnections") { self.app.staticTexts["Take your projects out of an AI"].exists }
+        let b = app.buttons["importSample"]; wait(b, 10, "sample import button missing")
+        for _ in 0..<6 where !b.isHittable { app.swipeUp() }
+        b.tap()
+        wait(text("Found 3 projects. Brought in 3. Website launch, Blog posts, Pricing"), 15, "import count wrong. SCREEN: " + screenText()); shot("33-import")
+    }
+
     func test17_AppleDoorStands() {
         wait(app.buttons["appleButton"])
         app.buttons["appleButton"].tap()
