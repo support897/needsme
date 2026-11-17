@@ -48,7 +48,7 @@ struct MoreView: View {
                     row("Settings", "gearshape", "settingsRow") { SettingsView() }
                 }.padding()
             }
-            .background(p.bg).navigationTitle("More")
+            .lookBg().navigationTitle("More")
         }
     }
 
@@ -123,7 +123,7 @@ struct MeView: View {
                 }
             }.padding()
         }
-        .hidesTabBar().background(p.bg).navigationTitle("Me").navigationBarTitleDisplayMode(.inline)
+        .hidesTabBar().lookBg().navigationTitle("Me").navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -292,7 +292,7 @@ struct SettingsView: View {
         }
         .onAppear { if firstLaunch == 0 { firstLaunch = Date().timeIntervalSince1970 } }
         .hidesTabBar()
-        .background(Color.clear).navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
+        .lookBg().navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
         .alert("Delete your account?", isPresented: $confirmDelete) {
             Button("Delete everything", role: .destructive) { Task { await store.deleteAccount() } }
             Button("Cancel", role: .cancel) {}
@@ -346,7 +346,7 @@ struct KindnessView: View {
                     .accessibilityIdentifier("giveNote")
             }.padding()
         }
-        .hidesTabBar().background(p.bg).navigationTitle("AI Kindness").navigationBarTitleDisplayMode(.inline)
+        .hidesTabBar().lookBg().navigationTitle("AI Kindness").navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -430,7 +430,7 @@ struct WorkforceView: View {
                 }
             }.padding()
         }
-        .hidesTabBar().background(p.bg).navigationTitle("AI Workforce")
+        .hidesTabBar().lookBg().navigationTitle("AI Workforce")
     }
 
     /// Per agent controls (HTML section 11). Every control acts on the real machinery:
@@ -534,7 +534,7 @@ struct SessionsView: View {
                 }
             }.padding()
         }
-        .hidesTabBar().background(p.bg).navigationTitle("Sessions")
+        .hidesTabBar().lookBg().navigationTitle("Sessions")
     }
 }
 
@@ -576,7 +576,7 @@ struct AutomationsView: View {
                 }
             }.padding()
         }
-        .hidesTabBar().background(p.bg).navigationTitle("Automations")
+        .hidesTabBar().lookBg().navigationTitle("Automations")
     }
 }
 
@@ -630,7 +630,7 @@ struct KnowledgeView: View {
                 }
             }.padding()
         }
-        .hidesTabBar().background(p.bg).navigationTitle("Knowledge")
+        .hidesTabBar().lookBg().navigationTitle("Knowledge")
     }
 }
 
@@ -669,6 +669,6 @@ struct OperationsView: View {
                 }
             }.padding()
         }
-        .hidesTabBar().background(p.bg).navigationTitle("Operations")
+        .hidesTabBar().lookBg().navigationTitle("Operations")
     }
 }

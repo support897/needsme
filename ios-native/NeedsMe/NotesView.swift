@@ -67,7 +67,7 @@ struct NotesView: View {
                 }.padding(.horizontal, 18).padding(.bottom, 12)
             }
             .searchable(text: $query)
-            .background(Color.clear).navigationTitle(place == .notes ? "Notes" : place.rawValue)
+            .lookBg().navigationTitle(place == .notes ? "Notes" : place.rawValue)
             .onChange(of: router.noteTick) { _ in if place == .notes { newNote = true } else { newPrompt = true } }
             .sheet(isPresented: $newNote) { NoteSheet(note: nil) }
             .sheet(item: $openNote) { n in NoteSheet(note: n) }
@@ -267,7 +267,7 @@ struct NoteSheet: View {
                     }
                 }
             }
-            .background(p.bg)
+            .lookBg()
             .navigationTitle(NoteText.titleFrom(text)).navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

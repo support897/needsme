@@ -115,7 +115,7 @@ struct ProjectView: View {
                 }
             }.padding(.horizontal, 18).padding(.bottom, 12)
         }
-        .background(Color.clear)
+        .lookBg()
         .navigationTitle(name).navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -161,7 +161,7 @@ struct InboxView: View {
                 }
             }.padding()
         }
-        .background(p.bg)
+        .lookBg()
         .hidesTabBar().navigationTitle("Inbox").navigationBarTitleDisplayMode(.inline)
     }
 }

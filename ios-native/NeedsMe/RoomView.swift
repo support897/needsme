@@ -521,7 +521,7 @@ struct RoomsListView: View {
                 }
             }.padding(.horizontal, 18).padding(.bottom, 12)
         }
-        .background(Color.clear).navigationTitle("Rooms")
+        .lookBg().navigationTitle("Rooms")
         .toolbar { ToolbarItem(placement: .navigationBarTrailing) { SearchIconButton(on: $searching) } }
         .alert("Name your room", isPresented: $asking) {
             TextField("Room name", text: $title)
@@ -628,7 +628,7 @@ struct RoomView: View {
             loopBar
             composer
         }
-        .background(Color.clear).navigationTitle(engine.title).navigationBarTitleDisplayMode(.inline)
+        .lookBg().navigationTitle(engine.title).navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .navigationBarTrailing) { PipArt(pose: .welcome, height: 34) } }
         .onAppear { RoomEngine.retireBackground(engine.roomId); engine.start() }
         .onDisappear { engine.close() }

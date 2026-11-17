@@ -413,3 +413,12 @@ struct BubbleShape: Shape {
         return p
     }
 }
+
+/// Page backdrop: the soft Bone gradient on the Brand look, the plain colour on the others.
+struct LookBgModifier: ViewModifier {
+    @Environment(\.palette) var p
+    func body(content: Content) -> some View {
+        content.background { if p.gradient { LookBackdrop().ignoresSafeArea() } else { p.bg.ignoresSafeArea() } }
+    }
+}
+extension View { func lookBg() -> some View { modifier(LookBgModifier()) } }

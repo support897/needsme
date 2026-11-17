@@ -119,7 +119,7 @@ struct TasksView: View {
             }
             rowBox(Color.clear.frame(height: 24))
         }
-        .listStyle(.plain).scrollContentBackground(.hidden).background(Color.clear)
+        .listStyle(.plain).scrollContentBackground(.hidden).lookBg()
         .navigationTitle("Tasks")
         .toolbar { ToolbarItem(placement: .navigationBarTrailing) { SearchIconButton(on: $searching) } }
     }
@@ -160,7 +160,7 @@ struct TaskDetailView: View {
                 }
             }.padding()
         }
-        .hidesTabBar().background(p.bg).navigationTitle("Task").navigationBarTitleDisplayMode(.inline)
+        .hidesTabBar().lookBg().navigationTitle("Task").navigationBarTitleDisplayMode(.inline)
     }
 
     func row2(_ k: String, _ v: String, id: String? = nil) -> some View {

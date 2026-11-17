@@ -126,6 +126,6 @@ struct ChangesView: View {
                 }
             }.padding()
         }
-        .hidesTabBar().background(p.bg).navigationTitle("Changes")
+        .hidesTabBar().lookBg().navigationTitle("Changes")
     }
 }

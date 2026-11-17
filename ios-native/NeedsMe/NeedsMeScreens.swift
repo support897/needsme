@@ -66,7 +66,7 @@ struct NeedsMeView: View {
                     }
                 }.padding(.horizontal, 18).padding(.bottom, 12)
             }
-            .background(Color.clear).navigationTitle("Needs Me")
+            .lookBg().navigationTitle("Needs Me")
         }
     }
 
@@ -143,7 +143,7 @@ struct ProjectsView: View {
                     }
                 }.padding(.horizontal, 18).padding(.bottom, 12)
             }
-            .background(Color.clear).navigationTitle("Projects")
+            .lookBg().navigationTitle("Projects")
         }
     }
 }
@@ -201,6 +201,6 @@ struct YourProgressView: View {
                 Text("That's enough for today.").font(.subheadline).foregroundColor(p.soft)
             }.padding()
         }
-        .hidesTabBar().background(p.bg).navigationTitle("Your Progress").navigationBarTitleDisplayMode(.inline)
+        .hidesTabBar().lookBg().navigationTitle("Your Progress").navigationBarTitleDisplayMode(.inline)
     }
 }

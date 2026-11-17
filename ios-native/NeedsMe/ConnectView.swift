@@ -42,7 +42,7 @@ struct ConnectView: View {
                     WorkToolsCard()
                     CustomMCPCard()
                 }.padding()
-        }.hidesTabBar().background(p.chip).navigationTitle("Connections")
+        }.hidesTabBar().lookBg().navigationTitle("Connections")
     }
     func step(_ n: Int, _ t: String) -> some View {
         HStack(spacing: 10) {

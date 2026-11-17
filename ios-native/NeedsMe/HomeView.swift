@@ -100,7 +100,7 @@ struct HomeView: View {
                     if seg == 2 { doneList }
                 }.padding(.horizontal, 18).padding(.bottom, 12)
             }
-            .background(Color.clear)
+            .lookBg()
             .toolbar(.hidden, for: .navigationBar)
         }
     }
