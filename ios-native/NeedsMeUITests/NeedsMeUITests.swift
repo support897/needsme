@@ -911,20 +911,21 @@ final class NeedsMeDemoShots: XCTestCase {
         let a = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a)
     }
     func pause(_ s: Double) { Thread.sleep(forTimeInterval: s) }
-    func tapIf(_ e: XCUIElement, _ t: TimeInterval = 10) -> Bool { if e.waitForExistence(timeout: t) { e.tap(); return true }; return false }
+    func tapIf(_ e: XCUIElement, _ t: TimeInterval = 10) -> Bool { if e.waitForExistence(timeout: t) { e.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3)).tap(); return true }; return false }
     func hit(_ q: XCUIElementQuery) -> XCUIElement { q.allElementsBoundByIndex.first(where: { $0.isHittable }) ?? q.firstMatch }
     func goMore() {
         let more = app.buttons["tab-More"]
-        if !more.isHittable { app.buttons["tab-Home"].tap(); pause(1) }
-        more.tap(); pause(1)
+        if !more.isHittable { tp(app.buttons["tab-Home"]); pause(1) }
+        tp(more); pause(1)
     }
     func openRow(_ id: String) -> Bool {
         goMore()
         let r = app.buttons[id]
         guard r.waitForExistence(timeout: 8) else { return false }
         for _ in 0..<8 { if r.isHittable && r.frame.midY < app.frame.height - 130 { break }; app.swipeUp(); pause(0.5) }
-        r.tap(); pause(1.5); return true
+        tp(r); pause(1.5); return true
     }
+    func tp(_ e: XCUIElement) { e.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3)).tap() }
     func back() { let b = app.navigationBars.buttons.firstMatch; if b.exists { b.tap(); pause(1) } }
 
     func testNineScreens() {
@@ -949,18 +950,18 @@ final class NeedsMeDemoShots: XCTestCase {
         }
         if !app.buttons["tab-Projects"].isHittable { back() }
         // 6 project
-        app.buttons["tab-Projects"].tap(); pause(2); shot("D6a-projects")
+        tp(app.buttons["tab-Projects"]); pause(2); shot("D6a-projects")
         let pr = hit(app.buttons.matching(identifier: "project-Website launch"))
         for _ in 0..<6 where !(pr.isHittable && pr.frame.midY < app.frame.height - 150) { app.swipeUp(); pause(0.5) }
         if pr.exists { pr.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15)).tap(); pause(2); shot("D6-project") }
         // 8 notes
-        app.buttons["tab-Notes"].tap(); pause(2); shot("D8-notes")
+        tp(app.buttons["tab-Notes"]); pause(2); shot("D8-notes")
         // 9 settings
         if openRow("settingsRow") { shot("D9-settings"); app.swipeUp(); pause(1); shot("D9b-settings-below") }
         // 3 a need cleared
-        app.buttons["tab-Home"].tap(); pause(2)
+        tp(app.buttons["tab-Home"]); pause(2)
         let d = app.buttons["heroDone"]
-        if d.waitForExistence(timeout: 10) { d.tap(); pause(1.2); shot("D3-cleared") }
-        app.buttons["tab-Needs Me"].tap(); pause(2); shot("D10-needsme")
+        if d.waitForExistence(timeout: 10) { tp(d); pause(1.2); shot("D3-cleared") }
+        tp(app.buttons["tab-Needs Me"]); pause(2); shot("D10-needsme")
     }
 }
