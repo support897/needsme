@@ -80,6 +80,13 @@ final class NeedsMeUITests: XCTestCase {
             let end = Date().addingTimeInterval(6)
             while Date() < end && !top.isHittable { Thread.sleep(forTimeInterval: 0.3) }
             if top.isHittable { break }
+            // The More tab keeps a page it had open: step back to its list.
+            for _ in 0..<4 where !top.isHittable {
+                let back = app.navigationBars.buttons.firstMatch
+                if back.exists && back.isHittable { back.tap() } else { break }
+                Thread.sleep(forTimeInterval: 0.6)
+            }
+            if top.isHittable { break }
         }
         wait(rowEl, 10, "More row missing: " + id)
         // Scroll until the row sits clear of the floating bar, or the tap lands on the bar.
