@@ -162,6 +162,6 @@ struct InboxView: View {
             }.padding()
         }
         .background(p.bg)
-        .navigationTitle("Inbox").navigationBarTitleDisplayMode(.inline)
+        .hidesTabBar().navigationTitle("Inbox").navigationBarTitleDisplayMode(.inline)
     }
 }

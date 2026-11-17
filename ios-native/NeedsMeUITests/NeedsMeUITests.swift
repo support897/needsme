@@ -52,8 +52,11 @@ final class NeedsMeUITests: XCTestCase {
     /// Opens a More destination by its row identifier, scrolling the menu when needed.
     /// More opens from the Sprout N on Home; go Home first when it is not on screen.
     func goMore() {
-        if !app.buttons["tab-More"].exists { app.buttons["tab-Home"].tap() }
-        app.buttons["tab-More"].tap()
+        let more = app.buttons["tab-More"]
+        if !more.isHittable { app.buttons["tab-Home"].tap() }
+        let end = Date().addingTimeInterval(8)
+        while Date() < end && !more.isHittable { Thread.sleep(forTimeInterval: 0.3) }
+        more.tap()
     }
     func openMore(_ id: String, _ ready: @escaping () -> Bool) {
         let rowEl = app.buttons[id]

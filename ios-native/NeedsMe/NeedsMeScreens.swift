@@ -201,6 +201,6 @@ struct YourProgressView: View {
                 Text("That's enough for today.").font(.subheadline).foregroundColor(p.soft)
             }.padding()
         }
-        .background(p.bg).navigationTitle("Your Progress").navigationBarTitleDisplayMode(.inline)
+        .hidesTabBar().background(p.bg).navigationTitle("Your Progress").navigationBarTitleDisplayMode(.inline)
     }
 }

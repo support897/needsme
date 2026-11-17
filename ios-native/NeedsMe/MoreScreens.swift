@@ -123,7 +123,7 @@ struct MeView: View {
                 }
             }.padding()
         }
-        .background(p.bg).navigationTitle("Me").navigationBarTitleDisplayMode(.inline)
+        .hidesTabBar().background(p.bg).navigationTitle("Me").navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -346,7 +346,7 @@ struct KindnessView: View {
                     .accessibilityIdentifier("giveNote")
             }.padding()
         }
-        .background(p.bg).navigationTitle("AI Kindness").navigationBarTitleDisplayMode(.inline)
+        .hidesTabBar().background(p.bg).navigationTitle("AI Kindness").navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -430,7 +430,7 @@ struct WorkforceView: View {
                 }
             }.padding()
         }
-        .background(p.bg).navigationTitle("AI Workforce")
+        .hidesTabBar().background(p.bg).navigationTitle("AI Workforce")
     }
 
     /// Per agent controls (HTML section 11). Every control acts on the real machinery:
@@ -534,7 +534,7 @@ struct SessionsView: View {
                 }
             }.padding()
         }
-        .background(p.bg).navigationTitle("Sessions")
+        .hidesTabBar().background(p.bg).navigationTitle("Sessions")
     }
 }
 
@@ -576,7 +576,7 @@ struct AutomationsView: View {
                 }
             }.padding()
         }
-        .background(p.bg).navigationTitle("Automations")
+        .hidesTabBar().background(p.bg).navigationTitle("Automations")
     }
 }
 
@@ -630,7 +630,7 @@ struct KnowledgeView: View {
                 }
             }.padding()
         }
-        .background(p.bg).navigationTitle("Knowledge")
+        .hidesTabBar().background(p.bg).navigationTitle("Knowledge")
     }
 }
 
@@ -669,6 +669,6 @@ struct OperationsView: View {
                 }
             }.padding()
         }
-        .background(p.bg).navigationTitle("Operations")
+        .hidesTabBar().background(p.bg).navigationTitle("Operations")
     }
 }

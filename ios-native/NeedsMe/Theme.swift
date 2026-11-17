@@ -318,7 +318,8 @@ struct SearchIconButton: View {
 // MARK: the bottom bar: Home, Needs Me, big round plus, Projects, Notes
 
 final class TabRouter: ObservableObject {
-    @Published var hideBar = false
+    @Published var hideCount = 0
+    var hideBar: Bool { hideCount > 0 }
     @Published var adding = false
     @Published var noteTick = 0
 }
@@ -374,7 +375,7 @@ struct LookTabBar: View {
 struct HideBarModifier: ViewModifier {
     @EnvironmentObject var router: TabRouter
     func body(content: Content) -> some View {
-        content.onAppear { router.hideBar = true }.onDisappear { router.hideBar = false }
+        content.onAppear { router.hideCount += 1 }.onDisappear { router.hideCount = max(0, router.hideCount - 1) }
     }
 }
 extension View { func hidesTabBar() -> some View { modifier(HideBarModifier()) } }

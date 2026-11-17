@@ -160,7 +160,7 @@ struct TaskDetailView: View {
                 }
             }.padding()
         }
-        .background(p.bg).navigationTitle("Task").navigationBarTitleDisplayMode(.inline)
+        .hidesTabBar().background(p.bg).navigationTitle("Task").navigationBarTitleDisplayMode(.inline)
     }
 
     func row2(_ k: String, _ v: String, id: String? = nil) -> some View {
