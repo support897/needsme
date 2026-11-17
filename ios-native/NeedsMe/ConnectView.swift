@@ -7,7 +7,7 @@ struct ConnectView: View {
     @State private var copied = false
     @ObservedObject private var conns = AIConnections.shared
     var statusLines: String {
-        conns.accounts.map { "\($0.label): \(conns.status($0))" + (conns.connectSeconds[$0.id].map { conns.status($0) == "Connected" ? String(format: " in %.1f s", $0) : "" } ?? "") }.joined(separator: "\n")
+        conns.accounts.map { a in "\(a.label): \(conns.status(a))" + ((conns.status(a) == "Connected" ? conns.connectSeconds[a.id] : nil).map { String(format: " in %.1f s", $0) } ?? "") }.joined(separator: "\n")
     }
     var body: some View {
         ScrollView {
