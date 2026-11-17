@@ -952,7 +952,7 @@ final class NeedsMeDemoShots: XCTestCase {
         app.buttons["tab-Projects"].tap(); pause(2); shot("D6a-projects")
         let pr = hit(app.buttons.matching(identifier: "project-Website launch"))
         for _ in 0..<6 where !(pr.isHittable && pr.frame.midY < app.frame.height - 150) { app.swipeUp(); pause(0.5) }
-        if pr.exists { pr.tap(); pause(2); shot("D6-project") }
+        if pr.exists { pr.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15)).tap(); pause(2); shot("D6-project") }
         // 8 notes
         app.buttons["tab-Notes"].tap(); pause(2); shot("D8-notes")
         // 9 settings
