@@ -51,6 +51,15 @@ final class NeedsMeUITests: XCTestCase {
     }
     /// Opens a More destination by its row identifier, scrolling the menu when needed.
     /// More opens from the Sprout N on Home; go Home first when it is not on screen.
+    /// Hidden tab layers stay in the tree, so one id can match twice: pick the one on screen.
+    func hittable(_ q: XCUIElementQuery) -> XCUIElement {
+        let end = Date().addingTimeInterval(6)
+        while Date() < end {
+            if let e = q.allElementsBoundByIndex.first(where: { $0.isHittable }) { return e }
+            Thread.sleep(forTimeInterval: 0.3)
+        }
+        return q.firstMatch
+    }
     func goMore() {
         let more = app.buttons["tab-More"]
         if !more.isHittable { app.buttons["tab-Home"].tap() }
@@ -66,7 +75,10 @@ final class NeedsMeUITests: XCTestCase {
         // tapUntil/openAddTask. The assertion below is unchanged.
         for _ in 0..<4 {
             goMore()
-            if rowEl.waitForExistence(timeout: 6) { break }
+            let top = app.buttons["kindnessItem"]
+            let end = Date().addingTimeInterval(6)
+            while Date() < end && !top.isHittable { Thread.sleep(forTimeInterval: 0.3) }
+            if top.isHittable { break }
         }
         wait(rowEl, 10, "More row missing: " + id)
         for _ in 0..<6 where !rowEl.isHittable { app.swipeUp() }
@@ -145,7 +157,7 @@ final class NeedsMeUITests: XCTestCase {
         app.buttons["tab-Home"].tap(); wait(text("UITestProject"), 20, "project progress not shown"); shot("05-home-project")
         app.buttons["inboxButton"].tap(); wait(text("Inbox is empty"), 10, "inbox empty state missing. SCREEN: " + screenText()); shot("05-inbox")
         app.navigationBars.buttons.firstMatch.tap()
-        app.buttons["project-UITestProject"].tap(); wait(text("1 of 1 tasks done"), 10, "project page missing. SCREEN: " + screenText()); shot("05-project-page")
+        hittable(app.buttons.matching(identifier: "project-UITestProject")).tap(); wait(text("1 of 1 tasks done"), 10, "project page missing. SCREEN: " + screenText()); shot("05-project-page")
         app.navigationBars.buttons.firstMatch.tap()
 
         app.buttons["tab-Notes"].tap()
@@ -783,7 +795,7 @@ final class NeedsMeUITests: XCTestCase {
         XCTAssertEqual(app.switches["agentTool-claude-file"].value as? String, "0", "file tool switch did not turn off")
         let menu = app.buttons["agentProjects-claude"]; scrollTo(menu); wait(menu, 10, "projects pick missing")
         menu.tap()
-        let pick = app.buttons["AgentProj"]; wait(pick, 10, "project not offered in the agent pick"); pick.tap()
+        let pick = app.buttons["AgentProj"]; wait(pick, 10, "project not offered in the agent pick"); hittable(app.buttons.matching(identifier: "AgentProj")).tap()
         let end2 = Date().addingTimeInterval(10)
         while Date() < end2 && !app.buttons["agentProjects-claude"].label.contains("1 picked") { Thread.sleep(forTimeInterval: 0.4) }
         XCTAssertTrue(app.buttons["agentProjects-claude"].label.contains("1 picked"), "project pick did not stand: " + app.buttons["agentProjects-claude"].label)
