@@ -89,6 +89,7 @@ jobs:
   ship:
     # Runs only if every UI test above passed. Uploads to TestFlight, never App Review.
     needs: test
+    if: false  # off on purpose: this lane builds with run-number+300 and no Apple-entitlement sign step. Ship only through testflight.yml.
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
