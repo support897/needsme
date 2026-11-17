@@ -951,6 +951,7 @@ final class NeedsMeDemoShots: XCTestCase {
         // 6 project
         app.buttons["tab-Projects"].tap(); pause(2); shot("D6a-projects")
         let pr = hit(app.buttons.matching(identifier: "project-Website launch"))
+        for _ in 0..<6 where !(pr.isHittable && pr.frame.midY < app.frame.height - 150) { app.swipeUp(); pause(0.5) }
         if pr.exists { pr.tap(); pause(2); shot("D6-project") }
         // 8 notes
         app.buttons["tab-Notes"].tap(); pause(2); shot("D8-notes")
