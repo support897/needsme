@@ -8,6 +8,7 @@ struct RootView: View {
     @State private var tab = 0
     @State private var tabBeforeTour = 0
     @State private var askClosedNow = false
+    @State private var showWizard = false
     @State private var nameDraft = ""
     static let launchId = UUID().uuidString
     @AppStorage("nm_motion") private var motion = "system"
@@ -24,11 +25,16 @@ struct RootView: View {
                     .onAppear { if !tourDone { tabBeforeTour = tab; showTour = true } }
                 if showNameAsk { nameAsk }
                 if showTour {
-                    PipTour(onClose: { tourDone = true; showTour = false; tab = tabBeforeTour }, goTo: { tab = $0 })
+                    PipTour(onClose: {
+                        tourDone = true; showTour = false; tab = tabBeforeTour
+                        let testing = CommandLine.arguments.contains("-uitest-reset") && !CommandLine.arguments.contains("-uitest-wizard")
+                        if !testing && AIConnections.shared.connected.isEmpty { showWizard = true }
+                    }, goTo: { tab = $0 })
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
         }
+        .fullScreenCover(isPresented: $showWizard) { SetupWizard(onClose: { showWizard = false }).environment(\.palette, p) }
         .onChange(of: store.user?.email) { email in if email != nil { tab = 0 } }
         .onChange(of: store.user?.uid) { _ in askClosedNow = false; nameDraft = "" }
         .animation((motion != "system" || reduceMotion) ? nil : .easeInOut(duration: 0.25), value: showTour)

@@ -410,40 +410,70 @@ struct WorkforceView: View {
     @ObservedObject private var conns = AIConnections.shared
     @State private var cancelNotes: [String: String] = [:]
 
+    @State private var openWorker: String? = nil
+
+    func worker(_ a: AIAccount) -> some View {
+        let prov = a.kind
+        let open = openWorker == a.id
+        return VStack(alignment: .leading, spacing: 8) {
+            ZStack(alignment: .trailing) {
+                Button { withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) { openWorker = open ? nil : a.id } } label: {
+                    HStack(spacing: 12) {
+                        IconTile(icon: prov.icon, color: prov.tint)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(a.label).font(.system(.headline, design: .rounded)).foregroundColor(p.ink)
+                            Text(conns.isConnected(a) ? "Awake. Say @\(a.label) to call it." : "Asleep. Connect it to wake it.").font(.caption).foregroundColor(p.soft)
+                        }
+                        Spacer(minLength: 110)
+                    }
+                    .padding(12).frame(maxWidth: .infinity, alignment: .leading)
+                    .background(p.card).clipShape(RoundedRectangle(cornerRadius: 22))
+                    .overlay(RoundedRectangle(cornerRadius: 22).stroke(open ? prov.tint : Color.clear, lineWidth: 2))
+                    .shadow(color: Color.loam.opacity(p.isDark ? 0 : 0.07), radius: 10, y: 5)
+                }.buttonStyle(.plain).accessibilityIdentifier("worker-" + a.id)
+                HStack(spacing: 8) {
+                    Text(conns.status(a)).font(.system(size: 11, weight: .bold, design: .rounded)).lineLimit(1)
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(conns.isConnected(a) ? Color.sprout : p.chip).foregroundColor(conns.isConnected(a) ? .loam : p.ink)
+                        .clipShape(Capsule()).frame(maxWidth: 100)
+                        .accessibilityIdentifier("workerStatus-" + a.id)
+                    Image(systemName: "chevron.down").font(.system(size: 13, weight: .bold)).foregroundColor(prov.tint)
+                        .rotationEffect(.degrees(open ? 180 : 0))
+                }.padding(.trailing, 14).allowsHitTesting(false)
+            }
+            if open {
+                Card {
+                    Text("\(a.kind.name) (\(a.kind.company)) · Model: \(AIClient.model(a.kind))")
+                        .font(.subheadline).foregroundColor(p.soft)
+                    Text("Autonomy: Draft. It can prepare work; you approve before anything is sent.")
+                        .font(.subheadline).foregroundColor(p.ink)
+                    Text("Can do: answer in rooms · read talks · file to-dos")
+                        .font(.caption).foregroundColor(p.soft)
+                    if let r = conns.results[a.id] {
+                        Text("Last tested: \(Store.niceTime(r.at))").font(.caption).foregroundColor(p.soft)
+                    } else {
+                        Text("Not tested yet. Test it in Connections.").font(.caption).foregroundColor(p.soft)
+                    }
+                    agentControls(a)
+                }.transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                Text("Every AI you connect becomes a worker here. A worker answers in rooms, reads talks and files to-dos, at the level you allow.")
-                    .font(.subheadline).foregroundColor(p.soft)
-                ForEach(conns.accounts) { a in
-                    Card {
-                        HStack {
-                            Text(a.label).font(.headline).foregroundColor(p.ink)
-                            Spacer()
-                            Text(conns.status(a)).font(.caption.bold()).foregroundColor(p.ink)
-                                .accessibilityIdentifier("workerStatus-" + a.id)
+                PipSays(text: "Every AI you connect is a worker. Tap one to see what it may do.")
+                FoldSection(id: "wake", icon: "bell.badge.fill", color: Color(hex: 0xF5A524), title: "How AIs wake each other", sub: "Tap to watch it happen") { WakeStory().padding(14).background(p.card).clipShape(RoundedRectangle(cornerRadius: 22)) }
+                ForEach(conns.accounts) { a in worker(a) }
+                FoldSection(id: "handoffs", icon: "arrow.left.arrow.right.circle.fill", color: Color(hex: 0xF55036), title: "Copy and paste only", sub: "Not live workers. You carry the answer back.") {
+                    VStack(spacing: 8) {
+                        ForEach(aiRoutes.filter { $0.kind == "Hand-off" }) { r in
+                            Card {
+                                Text(r.name).font(.headline).foregroundColor(p.ink)
+                                Text("Hand-off only").font(.caption.bold()).foregroundColor(p.soft)
+                            }
                         }
-                        Text("\(a.kind.name) (\(a.kind.company)) · Model: \(AIClient.model(a.kind))")
-                            .font(.subheadline).foregroundColor(p.soft)
-                        Text("Autonomy: Draft. It can prepare work; you approve before anything is sent.")
-                            .font(.subheadline).foregroundColor(p.ink)
-                        Text("Can do: answer in rooms · read talks · file to-dos")
-                            .font(.caption).foregroundColor(p.soft)
-                        if let r = conns.results[a.id] {
-                            Text("Last tested: \(Store.niceTime(r.at))").font(.caption).foregroundColor(p.soft)
-                        } else {
-                            Text("Not tested yet. Test it in Connections.").font(.caption).foregroundColor(p.soft)
-                        }
-                        agentControls(a)
-                    }
-                }
-                Text("Hand-off only").font(.title3.bold()).foregroundColor(p.ink)
-                Text("These are not live workers. You carry a question out and paste the answer back, in Connections.")
-                    .font(.subheadline).foregroundColor(p.soft)
-                ForEach(aiRoutes.filter { $0.kind == "Hand-off" }) { r in
-                    Card {
-                        Text(r.name).font(.headline).foregroundColor(p.ink)
-                        Text("Hand-off only").font(.caption.bold()).foregroundColor(p.soft)
                     }
                 }
             }.padding()

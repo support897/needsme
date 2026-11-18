@@ -5,53 +5,46 @@ let setupPrompt = "You are my friendly setup helper for the NeedsMe Ai app. Help
 struct ConnectView: View {
     @Environment(\.palette) var p
     @State private var copied = false
+    @State private var openId: String? = nil
+    @State private var wizard = false
     @ObservedObject private var conns = AIConnections.shared
     var statusLines: String {
         conns.accounts.map { a in "\(a.label): \(conns.status(a))" + ((conns.status(a) == "Connected" ? conns.connectSeconds[a.id] : nil).map { String(format: " in %.1f s", $0) } ?? "") }.joined(separator: "\n")
     }
+    var connectedCount: Int { AIProvider.allCases.filter { conns.isConnected(conns.account($0.rawValue) ?? AIAccount(id: $0.rawValue, provider: $0.rawValue, label: $0.name)) }.count }
     var body: some View {
         ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    Card {
-                        HStack { VStack(alignment: .leading) { Text("Set up, with Pip.").font(.title2.bold()); Text("Connect an AI in about a minute.").foregroundColor(p.soft) }; Spacer(); PipImage(size: 60) }.foregroundColor(p.ink)
-                    }
-                    Card {
-                        Text("60 SECONDS").font(.caption.monospaced().bold()).foregroundColor(p.soft)
-                        Text("Set up your AI fast").font(.title3.bold()).foregroundColor(p.ink)
-                        step(1, "Open your AI's key page"); step(2, "Make a key and copy it"); step(3, "Paste it in your AI app and save")
-                        HStack {
-                            Link("OpenAI key", destination: URL(string: "https://platform.openai.com/api-keys")!).buttonStyle(SoftButton())
-                            Link("Claude key", destination: URL(string: "https://console.anthropic.com/settings/keys")!).buttonStyle(SoftButton())
-                            Link("Gemini key", destination: URL(string: "https://aistudio.google.com/apikey")!).buttonStyle(SoftButton())
+            VStack(alignment: .leading, spacing: 14) {
+                Card {
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Set up, with Pip.").font(.system(.title2, design: .rounded).weight(.heavy))
+                            Text("\(connectedCount) of \(AIProvider.allCases.count) AIs connected").font(.subheadline.weight(.semibold)).foregroundColor(p.soft)
+                            StepDots(count: AIProvider.allCases.count, current: max(connectedCount - 1, 0))
                         }
-                        Text("Stuck? Copy a helper prompt and paste it into any AI you already use. It will walk you through, one step at a time.").font(.subheadline).foregroundColor(p.soft)
-                        Button(copied ? "Copied. Paste it into your AI." : "Copy setup prompt") {
-                            UIPasteboard.general.string = setupPrompt; copied = true
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { copied = false }
-                        }.buttonStyle(PrimaryButton())
-                        Text("Never paste your key into a chat. Keep it private.").font(.footnote).foregroundColor(p.soft)
-                    }
-                    Card {
-                        Text("Connection status").font(.headline).foregroundColor(p.ink)
-                        Text(statusLines).font(.subheadline).foregroundColor(p.ink).accessibilityIdentifier("connectionStatus")
-                        Text("An AI shows Connected only after its own test passed on this phone. A hand off is never shown as a live link.").font(.footnote).foregroundColor(p.soft)
-                    }
-                    KeysCard()
-                    SignInDoorCard()
-                    BringKeysCard()
-                    ProjectImportCard()
-                    AIRoutesCard()
-                    WorkToolsCard()
-                    BridgeCard()
-                    CustomMCPCard()
-                }.padding()
-        }.hidesTabBar().lookBg().navigationTitle("Connections")
-    }
-    func step(_ n: Int, _ t: String) -> some View {
-        HStack(spacing: 10) {
-            Text("\(n)").font(.subheadline.bold()).frame(width: 28, height: 28).background(p.accent).foregroundColor(p.accentInk).clipShape(Circle())
-            Text(t).font(.body.weight(.semibold)).foregroundColor(p.ink)
+                        Spacer(); PipArt(pose: .welcome, height: 70)
+                    }.foregroundColor(p.ink)
+                    Button { wizard = true } label: { Label("Start Pip's setup", systemImage: "wand.and.stars") }
+                        .buttonStyle(PrimaryButton()).accessibilityIdentifier("startWizard")
+                    Button(copied ? "Copied. Paste it into your AI." : "Copy setup prompt") {
+                        UIPasteboard.general.string = setupPrompt; copied = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { copied = false }
+                    }.buttonStyle(SoftButton())
+                    Text(statusLines).font(.caption).foregroundColor(p.soft).accessibilityIdentifier("connectionStatus")
+                }
+                Text("Pick an AI. Tap it to see the steps.").font(.system(.headline, design: .rounded)).foregroundColor(p.ink).padding(.top, 4)
+                ForEach(AIProvider.allCases) { prov in AITile(prov: prov, openId: $openId) }
+                Text("More ways in").font(.system(.headline, design: .rounded)).foregroundColor(p.ink).padding(.top, 8)
+                FoldSection(id: "signin", icon: "person.crop.circle.badge.checkmark", color: Color(hex: 0x4285F4), title: "Sign in with your AI account", sub: "Bring your chats in") { SignInDoorCard() }
+                FoldSection(id: "import", icon: "square.and.arrow.down.fill", color: Color(hex: 0x10A37F), title: "Take your projects out of an AI", sub: "Import from an export file") { ProjectImportCard() }
+                FoldSection(id: "bring", icon: "key.horizontal.fill", color: Color(hex: 0xD97757), title: "Bring my keys in", sub: "Already saved keys on another phone") { BringKeysCard() }
+                FoldSection(id: "bridge", icon: "link.circle.fill", color: Color(hex: 0x8B5CF6), title: "Polar, Claude Code and other tools", sub: "Make a live link") { BridgeCard(); CustomMCPCard(); WorkToolsCard() }
+                FoldSection(id: "handoff", icon: "arrow.left.arrow.right.circle.fill", color: Color(hex: 0xF55036), title: "Copy and paste AIs", sub: "Copilot, Codex, Cursor and more") { AIRoutesCard() }
+                Text("Never paste your key into a chat. Keep it private.").font(.footnote).foregroundColor(p.soft)
+            }.padding()
         }
+        .hidesTabBar().lookBg().navigationTitle("Connections")
+        .sheet(isPresented: $wizard) { SetupWizard(onClose: { wizard = false }) }
     }
 }
 
