@@ -18,6 +18,7 @@ enum ProjectImport {
         }
         var seen = Set<String>(); var out: [Found] = []
         for x in list {
+            if x["mapping"] != nil || x["chat_messages"] != nil { continue }
             let name = ((x["name"] ?? x["title"]) as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             if name.isEmpty || seen.contains(name.lowercased()) { continue }
             seen.insert(name.lowercased())
@@ -25,6 +26,16 @@ enum ProjectImport {
             out.append(Found(name: name, about: about))
         }
         return out
+    }
+
+    /// Chat titles from an export: ChatGPT conversations.json (items carry "mapping"), or any list with "title" and "mapping".
+    static func parseChats(_ data: Data) -> [String] {
+        guard let any = try? JSONSerialization.jsonObject(with: data), let list = any as? [[String: Any]] else { return [] }
+        return list.compactMap { x in
+            guard x["mapping"] != nil || x["chat_messages"] != nil else { return nil }
+            let t = ((x["title"] ?? x["name"]) as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            return t.isEmpty ? nil : t
+        }
     }
 
     static let sample = #"[{"name":"Website launch","description":"Everything for the launch."},{"name":"Blog posts","description":""},{"name":"Pricing","description":"Monthly and yearly."},{"name":"Blog posts","description":"duplicate"}]"#
@@ -38,6 +49,8 @@ struct ProjectImportCard: View {
 
     func bring(_ data: Data, source: String) {
         let found = ProjectImport.parse(data)
+        let chats = ProjectImport.parseChats(data)
+        if found.isEmpty && !chats.isEmpty { line = DoorFiler.file(store, source: source, projects: [], chats: chats); return }
         if found.isEmpty { line = "No projects found in that file. Pick the projects.json from the export."; return }
         let have = Set(store.projects.map { $0.lowercased() })
         var added: [String] = []; var already = 0

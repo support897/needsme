@@ -885,6 +885,21 @@ final class NeedsMeUITests: XCTestCase {
         wait(text("Found 3 projects. Brought in 3. Website launch, Blog posts, Pricing"), 15, "import count wrong. SCREEN: " + screenText()); shot("33-import")
     }
 
+    func test23_SignInDoorOpens() {
+        app.terminate(); app.launchArguments = ["-uitest-reset", "-uitest-noask"]; app.launch()
+        _ = signUpFresh()
+        wait(app.buttons["tab-Projects"], 30)
+        tapUntil(app.buttons["Skip guide"]) { !self.app.buttons["Skip guide"].exists }
+        openMore("moreConnections") { self.app.staticTexts["Connect any AI by signing in"].exists }
+        let b = app.buttons["door-claude"]; wait(b, 10, "sign-in door button missing")
+        for _ in 0..<8 where !b.isHittable { app.swipeUp() }
+        b.tap()
+        wait(app.buttons["doorBring"], 15, "door sheet did not open. SCREEN: " + screenText()); shot("34-door-claude")
+        wait(app.buttons["doorPick"], 5, "pick-file button missing")
+        app.buttons["doorClose"].tap()
+        wait(app.buttons["door-chatgpt"], 10, "sheet did not close")
+    }
+
     func test17_AppleDoorStands() {
         wait(app.buttons["appleButton"])
         app.buttons["appleButton"].tap()

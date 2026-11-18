@@ -37,6 +37,7 @@ struct ConnectView: View {
                         Text("An AI shows Connected only after its own test passed on this phone. A hand off is never shown as a live link.").font(.footnote).foregroundColor(p.soft)
                     }
                     KeysCard()
+                    SignInDoorCard()
                     BringKeysCard()
                     ProjectImportCard()
                     AIRoutesCard()
