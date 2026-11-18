@@ -27,8 +27,8 @@ enum AIClient {
         case .muse: return "muse-spark-1.3"
         case .deepseek: return "deepseek-chat"
         case .mistral: return "mistral-small-latest"
-        case .groq: return "llama-3.1-8b-instant"
-        case .openrouter: return "openrouter/auto"
+        case .groq: return "openai/gpt-oss-20b"
+        case .openrouter: return "inclusionai/ling-3.2-flash:free"
         }
     }
     private static func pickKey(_ p: AIProvider) -> String { "nm_ai_model_" + p.rawValue }
@@ -228,8 +228,8 @@ enum AIClient {
         case .muse: prefs = ["spark"]
         case .deepseek: prefs = ["chat"]
         case .mistral: prefs = ["small"]
-        case .groq: prefs = ["8b", "instant"]
-        case .openrouter: prefs = ["auto"]
+        case .groq: prefs = ["gpt-oss-20b", "8b", "instant"]
+        case .openrouter: prefs = [":free", "mini"]
         case .perplexity: prefs = ["sonar"]
         }
         for w in prefs {

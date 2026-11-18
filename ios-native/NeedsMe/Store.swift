@@ -88,6 +88,7 @@ struct NoteItem: Identifiable {
 final class Store: ObservableObject {
     @Published var user: User?
     @Published var tasks: [TaskItem] = []
+    @Published var manualProjects: [String] = []
     /// The kindness offer (main-round item 8): stands after a task is finished,
     /// on whichever task surface the person is standing on. It belongs to the
     /// act of finishing, not to one screen, so it lives here and not in a view.
@@ -142,7 +143,7 @@ final class Store: ObservableObject {
     }
 
     var projects: [String] {
-        Array(Set(tasks.map { $0.area }.filter { !$0.isEmpty } + notes.flatMap { $0.projects })).sorted()
+        Array(Set(tasks.map { $0.area }.filter { !$0.isEmpty } + notes.flatMap { $0.projects } + manualProjects)).sorted()
     }
     func progress(_ p: String) -> (done: Int, total: Int) {
         let t = tasks.filter { $0.area == p }; return (t.filter { $0.isDone }.count, t.count)
@@ -193,8 +194,10 @@ final class Store: ObservableObject {
             handles.append(c.document("app").addSnapshotListener { [weak self] snap, _ in
                 guard let snap else { return }
                 let raw = snap.data()?["theme"] as? String
+                let manual = (snap.data()?["manualProjects"] as? [String]) ?? []
                 Task { @MainActor in
                     guard let me = self else { return }
+                    me.manualProjects = manual
                     me.cloudName = snap.data()?["name"] as? String
                     me.cloudTheme = raw.map { AppTheme.from($0).rawValue }
                     me.cloudThemeLoaded = true
@@ -581,6 +584,23 @@ final class Store: ObservableObject {
             else { landed?(ref.documentID) }
         }
         return ref.documentID
+    }
+
+    /// A project she makes by hand. Kept in her settings page, so it shows even with no task or note yet.
+    func addProject(_ raw: String) {
+        let name = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, name.count <= 60, let c = col("settings") else { return }
+        if !manualProjects.contains(name) { manualProjects.append(name) }
+        c.document("app").setData(["manualProjects": FieldValue.arrayUnion([name]), "updatedAt": FieldValue.serverTimestamp()], merge: true) { [weak self] err in
+            if let err { Task { @MainActor in self?.message = "Could not save the project: \(err.localizedDescription)" } }
+        }
+    }
+
+    /// Deletes one note or prompt for good. The screen asks first.
+    func deleteNote(_ n: NoteItem) {
+        col(n.isPrompt ? "prompts" : "notes")?.document(n.id).delete { [weak self] err in
+            if let err { Task { @MainActor in self?.message = "Could not delete: \(err.localizedDescription)" } }
+        }
     }
 
     func setArchived(_ n: NoteItem, _ on: Bool) {

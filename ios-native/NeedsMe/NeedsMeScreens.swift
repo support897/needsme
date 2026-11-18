@@ -102,6 +102,8 @@ struct NeedsMeView: View {
 struct ProjectsView: View {
     @EnvironmentObject var store: Store
     @Environment(\.palette) var p
+    @State private var adding = false
+    @State private var newName = ""
 
     func needsCount(_ name: String) -> Int {
         let roomIds = Set(store.rooms.filter { $0.project == name }.map { $0.id })
@@ -144,6 +146,12 @@ struct ProjectsView: View {
                 }.padding(.horizontal, 18).padding(.bottom, 12)
             }
             .lookBg().navigationTitle("Projects")
+            .toolbar { ToolbarItem(placement: .navigationBarTrailing) { Button("New project") { newName = ""; adding = true }.accessibilityIdentifier("newProject") } }
+            .alert("New project", isPresented: $adding) {
+                TextField("Project name", text: $newName)
+                Button("Add") { store.addProject(newName) }
+                Button("Cancel", role: .cancel) {}
+            }
         }
     }
 }

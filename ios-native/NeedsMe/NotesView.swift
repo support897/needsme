@@ -17,6 +17,7 @@ struct NotesView: View {
     @State private var query = ""
     @State private var filter = ""
     @State private var showArchived = false
+    @State private var toDelete: NoteItem? = nil
     @State private var openNote: NoteItem?
     @State private var newNote = false
     @State private var openPrompt: NoteItem?
@@ -72,6 +73,10 @@ struct NotesView: View {
             .sheet(isPresented: $newNote) { NoteSheet(note: nil) }
             .sheet(item: $openNote) { n in NoteSheet(note: n) }
             .sheet(isPresented: $newPrompt) { PromptSheet(prompt: nil) { flash($0) } }
+            .alert("Delete this note?", isPresented: Binding(get: { toDelete != nil }, set: { if !$0 { toDelete = nil } })) {
+                Button("Delete", role: .destructive) { if let n = toDelete { store.deleteNote(n); flash("Deleted.") }; toDelete = nil }
+                Button("Cancel", role: .cancel) { toDelete = nil }
+            } message: { Text("This cannot be undone.") }
             .sheet(item: $openPrompt) { n in PromptSheet(prompt: n) { flash($0) } }
             .overlay(alignment: .bottom) {
                 if !toast.isEmpty { Text(toast).padding(12).background(Color.loam).foregroundColor(Color.bone).clipShape(Capsule()).padding(.bottom, 96).transition(.opacity) }
@@ -151,7 +156,13 @@ struct NotesView: View {
             if showArchived {
                 Button("Restore") { store.setArchived(n, false); flash("Restored.") }.buttonStyle(PrimaryButton()).accessibilityIdentifier("restore-" + n.id)
             } else {
-                Button("Archive") { store.setArchived(n, true); flash("Archived.") }.font(.system(size: 12, weight: .semibold)).foregroundColor(.muted).accessibilityIdentifier("archive-" + n.id)
+                HStack(spacing: 16) {
+                    Button("Archive") { store.setArchived(n, true); flash("Archived.") }.font(.system(size: 12, weight: .semibold)).foregroundColor(.muted).accessibilityIdentifier("archive-" + n.id)
+                    Button("Delete") { toDelete = n }.font(.system(size: 12, weight: .semibold)).foregroundColor(.red).accessibilityIdentifier("delete-" + n.id)
+                }
+            }
+            if showArchived {
+                Button("Delete") { toDelete = n }.font(.system(size: 12, weight: .semibold)).foregroundColor(.red).accessibilityIdentifier("delete-" + n.id)
             }
         }
         .padding(14).frame(maxWidth: .infinity, alignment: .leading)
