@@ -13,7 +13,7 @@ env:
   TEAM_ID: GZ9Z6BPTFR
 jobs:
   test:
-    runs-on: macos-26
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v4
       - name: Unpack source
@@ -21,7 +21,7 @@ jobs:
           if [ -f ios-native.tar.gz ]; then tar xzf ios-native.tar.gz; fi
       - name: Pick newest Xcode
         run: |
-          X=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          X=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -1)
           [ -n "$X" ] && sudo xcode-select -s "$X"
           xcodebuild -version
       - name: Install XcodeGen
@@ -90,7 +90,7 @@ jobs:
     # Runs only if every UI test above passed. Uploads to TestFlight, never App Review.
     needs: test
     if: false  # off on purpose: this lane builds with run-number+300 and no Apple-entitlement sign step. Ship only through testflight.yml.
-    runs-on: macos-26
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v4
       - name: Unpack source
@@ -98,7 +98,7 @@ jobs:
           if [ -f ios-native.tar.gz ]; then tar xzf ios-native.tar.gz; fi
       - name: Pick newest Xcode
         run: |
-          X=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          X=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -1)
           [ -n "$X" ] && sudo xcode-select -s "$X"
           xcodebuild -version
           xcrun --sdk iphoneos --show-sdk-version
