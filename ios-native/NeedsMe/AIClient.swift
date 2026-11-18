@@ -25,6 +25,10 @@ enum AIClient {
         case .perplexity: return "sonar"
         case .grok: return "grok-4-1-fast-non-reasoning"
         case .muse: return "muse-spark-1.3"
+        case .deepseek: return "deepseek-chat"
+        case .mistral: return "mistral-small-latest"
+        case .groq: return "llama-3.1-8b-instant"
+        case .openrouter: return "openrouter/auto"
         }
     }
     private static func pickKey(_ p: AIProvider) -> String { "nm_ai_model_" + p.rawValue }
@@ -68,6 +72,10 @@ enum AIClient {
         case .gemini: url = "https://generativelanguage.googleapis.com/v1beta/models"
         case .grok: url = "https://api.x.ai/v1/models"
         case .muse: url = "https://api.meta.ai/v1/models"
+        case .deepseek: url = "https://api.deepseek.com/models"
+        case .mistral: url = "https://api.mistral.ai/v1/models"
+        case .groq: url = "https://api.groq.com/openai/v1/models"
+        case .openrouter: url = "https://openrouter.ai/api/v1/models"
         case .perplexity: return nil
         }
         guard let u = URL(string: url) else { return nil }
@@ -75,7 +83,7 @@ enum AIClient {
         r.httpMethod = "GET"
         r.timeoutInterval = timeout
         switch p {
-        case .chatgpt, .grok, .muse: r.setValue("Bearer " + key, forHTTPHeaderField: "Authorization")
+        case .chatgpt, .grok, .muse, .deepseek, .mistral, .groq, .openrouter: r.setValue("Bearer " + key, forHTTPHeaderField: "Authorization")
         case .claude:
             r.setValue(key, forHTTPHeaderField: "x-api-key")
             r.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
@@ -116,8 +124,12 @@ enum AIClient {
         var urlString: String
         var body: [String: Any]
         switch p {
-        case .chatgpt, .grok, .perplexity, .muse:
-            urlString = p == .chatgpt ? "https://api.openai.com/v1/chat/completions"
+        case .chatgpt, .grok, .perplexity, .muse, .deepseek, .mistral, .groq, .openrouter:
+            urlString = p == .deepseek ? "https://api.deepseek.com/chat/completions"
+                : p == .mistral ? "https://api.mistral.ai/v1/chat/completions"
+                : p == .groq ? "https://api.groq.com/openai/v1/chat/completions"
+                : p == .openrouter ? "https://openrouter.ai/api/v1/chat/completions"
+                : p == .chatgpt ? "https://api.openai.com/v1/chat/completions"
                 : p == .muse ? "https://api.meta.ai/v1/chat/completions"
                 : p == .grok ? "https://api.x.ai/v1/chat/completions"
                 : "https://api.perplexity.ai/chat/completions"
@@ -156,7 +168,7 @@ enum AIClient {
         r.timeoutInterval = timeout
         r.setValue("application/json", forHTTPHeaderField: "Content-Type")
         switch p {
-        case .chatgpt, .grok, .perplexity, .muse: r.setValue("Bearer " + key, forHTTPHeaderField: "Authorization")
+        case .chatgpt, .grok, .perplexity, .muse, .deepseek, .mistral, .groq, .openrouter: r.setValue("Bearer " + key, forHTTPHeaderField: "Authorization")
         case .claude:
             r.setValue(key, forHTTPHeaderField: "x-api-key")
             r.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
@@ -173,7 +185,7 @@ enum AIClient {
     private static func extractText(_ p: AIProvider, _ d: Data) -> String? {
         guard let j = try? JSONSerialization.jsonObject(with: d) as? [String: Any] else { return nil }
         switch p {
-        case .chatgpt, .grok, .perplexity, .muse:
+        case .chatgpt, .grok, .perplexity, .muse, .deepseek, .mistral, .groq, .openrouter:
             let c = (j["choices"] as? [[String: Any]])?.first
             return ((c?["message"] as? [String: Any])?["content"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
         case .claude:
@@ -214,6 +226,10 @@ enum AIClient {
         case .gemini: prefs = ["flash-lite", "flash"]
         case .grok: prefs = ["mini", "fast"]
         case .muse: prefs = ["spark"]
+        case .deepseek: prefs = ["chat"]
+        case .mistral: prefs = ["small"]
+        case .groq: prefs = ["8b", "instant"]
+        case .openrouter: prefs = ["auto"]
         case .perplexity: prefs = ["sonar"]
         }
         for w in prefs {

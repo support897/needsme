@@ -3,7 +3,7 @@ import Security
 
 /// The five AIs that connect with the user's own key.
 enum AIProvider: String, CaseIterable, Identifiable {
-    case chatgpt, claude, gemini, perplexity, grok, muse
+    case chatgpt, claude, gemini, perplexity, grok, muse, deepseek, mistral, groq, openrouter
     var id: String { rawValue }
     /// Name shown in the app and used in @mentions.
     var name: String {
@@ -14,6 +14,10 @@ enum AIProvider: String, CaseIterable, Identifiable {
         case .perplexity: return "Perplexity"
         case .grok: return "Grok"
         case .muse: return "Muse"
+        case .deepseek: return "DeepSeek"
+        case .mistral: return "Mistral"
+        case .groq: return "Groq"
+        case .openrouter: return "OpenRouter"
         }
     }
     var company: String {
@@ -24,6 +28,10 @@ enum AIProvider: String, CaseIterable, Identifiable {
         case .perplexity: return "Perplexity"
         case .grok: return "xAI"
         case .muse: return "Meta"
+        case .deepseek: return "DeepSeek"
+        case .mistral: return "Mistral AI"
+        case .groq: return "Groq"
+        case .openrouter: return "OpenRouter (hundreds of models)"
         }
     }
     var keyPage: String {
@@ -34,6 +42,10 @@ enum AIProvider: String, CaseIterable, Identifiable {
         case .perplexity: return "https://www.perplexity.ai/settings/api"
         case .grok: return "https://console.x.ai"
         case .muse: return "https://dev.meta.ai"
+        case .deepseek: return "https://platform.deepseek.com/api_keys"
+        case .mistral: return "https://console.mistral.ai/api-keys"
+        case .groq: return "https://console.groq.com/keys"
+        case .openrouter: return "https://openrouter.ai/keys"
         }
     }
     static func named(_ s: String) -> AIProvider? {
