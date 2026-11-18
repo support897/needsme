@@ -241,6 +241,7 @@ struct ProviderPanel: View {
             Button { withAnimation { more.toggle() } } label: {
                 HStack { Image(systemName: "gearshape.fill"); Text(more ? "Hide settings" : "More settings"); Spacer(); Image(systemName: more ? "chevron.up" : "chevron.down") }
                     .font(.system(.subheadline, design: .rounded).weight(.semibold)).foregroundColor(p.soft)
+                    .padding(.vertical, 6).contentShape(Rectangle())
             }.buttonStyle(.plain).accessibilityIdentifier("settings-" + prov.rawValue)
             if more { settings }
         }
