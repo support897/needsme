@@ -266,12 +266,12 @@ final class NeedsMeUITests: XCTestCase {
         wait(app.buttons["tab-More"], 30, "no tab bar after sign-up")
         openMore("moreConnections") { self.app.buttons["Copy setup prompt"].exists }
         wait(app.staticTexts["connectionStatus"], 10, "connection status missing")
-        for id in ["chatgpt", "claude", "gemini", "perplexity", "grok"] {
+        for id in ["chatgpt", "claude", "gemini", "perplexity", "grok", "muse"] {
             XCTAssertTrue(app.secureTextFields["keyField-" + id].exists, "key field missing for " + id)
             XCTAssertTrue(app.buttons["testKey-" + id].exists, "Test connection missing for " + id)
             XCTAssertEqual(app.staticTexts["status-" + id].label, "Not tested", "a new account must start as Not tested: " + id)
         }
-        for id in ["copilot", "claudecode", "codex", "cursor", "polar", "muse"] {
+        for id in ["copilot", "claudecode", "codex", "cursor", "polar"] {
             XCTAssertFalse(app.secureTextFields["keyField-" + id].exists, "hand off AI must have no key field: " + id)
             XCTAssertFalse(app.buttons["testKey-" + id].exists, "hand off AI must have no test button: " + id)
         }
