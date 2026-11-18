@@ -42,6 +42,7 @@ struct ConnectView: View {
                     ProjectImportCard()
                     AIRoutesCard()
                     WorkToolsCard()
+                    BridgeCard()
                     CustomMCPCard()
                 }.padding()
         }.hidesTabBar().lookBg().navigationTitle("Connections")
