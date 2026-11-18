@@ -174,3 +174,4 @@ jobs:
             git push || true
           fi
 # build 352 run
+# retry after test05 fix
