@@ -266,16 +266,25 @@ final class NeedsMeUITests: XCTestCase {
         wait(app.buttons["tab-More"], 30, "no tab bar after sign-up")
         openMore("moreConnections") { self.app.buttons["Copy setup prompt"].exists }
         wait(app.staticTexts["connectionStatus"], 10, "connection status missing")
-        for id in ["chatgpt", "claude", "gemini", "perplexity", "grok", "muse"] {
-            XCTAssertTrue(app.secureTextFields["keyField-" + id].exists, "key field missing for " + id)
-            XCTAssertTrue(app.buttons["testKey-" + id].exists, "Test connection missing for " + id)
+        for id in ["chatgpt", "claude", "gemini", "perplexity", "grok", "muse", "deepseek", "mistral", "groq", "openrouter"] {
+            let tile = app.buttons["ai-" + id]; wait(tile, 10, "AI tile missing for " + id)
             XCTAssertEqual(app.staticTexts["status-" + id].label, "Not tested", "a new account must start as Not tested: " + id)
+            scrollTo(tile); tile.tap()
+            let s2 = app.buttons["step-" + id + "-2"]; wait(s2, 10, "step 2 chip missing for " + id); s2.tap()
+            wait(app.secureTextFields["keyField-" + id], 10, "key field missing for " + id)
+            let s3 = app.buttons["step-" + id + "-3"]; s3.tap()
+            wait(app.buttons["testKey-" + id], 10, "Test connection missing for " + id)
+            XCTAssertTrue(app.buttons["step-" + id + "-1"].exists, "step 1 chip missing for " + id)
+            scrollTo(tile); tile.tap()
         }
         for id in ["copilot", "claudecode", "codex", "cursor", "polar"] {
+            XCTAssertFalse(app.buttons["ai-" + id].exists, "hand off AI must have no key tile: " + id)
             XCTAssertFalse(app.secureTextFields["keyField-" + id].exists, "hand off AI must have no key field: " + id)
             XCTAssertFalse(app.buttons["testKey-" + id].exists, "hand off AI must have no test button: " + id)
         }
         // Add another account stands under one provider: a name field and a key field appear.
+        let claudeTile = app.buttons["ai-claude"]; scrollTo(claudeTile); claudeTile.tap()
+        let moreSet = app.buttons["settings-claude"]; wait(moreSet, 10, "More settings missing under Claude"); scrollTo(moreSet); moreSet.tap()
         let add = app.buttons["addAccount-claude"]; wait(add, 10, "Add another account missing under Claude")
         for _ in 0..<8 where !add.isHittable { app.swipeUp() }
         add.tap()
@@ -482,7 +491,9 @@ final class NeedsMeUITests: XCTestCase {
     func test15_BringKeysHonestLine() {
         _ = signUpFresh()
         tapUntil(app.buttons["Skip guide"]) { !self.app.buttons["Skip guide"].exists }
-        openMore("moreConnections") { self.app.buttons["bringKeys"].exists }
+        openMore("moreConnections") { self.app.buttons["fold-bring"].exists }
+        let fb = app.buttons["fold-bring"]; scrollTo(fb); fb.tap()
+        wait(app.buttons["bringKeys"], 10, "bring keys button missing")
         let b = app.buttons["bringKeys"]
         for _ in 0..<8 where !b.isHittable { app.swipeUp() }
         b.tap()
@@ -795,7 +806,8 @@ final class NeedsMeUITests: XCTestCase {
         openMore("moreTasks") { self.app.buttons["Add a task"].exists }
         addTask("Agent task", "AgentProj")
         backToMoreRoot()
-        openMore("moreWorkforce") { self.app.buttons["agentPause-claude"].exists }
+        openMore("moreWorkforce") { self.app.buttons["worker-claude"].exists }
+        let wk = app.buttons["worker-claude"]; scrollTo(wk); wk.tap()
         let pause = app.buttons["agentPause-claude"]; scrollTo(pause); wait(pause, 10, "pause control missing for Claude")
         pause.tap()
         wait(app.staticTexts["agentPaused-claude"], 15, "paused line missing after Pause. SCREEN: " + screenText())
@@ -833,7 +845,8 @@ final class NeedsMeUITests: XCTestCase {
             if app.buttons["emailSubmit"].exists { app.buttons["emailSubmit"].tap() }
         }
         wait(app.buttons["tab-Projects"], 30, "sign-in after sign-out failed")
-        openMore("moreWorkforce") { self.app.buttons["agentPause-claude"].exists }
+        openMore("moreWorkforce") { self.app.buttons["worker-claude"].exists }
+        let wk2 = app.buttons["worker-claude"]; scrollTo(wk2); wk2.tap()
         let pause2 = app.buttons["agentPause-claude"]; scrollTo(pause2)
         wait(app.staticTexts["agentPaused-claude"], 20, "pause did not persist across sign-in. SCREEN: " + screenText())
         let sw2 = app.switches["agentTool-claude-file"]; scrollTo(sw2); wait(sw2, 10, "file tool switch missing after sign-in")
@@ -878,7 +891,8 @@ final class NeedsMeUITests: XCTestCase {
         _ = signUpFresh()
         wait(app.buttons["tab-Projects"], 30)
         tapUntil(app.buttons["Skip guide"]) { !self.app.buttons["Skip guide"].exists }
-        openMore("moreConnections") { self.app.staticTexts["Take your projects out of an AI"].exists }
+        openMore("moreConnections") { self.app.buttons["fold-import"].exists }
+        let fi = app.buttons["fold-import"]; scrollTo(fi); fi.tap()
         let b = app.buttons["importSample"]; wait(b, 10, "sample import button missing")
         for _ in 0..<6 where !b.isHittable { app.swipeUp() }
         b.tap()
@@ -890,7 +904,8 @@ final class NeedsMeUITests: XCTestCase {
         _ = signUpFresh()
         wait(app.buttons["tab-Projects"], 30)
         tapUntil(app.buttons["Skip guide"]) { !self.app.buttons["Skip guide"].exists }
-        openMore("moreConnections") { self.app.staticTexts["Connect any AI by signing in"].exists }
+        openMore("moreConnections") { self.app.buttons["fold-signin"].exists }
+        let fs = app.buttons["fold-signin"]; scrollTo(fs); fs.tap()
         let b = app.buttons["door-claude"]; wait(b, 10, "sign-in door button missing")
         for _ in 0..<8 where !b.isHittable { app.swipeUp() }
         b.tap()
@@ -898,6 +913,23 @@ final class NeedsMeUITests: XCTestCase {
         wait(app.buttons["doorPick"], 5, "pick-file button missing")
         app.buttons["doorClose"].tap()
         wait(app.buttons["door-chatgpt"], 10, "sheet did not close")
+    }
+
+    // 24 Pip's setup walk opens after the tour, goes one step at a time, and can be skipped.
+    func test24_PipSetupWizard() {
+        app.terminate(); app.launchArguments = ["-uitest-reset", "-uitest-noask", "-uitest-wizard"]; app.launch()
+        _ = signUpFresh()
+        wait(text("Tour 1 of 7"), 60, "tour did not start")
+        tapUntil(app.buttons["Skip guide"]) { self.app.buttons["wizStart"].exists }
+        wait(app.buttons["wizStart"], 20, "setup walk did not open after the tour. SCREEN: " + screenText()); shot("35-wizard-1")
+        app.buttons["wizStart"].tap()
+        wait(app.buttons["wizPick-gemini"], 10, "AI picker missing"); XCTAssertTrue(app.buttons["wizPick-claude"].exists, "Claude tile missing")
+        app.buttons["wizPick-gemini"].tap()
+        wait(app.buttons["wizOpenKey"], 10, "get key page button missing"); shot("35-wizard-key")
+        app.buttons["wizHaveKey"].tap()
+        wait(app.secureTextFields["wizKey"], 10, "key field missing"); XCTAssertTrue(app.buttons["wizConnect"].exists, "Connect it missing"); shot("35-wizard-paste")
+        app.buttons["wizSkip"].tap()
+        wait(app.buttons["tab-More"], 20, "skip did not close the setup walk")
     }
 
     func test17_AppleDoorStands() {
