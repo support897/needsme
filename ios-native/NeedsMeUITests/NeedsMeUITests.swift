@@ -266,6 +266,19 @@ final class NeedsMeUITests: XCTestCase {
         wait(app.buttons["tab-More"], 30, "no tab bar after sign-up")
         openMore("moreConnections") { self.app.buttons["Copy setup prompt"].exists }
         wait(app.staticTexts["connectionStatus"], 10, "connection status missing")
+        // Add another account stands under one provider: a name field and a key field appear.
+        let claudeTile = app.buttons["ai-claude"]; wait(claudeTile, 10, "Claude tile missing"); scrollTo(claudeTile); claudeTile.tap()
+        let moreSet = app.buttons["settings-claude"]; wait(moreSet, 10, "More settings missing under Claude"); scrollTo(moreSet); moreSet.tap()
+        if !app.textFields["label-claude"].waitForExistence(timeout: 3) { moreSet.tap() }
+        let add = app.buttons["addAccount-claude"]; wait(add, 10, "Add another account missing under Claude. SCREEN: " + screenText())
+        for _ in 0..<8 where !add.isHittable { app.swipeUp() }
+        add.tap()
+        wait(app.textFields["newLabel-claude"], 10, "new account name field missing")
+        XCTAssertTrue(app.secureTextFields["newKey-claude"].exists, "new account key field missing")
+        XCTAssertEqual(app.textFields["newLabel-claude"].value as? String, "Claude 2", "default label should be the provider name plus a number")
+        shot("14-connect-keys")
+        for _ in 0..<10 { app.swipeDown() }
+        if app.buttons["ai-claude"].isHittable { app.buttons["ai-claude"].tap() }
         for id in ["chatgpt", "claude", "gemini", "perplexity", "grok", "muse", "deepseek", "mistral", "groq", "openrouter"] {
             let tile = app.buttons["ai-" + id]; wait(tile, 10, "AI tile missing for " + id)
             XCTAssertEqual(app.staticTexts["status-" + id].label, "Not tested", "a new account must start as Not tested: " + id)
@@ -282,16 +295,6 @@ final class NeedsMeUITests: XCTestCase {
             XCTAssertFalse(app.secureTextFields["keyField-" + id].exists, "hand off AI must have no key field: " + id)
             XCTAssertFalse(app.buttons["testKey-" + id].exists, "hand off AI must have no test button: " + id)
         }
-        // Add another account stands under one provider: a name field and a key field appear.
-        let claudeTile = app.buttons["ai-claude"]; scrollTo(claudeTile); claudeTile.tap()
-        let moreSet = app.buttons["settings-claude"]; wait(moreSet, 10, "More settings missing under Claude"); scrollTo(moreSet); moreSet.tap()
-        let add = app.buttons["addAccount-claude"]; wait(add, 10, "Add another account missing under Claude")
-        for _ in 0..<8 where !add.isHittable { app.swipeUp() }
-        add.tap()
-        wait(app.textFields["newLabel-claude"], 10, "new account name field missing")
-        XCTAssertTrue(app.secureTextFields["newKey-claude"].exists, "new account key field missing")
-        XCTAssertEqual(app.textFields["newLabel-claude"].value as? String, "Claude 2", "default label should be the provider name plus a number")
-        shot("14-connect-keys")
     }
 
     // 06 Group chat: create a room, send a message, the message stands in the room.
