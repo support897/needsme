@@ -24,6 +24,7 @@ enum AIClient {
         case .gemini: return "gemini-2.5-flash"
         case .perplexity: return "sonar"
         case .grok: return "grok-4-1-fast-non-reasoning"
+        case .muse: return "muse-spark-1.3"
         }
     }
     private static func pickKey(_ p: AIProvider) -> String { "nm_ai_model_" + p.rawValue }
@@ -66,6 +67,7 @@ enum AIClient {
         case .claude: url = "https://api.anthropic.com/v1/models"
         case .gemini: url = "https://generativelanguage.googleapis.com/v1beta/models"
         case .grok: url = "https://api.x.ai/v1/models"
+        case .muse: url = "https://api.meta.ai/v1/models"
         case .perplexity: return nil
         }
         guard let u = URL(string: url) else { return nil }
@@ -73,7 +75,7 @@ enum AIClient {
         r.httpMethod = "GET"
         r.timeoutInterval = timeout
         switch p {
-        case .chatgpt, .grok: r.setValue("Bearer " + key, forHTTPHeaderField: "Authorization")
+        case .chatgpt, .grok, .muse: r.setValue("Bearer " + key, forHTTPHeaderField: "Authorization")
         case .claude:
             r.setValue(key, forHTTPHeaderField: "x-api-key")
             r.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
@@ -114,8 +116,9 @@ enum AIClient {
         var urlString: String
         var body: [String: Any]
         switch p {
-        case .chatgpt, .grok, .perplexity:
+        case .chatgpt, .grok, .perplexity, .muse:
             urlString = p == .chatgpt ? "https://api.openai.com/v1/chat/completions"
+                : p == .muse ? "https://api.meta.ai/v1/chat/completions"
                 : p == .grok ? "https://api.x.ai/v1/chat/completions"
                 : "https://api.perplexity.ai/chat/completions"
             var list: [[String: String]] = []
@@ -153,7 +156,7 @@ enum AIClient {
         r.timeoutInterval = timeout
         r.setValue("application/json", forHTTPHeaderField: "Content-Type")
         switch p {
-        case .chatgpt, .grok, .perplexity: r.setValue("Bearer " + key, forHTTPHeaderField: "Authorization")
+        case .chatgpt, .grok, .perplexity, .muse: r.setValue("Bearer " + key, forHTTPHeaderField: "Authorization")
         case .claude:
             r.setValue(key, forHTTPHeaderField: "x-api-key")
             r.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
@@ -170,7 +173,7 @@ enum AIClient {
     private static func extractText(_ p: AIProvider, _ d: Data) -> String? {
         guard let j = try? JSONSerialization.jsonObject(with: d) as? [String: Any] else { return nil }
         switch p {
-        case .chatgpt, .grok, .perplexity:
+        case .chatgpt, .grok, .perplexity, .muse:
             let c = (j["choices"] as? [[String: Any]])?.first
             return ((c?["message"] as? [String: Any])?["content"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
         case .claude:
@@ -210,6 +213,7 @@ enum AIClient {
         case .claude: prefs = ["haiku"]
         case .gemini: prefs = ["flash-lite", "flash"]
         case .grok: prefs = ["mini", "fast"]
+        case .muse: prefs = ["spark"]
         case .perplexity: prefs = ["sonar"]
         }
         for w in prefs {

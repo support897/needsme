@@ -3,7 +3,7 @@ import Security
 
 /// The five AIs that connect with the user's own key.
 enum AIProvider: String, CaseIterable, Identifiable {
-    case chatgpt, claude, gemini, perplexity, grok
+    case chatgpt, claude, gemini, perplexity, grok, muse
     var id: String { rawValue }
     /// Name shown in the app and used in @mentions.
     var name: String {
@@ -13,6 +13,7 @@ enum AIProvider: String, CaseIterable, Identifiable {
         case .gemini: return "Gemini"
         case .perplexity: return "Perplexity"
         case .grok: return "Grok"
+        case .muse: return "Muse"
         }
     }
     var company: String {
@@ -22,6 +23,7 @@ enum AIProvider: String, CaseIterable, Identifiable {
         case .gemini: return "Google"
         case .perplexity: return "Perplexity"
         case .grok: return "xAI"
+        case .muse: return "Meta"
         }
     }
     var keyPage: String {
@@ -31,6 +33,7 @@ enum AIProvider: String, CaseIterable, Identifiable {
         case .gemini: return "https://aistudio.google.com/apikey"
         case .perplexity: return "https://www.perplexity.ai/settings/api"
         case .grok: return "https://console.x.ai"
+        case .muse: return "https://dev.meta.ai"
         }
     }
     static func named(_ s: String) -> AIProvider? {
