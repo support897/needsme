@@ -62,7 +62,7 @@ struct DeviceRecord: Identifiable {
     var firstSeen: Date?; var lastSeen: Date?
 }
 
-struct RoomItem: Identifiable { let id: String; var title: String; var project: String = "" }
+struct RoomItem: Identifiable { let id: String; var title: String; var project: String = ""; var members: [String]? = nil }
 struct RoomMessage: Identifiable { let id: String; var author: String; var text: String; var needsYou: Bool; var createdAt: Date? }
 struct NeedItem: Identifiable { let id: String; var text: String; var ai: String; var roomId: String; var status: String; var messageId: String = ""; var project: String = ""; var url: String = ""; var kind: String = "needs" }
 struct NoteItem: Identifiable {
@@ -228,7 +228,7 @@ final class Store: ObservableObject {
             handles.append(c.order(by: "createdAt").addSnapshotListener { [weak self] s, e in
                 if let e { Task { @MainActor in self?.roomError = "Could not load rooms: \(e.localizedDescription)" } }
                 guard let s else { return }
-                let items = s.documents.map { d in RoomItem(id: d.documentID, title: d.data()["title"] as? String ?? "Room", project: d.data()["project"] as? String ?? "") }
+                let items = s.documents.map { d in RoomItem(id: d.documentID, title: d.data()["title"] as? String ?? "Room", project: d.data()["project"] as? String ?? "", members: d.data()["members"] as? [String]) }
                 let fresh = !s.metadata.isFromCache
                 Task { @MainActor in
                     self?.rooms = items
@@ -878,6 +878,12 @@ final class Store: ObservableObject {
             else if !messageId.isEmpty {
                 Task { @MainActor in self?.col("rooms")?.document(roomId).collection("messages").document(messageId).updateData(["filed": true]) { _ in } }
             }
+        }
+    }
+    /// Who is in a room. A room with no saved list means every connected AI, as before.
+    func setRoomMembers(_ roomId: String, _ ids: [String]) {
+        col("rooms")?.document(roomId).updateData(["members": ids]) { [weak self] err in
+            if let err { Task { @MainActor in self?.roomError = "Could not save who is in the room: \(err.localizedDescription)" } }
         }
     }
     func resolveNeed(_ n: NeedItem) { col("needs")?.document(n.id).updateData(["status": "done"]) }

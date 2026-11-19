@@ -181,11 +181,12 @@ final class AIConnections: ObservableObject {
         return AIProvider(rawValue: prefix)?.name ?? authorId
     }
 
-    /// Plain words for one account: Not tested, Connected, or Failed with the reason.
+    /// Plain words for one account: Not set up, Tap Test, Connected, or Failed with the reason.
     func status(_ a: AIAccount) -> String {
         _ = keyTick
         if testing.contains(a.id) { return "Testing" }
-        guard AIKeys.has(a.id), let r = results[a.id] else { return "Not tested" }
+        guard AIKeys.has(a.id) else { return "Not set up" }
+        guard let r = results[a.id] else { return "Tap Test" }
         return r.ok ? "Connected" : "Failed: \(r.reason)"
     }
 

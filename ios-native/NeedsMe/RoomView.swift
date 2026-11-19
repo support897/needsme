@@ -62,6 +62,12 @@ final class RoomEngine: ObservableObject {
         return messages + extra
     }
 
+    /// Only the AIs added to this room take part. A room with no saved list keeps every connected AI.
+    func members(_ accounts: [AIAccount]) -> [AIAccount] {
+        guard let ids = store.rooms.first(where: { $0.id == roomId })?.members else { return accounts }
+        return accounts.filter { ids.contains($0.id) }
+    }
+
     func start() {
         if Store.demo {
             messages = Store.demoMessages.map { var x = $0; if x.author == "user" { x.author = store.user?.uid ?? "me" }; return x }
@@ -187,13 +193,14 @@ final class RoomEngine: ObservableObject {
     private func handle(_ m: RoomMessage) {
         if stopped || paused { return }
         let conns = AIConnections.shared
+        let inRoom = members(conns.connected)
         // Per agent controls (section 11): a paused agent, an agent without the rooms tool,
         // or an agent whose run was cancelled does not answer.
-        for a in RoomEngine.mentions(in: m.text, among: conns.connected, requireAt: true) where a.id != m.author {
+        for a in RoomEngine.mentions(in: m.text, among: inRoom, requireAt: true) where a.id != m.author {
             if store.agentPaused(a.id) { note("\(a.label) is paused, so it did not answer.") }
         }
         var targets: [AIAccount] = []
-        for a in RoomEngine.mentions(in: m.text, among: conns.connected, requireAt: false) where a.id != m.author
+        for a in RoomEngine.mentions(in: m.text, among: inRoom, requireAt: false) where a.id != m.author
             && !store.agentPaused(a.id) && store.agentMay(a.id, tool: AgentTool.rooms)
             && !RoomEngine.cancelledAgents.contains(a.id) {
             if chain >= 6 {
@@ -206,6 +213,12 @@ final class RoomEngine: ObservableObject {
         let idle = conns.accounts.filter { !conns.isConnected($0) }
         for a in RoomEngine.mentions(in: m.text, among: idle, requireAt: true) where a.id != m.author {
             note("\(a.label) is not connected, so it did not answer.")
+        }
+        // AIs that joined by link cannot be woken by the app. Tell the user, plainly, what to do.
+        for l in LinkStore.shared.links where store.rooms.first(where: { $0.id == roomId })?.members?.contains("link-" + l.id) == true {
+            if !RoomEngine.mentions(in: m.text, among: [AIAccount(id: l.id, provider: "chatgpt", label: l.label)], requireAt: true).isEmpty && l.id != m.author {
+                note("\(l.label) joined by link, so it reads this room when you open it. Open \(l.label) and say: read my NeedsMe room \"\(title)\" and answer.")
+            }
         }
         guard !targets.isEmpty else { return }
         let t = Task { [weak self] in
@@ -231,7 +244,7 @@ final class RoomEngine: ObservableObject {
         let history = Array(shown.filter { $0.author != "system" }.suffix(20))
         let transcript = history.map { "\(displayName($0.author)): \($0.text)" }.joined(separator: "\n")
         var others = [store.user?.displayName ?? "the user"]
-        others += AIConnections.shared.connected.filter { $0.id != a.id }.map { $0.label }
+        others += members(AIConnections.shared.connected).filter { $0.id != a.id }.map { $0.label }
         var system = "You are \(a.label), one member of a shared room called \"\(title)\". The other members are: \(others.joined(separator: ", ")). Members can use the same AI maker as you. They are separate voices. Keep replies short and plain. If your reply needs the user's decision, end it with one line of the form NEEDS-YOU: followed by the short decision text."
         let proj = currentProject
         let open = store.openTodos(project: proj)
@@ -562,6 +575,13 @@ struct RoomView: View {
     @ObservedObject private var conns = AIConnections.shared
     @StateObject private var engine: RoomEngine
     @State private var draft = ""
+    @State private var addingPeople = false
+
+    var roomMembers: [AIAccount] { engine.members(conns.connected) }
+    var roomLinks: [LinkAI] {
+        let ids = store.rooms.first { $0.id == engine.roomId }?.members ?? []
+        return LinkStore.shared.links.filter { ids.contains("link-" + $0.id) }
+    }
 
     init(room: RoomItem, store: Store) {
         _engine = StateObject(wrappedValue: RoomEngine(store: store, room: room))
@@ -570,7 +590,7 @@ struct RoomView: View {
     /// Who is in this room, and its project when one is filed. Only connected AIs are named:
     /// a disconnected AI is never shown as taking part (HTML section 12).
     var participantsLine: String {
-        var s = "In this room: " + (["You"] + conns.connected.map { $0.label + (store.agentPaused($0.id) ? " (paused)" : "") }).joined(separator: ", ")
+        var s = "In this room: " + (["You"] + roomMembers.map { $0.label + (store.agentPaused($0.id) ? " (paused)" : "") } + roomLinks.map { $0.label + " (link)" }).joined(separator: ", ")
         let proj = store.rooms.first { $0.id == engine.roomId }?.project ?? ""
         if !proj.isEmpty { s += " · Project: " + proj }
         return s
@@ -586,10 +606,17 @@ struct RoomView: View {
 
     var facesCard: some View {
         HStack {
-            if conns.connected.isEmpty {
-                Text("No AI is connected yet.").font(.system(size: 13)).foregroundColor(.muted).padding(.vertical, 8)
+            if roomMembers.isEmpty && roomLinks.isEmpty {
+                Text("No AI is in this room yet. Tap Add people.").font(.system(size: 13)).foregroundColor(.muted).padding(.vertical, 8)
             }
-            ForEach(conns.connected) { a in
+            ForEach(roomLinks) { l in
+                VStack(spacing: 6) {
+                    AIFace(label: l.label, size: 46, state: .none)
+                    Text(l.label).font(.system(size: 12, weight: .bold)).foregroundColor(.loam)
+                    Text("by link").font(.system(size: 11)).foregroundColor(.muted)
+                }.frame(maxWidth: .infinity)
+            }
+            ForEach(roomMembers) { a in
                 let info = faceInfo(a)
                 VStack(spacing: 6) {
                     AIFace(label: a.label, size: 46, state: info.0)
@@ -642,11 +669,15 @@ struct RoomView: View {
             ToolbarItem(placement: .principal) {
                 VStack(spacing: 1) {
                     Text(engine.title).font(.system(size: 17, weight: .bold)).foregroundColor(.loam)
-                    Text("\(conns.connected.count) AIs here · \(tasksMade) tasks made").font(.system(size: 12)).foregroundColor(.muted)
+                    Text("\(roomMembers.count + roomLinks.count) AIs here · \(tasksMade) tasks made").font(.system(size: 12)).foregroundColor(.muted)
                 }
             }
-            ToolbarItem(placement: .navigationBarTrailing) { PipArt(pose: .welcome, height: 34) }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button { addingPeople = true } label: { Image(systemName: "person.badge.plus").foregroundColor(.loam) }
+                    .accessibilityLabel("Add people").accessibilityIdentifier("addPeople")
+            }
         }
+        .sheet(isPresented: $addingPeople) { PeopleSheet(roomId: engine.roomId).environmentObject(store) }
         .onAppear { RoomEngine.retireBackground(engine.roomId); engine.start() }
         .onDisappear { engine.close() }
         .hidesTabBar()
@@ -767,5 +798,64 @@ struct RoomView: View {
             .shadow(color: Color.loam.opacity(0.14), radius: 14, y: 8)
         }
         .padding(.horizontal, 14).padding(.top, 6).padding(.bottom, 8)
+    }
+}
+
+
+/// WhatsApp style member list for one room. Switch an AI on to add it, off to take it out.
+struct PeopleSheet: View {
+    let roomId: String
+    @EnvironmentObject var store: Store
+    @Environment(\.dismiss) var dismiss
+    @ObservedObject private var conns = AIConnections.shared
+    @ObservedObject private var links = LinkStore.shared
+
+    var current: [String]? { store.rooms.first { $0.id == roomId }?.members }
+    func isOn(_ id: String) -> Bool { current?.contains(id) ?? (conns.connected.contains { $0.id == id }) }
+    func set(_ id: String, _ on: Bool) {
+        var ids = current ?? conns.connected.map { $0.id }
+        ids.removeAll { $0 == id }
+        if on { ids.append(id) }
+        store.setRoomMembers(roomId, ids)
+    }
+    func binding(_ id: String) -> Binding<Bool> { Binding(get: { isOn(id) }, set: { set(id, $0) }) }
+
+    var body: some View {
+        NavigationView {
+            List {
+                Section(header: Text("You")) { Text(store.user?.displayName ?? "You") }
+                Section(header: Text("AIs with a key. They answer on their own while the room is open.")) {
+                    ForEach(conns.accounts) { a in
+                        HStack {
+                            AIFace(label: a.label, size: 34, state: .none)
+                            VStack(alignment: .leading) {
+                                Text(a.label).font(.body.weight(.semibold))
+                                Text(conns.isConnected(a) ? "Ready" : conns.status(a) + ". Set it up in Connections.").font(.caption).foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            Toggle("", isOn: binding(a.id)).labelsHidden().disabled(!conns.isConnected(a))
+                                .accessibilityIdentifier("member-" + a.id)
+                        }
+                    }
+                }
+                if !links.links.isEmpty {
+                    Section(header: Text("AIs joined by link. They read the room when you open them.")) {
+                        ForEach(links.links) { l in
+                            HStack {
+                                AIFace(label: l.label, size: 34, state: .none)
+                                VStack(alignment: .leading) {
+                                    Text(l.label).font(.body.weight(.semibold))
+                                    Text(l.seen ? "Connected by link" : "Waiting for first reply").font(.caption).foregroundColor(.secondary)
+                                }
+                                Spacer()
+                                Toggle("", isOn: binding("link-" + l.id)).labelsHidden().accessibilityIdentifier("member-link-" + l.id)
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Add people").navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() }.accessibilityIdentifier("peopleDone") } }
+        }
     }
 }
