@@ -48,6 +48,20 @@ enum AIProvider: String, CaseIterable, Identifiable {
         case .openrouter: return "https://openrouter.ai/keys"
         }
     }
+    var site: String {
+        switch self {
+        case .chatgpt: return "https://chatgpt.com"
+        case .claude: return "https://claude.ai/new"
+        case .gemini: return "https://gemini.google.com/app"
+        case .perplexity: return "https://www.perplexity.ai"
+        case .grok: return "https://grok.com"
+        case .muse: return "https://www.meta.ai"
+        case .deepseek: return "https://chat.deepseek.com"
+        case .mistral: return "https://chat.mistral.ai"
+        case .groq: return "https://console.groq.com/playground"
+        case .openrouter: return "https://openrouter.ai/chat"
+        }
+    }
     static func named(_ s: String) -> AIProvider? {
         AIProvider.allCases.first { $0.name.lowercased() == s.lowercased() }
     }

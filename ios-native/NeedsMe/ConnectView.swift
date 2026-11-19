@@ -35,6 +35,10 @@ struct ConnectView: View {
                 FoldSection(id: "updates", icon: "checklist.checked", color: Color(hex: 0xA8C256), title: "Progress, to-dos and alerts", sub: "How your AIs report back to you") { UpdatesCard() }
                 Text("Pick an AI. Tap it to see the steps.").font(.system(.headline, design: .rounded)).foregroundColor(p.ink).padding(.top, 4)
                 ForEach(AIProvider.allCases) { prov in AITile(prov: prov, openId: $openId) }
+                Text("No key? Join by prompt").font(.system(.headline, design: .rounded)).foregroundColor(p.ink).padding(.top, 8)
+                LinkOnlyTile(key: "polar", name: "Polar", blurb: "Browser agent. Prompt only", icon: "sparkles", tint: Color(hex: 0x3B82F6), site: "https://polarbrowser.com", openId: $openId)
+                LinkOnlyTile(key: "copilot", name: "Copilot", blurb: "Microsoft. Prompt only", icon: "paperplane.fill", tint: Color(hex: 0x0EA5E9), site: "https://copilot.microsoft.com", openId: $openId)
+                LinkOnlyTile(key: "other", name: "Any other AI", blurb: "Anything that can add a link", icon: "plus.circle.fill", tint: Color(hex: 0x8B5CF6), site: "https://www.google.com/search?q=add+MCP+server", openId: $openId)
                 Text("More ways in").font(.system(.headline, design: .rounded)).foregroundColor(p.ink).padding(.top, 8)
                 FoldSection(id: "signin", icon: "person.crop.circle.badge.checkmark", color: Color(hex: 0x4285F4), title: "Sign in with your AI account", sub: "Bring your chats in") { SignInDoorCard() }
                 FoldSection(id: "import", icon: "square.and.arrow.down.fill", color: Color(hex: 0x10A37F), title: "Take your projects out of an AI", sub: "Import from an export file") { ProjectImportCard() }

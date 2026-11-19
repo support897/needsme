@@ -332,6 +332,8 @@ struct AITile: View {
     @Environment(\.palette) var p
     @ObservedObject var conns = AIConnections.shared
     var open: Bool { openId == prov.rawValue }
+    @ObservedObject var links = LinkStore.shared
+    @State var mode = CommandLine.arguments.contains("-uitest-reset") ? "key" : "prompt"
     var main: AIAccount { conns.account(prov.rawValue) ?? AIAccount(id: prov.rawValue, provider: prov.rawValue, label: prov.name) }
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -351,16 +353,23 @@ struct AITile: View {
                     .shadow(color: Color.loam.opacity(p.isDark ? 0 : 0.07), radius: 10, y: 5)
                 }.buttonStyle(.plain).accessibilityIdentifier("ai-" + prov.rawValue)
                 HStack(spacing: 8) {
-                    Text(conns.status(main)).font(.system(size: 11, weight: .bold, design: .rounded)).lineLimit(1)
+                    Text(links.connectedCount(prov.rawValue) > 0 && !conns.isConnected(main) ? "Linked" : conns.status(main)).font(.system(size: 11, weight: .bold, design: .rounded)).lineLimit(1)
                         .padding(.horizontal, 8).padding(.vertical, 4)
-                        .background(conns.isConnected(main) ? Color.sprout : p.chip).foregroundColor(conns.isConnected(main) ? .loam : p.ink)
+                        .background(conns.isConnected(main) || links.connectedCount(prov.rawValue) > 0 ? Color.sprout : p.chip).foregroundColor(conns.isConnected(main) || links.connectedCount(prov.rawValue) > 0 ? .loam : p.ink)
                         .clipShape(Capsule()).frame(maxWidth: 110)
                         .accessibilityIdentifier("status-" + main.id)
                     Image(systemName: "chevron.down").font(.system(size: 13, weight: .bold)).foregroundColor(prov.tint)
                         .rotationEffect(.degrees(open ? 180 : 0))
                 }.padding(.trailing, 14).allowsHitTesting(false)
             }
-            if open { ProviderPanel(prov: prov).transition(.opacity.combined(with: .move(edge: .top))) }
+            if open {
+                VStack(alignment: .leading, spacing: 10) {
+                    Picker("How", selection: $mode) { Text("Copy a prompt").tag("prompt"); Text("Use my API key").tag("key") }
+                        .pickerStyle(.segmented).accessibilityIdentifier("mode-" + prov.rawValue)
+                    if mode == "prompt" { PromptConnect(key: prov.rawValue, name: prov.name, tint: prov.tint, site: prov.site) }
+                    else { ProviderPanel(prov: prov) }
+                }.transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
     }
 }
