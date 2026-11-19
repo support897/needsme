@@ -960,6 +960,21 @@ final class NeedsMeUITests: XCTestCase {
         wait(text("1 of 3 tasks done"), 15, "percent not counted from the report. SCREEN: " + screenText()); shot("36-ai-project")
     }
 
+    // 26 Join an AI by prompt: tap an AI, pick Copy a prompt, make it, the Copy and Open buttons and the waiting status show.
+    func test26_JoinByPrompt() {
+        app.terminate(); app.launchArguments = ["-uitest-reset", "-uitest-noask"]; app.launch()
+        _ = signUpFresh()
+        wait(app.buttons["tab-Projects"], 30)
+        tapUntil(app.buttons["Skip guide"]) { !self.app.buttons["Skip guide"].exists }
+        openMore("moreConnections") { self.app.buttons["ai-claude"].exists }
+        let tile = app.buttons["ai-claude"]; scrollTo(tile); tile.tap()
+        let seg = app.buttons["Copy a prompt"]; wait(seg, 10, "mode switch missing. SCREEN: " + screenText()); seg.tap()
+        let mk = app.buttons["mkPrompt-claude"]; wait(mk, 10, "Make my prompt missing. SCREEN: " + screenText()); scrollTo(mk); mk.tap()
+        let cp = app.buttons["cpPrompt-claude"]; wait(cp, 30, "prompt not made. SCREEN: " + screenText()); shot("38-join-prompt")
+        wait(app.buttons["openAI-claude"], 5, "Open Claude button missing")
+        wait(text("Waiting for first reply"), 5, "waiting status missing. SCREEN: " + screenText())
+    }
+
     func test17_AppleDoorStands() {
         wait(app.buttons["appleButton"])
         app.buttons["appleButton"].tap()
