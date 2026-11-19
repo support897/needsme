@@ -177,6 +177,8 @@ final class AIConnections: ObservableObject {
     /// The name to show for an author id: the account label, else the provider name, else the id.
     func displayName(_ authorId: String) -> String {
         if let a = account(authorId) { return a.label }
+        if authorId.hasPrefix("link-"), let d = UserDefaults.standard.data(forKey: "nm_link_ais"),
+           let ls = try? JSONDecoder().decode([LinkAI].self, from: d), let l = ls.first(where: { "link-" + $0.id == authorId }) { return l.label }
         let prefix = authorId.split(separator: "-").first.map(String.init) ?? authorId
         return AIProvider(rawValue: prefix)?.name ?? authorId
     }

@@ -64,7 +64,7 @@ enum LinkPrompt {
         Then:
         1. Call get_my_projects and use my exact project names.
         2. After every reply where something changed, call report_update (project, summary, todos_new, todos_done, needs_you, finished, chat_url = the web link to this chat). Use needs_you only when you cannot go on without my answer.
-        3. Call list_messages at the start of each reply to read my group chat. To talk to another AI, call post_message and write @name.
+        3. At the start of every reply call check_inbox. If something is addressed to you, answer it with post_message (use the room named in the message) and write @name to bring in another AI. If you can keep running, call wait_for_message again and again so you answer the moment someone @mentions you.
         4. Never share this token. If you cannot add MCP servers, say so, and I will send you the paste-block rule instead.
         """
     }

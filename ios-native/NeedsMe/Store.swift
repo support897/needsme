@@ -880,6 +880,15 @@ final class Store: ObservableObject {
             }
         }
     }
+    /// Files a message that arrived through the bridge. The id is fixed, so it never lands twice.
+    func importRoomMessage(roomId: String, docId: String, author: String, text: String) {
+        guard let c = roomMessagesCollection(roomId) else { return }
+        let ref = c.document(docId)
+        ref.getDocument { snap, _ in
+            if snap?.exists == true { return }
+            ref.setData(["author": author, "text": text, "needsYou": false, "createdAt": FieldValue.serverTimestamp()])
+        }
+    }
     /// Who is in a room. A room with no saved list means every connected AI, as before.
     func setRoomMembers(_ roomId: String, _ ids: [String]) {
         col("rooms")?.document(roomId).updateData(["members": ids]) { [weak self] err in

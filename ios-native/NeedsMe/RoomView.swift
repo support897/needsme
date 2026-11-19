@@ -85,6 +85,7 @@ final class RoomEngine: ObservableObject {
             let added = snap.documentChanges.filter { $0.type == .added }.map { RoomEngine.parse($0.document) }
             Task { @MainActor in self?.apply(items, added) }
         }
+        startLinkPoll()
     }
 
     func close() {
@@ -215,11 +216,7 @@ final class RoomEngine: ObservableObject {
             note("\(a.label) is not connected, so it did not answer.")
         }
         // AIs that joined by link cannot be woken by the app. Tell the user, plainly, what to do.
-        for l in LinkStore.shared.links where store.rooms.first(where: { $0.id == roomId })?.members?.contains("link-" + l.id) == true {
-            if !RoomEngine.mentions(in: m.text, among: [AIAccount(id: l.id, provider: "chatgpt", label: l.label)], requireAt: true).isEmpty && l.id != m.author {
-                note("\(l.label) joined by link, so it reads this room when you open it. Open \(l.label) and say: read my NeedsMe room \"\(title)\" and answer.")
-            }
-        }
+        deliverToLinks(m)
         guard !targets.isEmpty else { return }
         let t = Task { [weak self] in
             for a in targets {
@@ -228,6 +225,47 @@ final class RoomEngine: ObservableObject {
             }
         }
         tasks.append(t)
+    }
+
+    // MARK: AIs that joined by link. They have no key, so they get a mailbox on the bridge.
+    private var bridgeSeen = Set<String>()
+    private func linkMembers() -> [LinkAI] {
+        guard let ids = store.rooms.first(where: { $0.id == roomId })?.members else { return [] }
+        return LinkStore.shared.links.filter { ids.contains("link-" + $0.id) }
+    }
+    /// Puts the message in the mailbox of every link AI it @mentions.
+    private func deliverToLinks(_ m: RoomMessage) {
+        guard let t = BridgeSync.shared.token else { return }
+        let named = linkMembers().filter { l in
+            "link-" + l.id != m.author && !RoomEngine.mentions(in: m.text, among: [AIAccount(id: l.id, provider: "chatgpt", label: l.label)], requireAt: true).isEmpty
+        }
+        guard !named.isEmpty, let b = try? JSONSerialization.data(withJSONObject: ["author": displayName(m.author), "text": m.text]) else { return }
+        let rid = roomId
+        Task { _ = await BridgeSync.shared.send("POST", "/rooms/\(rid)/messages", body: b, token: t) }
+        for l in named { note("\(l.label) has a note in its mailbox. Open \(l.label) and say: check my NeedsMe inbox.") }
+    }
+    private func startLinkPoll() {
+        let t = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let me = self else { return }
+                await me.pullLinkReplies()
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
+            }
+        }
+        tasks.append(t)
+    }
+    /// Brings a link AI's answers from the bridge into this room.
+    private func pullLinkReplies() async {
+        let links = linkMembers()
+        guard !links.isEmpty, let t = BridgeSync.shared.token,
+              let d = await BridgeSync.shared.send("GET", "/rooms/\(roomId)/messages", body: nil, token: t),
+              let arr = try? JSONSerialization.jsonObject(with: d) as? [[String: Any]] else { return }
+        for x in arr {
+            guard let id = x["id"] as? String, !bridgeSeen.contains(id), let author = x["author"] as? String, let text = x["text"] as? String,
+                  let l = links.first(where: { $0.label.lowercased() == author.lowercased() }) else { continue }
+            bridgeSeen.insert(id)
+            store.importRoomMessage(roomId: roomId, docId: "b-" + id, author: "link-" + l.id, text: text)
+        }
     }
 
     private func displayName(_ author: String) -> String {
