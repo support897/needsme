@@ -35,6 +35,12 @@ struct RootView: View {
             }
         }
         .fullScreenCover(isPresented: $showWizard) { SetupWizard(onClose: { showWizard = false }).environment(\.palette, p) }
+        .task(id: store.user?.uid) {
+            while !Task.isCancelled {
+                if store.user != nil { await BridgeSync.shared.poll(store: store) }
+                try? await Task.sleep(nanoseconds: 20_000_000_000)
+            }
+        }
         .onChange(of: store.user?.email) { email in if email != nil { tab = 0 } }
         .onChange(of: store.user?.uid) { _ in askClosedNow = false; nameDraft = "" }
         .animation((motion != "system" || reduceMotion) ? nil : .easeInOut(duration: 0.25), value: showTour)

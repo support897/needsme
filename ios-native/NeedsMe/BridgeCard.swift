@@ -32,5 +32,7 @@ struct BridgeCard: View {
         guard let (d, resp) = try? await URLSession.shared.data(for: r), (resp as? HTTPURLResponse)?.statusCode == 200,
               let j = try? JSONSerialization.jsonObject(with: d) as? [String: Any], let t = j["token"] as? String else { note = "Could not make a link. Try again."; return }
         token = t
+        BridgeSync.shared.saveToken(t)
+        note = "Live link is ON. Updates from your AI arrive in the app."
     }
 }

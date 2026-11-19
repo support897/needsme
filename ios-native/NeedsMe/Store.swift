@@ -64,7 +64,7 @@ struct DeviceRecord: Identifiable {
 
 struct RoomItem: Identifiable { let id: String; var title: String; var project: String = "" }
 struct RoomMessage: Identifiable { let id: String; var author: String; var text: String; var needsYou: Bool; var createdAt: Date? }
-struct NeedItem: Identifiable { let id: String; var text: String; var ai: String; var roomId: String; var status: String; var messageId: String = "" }
+struct NeedItem: Identifiable { let id: String; var text: String; var ai: String; var roomId: String; var status: String; var messageId: String = ""; var project: String = ""; var url: String = ""; var kind: String = "needs" }
 struct NoteItem: Identifiable {
     let id: String; var title: String; var body: String; var project: String; var ai: String; var isPrompt: Bool
     /// Project names (a project is its name in this app). A note can hold several, a prompt holds at most one.
@@ -242,7 +242,7 @@ final class Store: ObservableObject {
                 guard let s else { return }
                 let items = s.documents.map { d -> NeedItem in
                     let x = d.data()
-                    return NeedItem(id: d.documentID, text: x["text"] as? String ?? "", ai: x["ai"] as? String ?? "", roomId: x["roomId"] as? String ?? "", status: x["status"] as? String ?? "open", messageId: x["messageId"] as? String ?? "")
+                    return NeedItem(id: d.documentID, text: x["text"] as? String ?? "", ai: x["ai"] as? String ?? "", roomId: x["roomId"] as? String ?? "", status: x["status"] as? String ?? "open", messageId: x["messageId"] as? String ?? "", project: x["project"] as? String ?? "", url: x["url"] as? String ?? "", kind: x["kind"] as? String ?? "needs")
                 }
                 Task { @MainActor in self?.needs = items }
             })
@@ -454,6 +454,12 @@ final class Store: ObservableObject {
     func addTask(_ title: String, area: String, due: String) {
         col("tasks")?.addDocument(data: ["title": title, "area": area, "due_on": due, "status": "waiting", "created": FieldValue.serverTimestamp()]) { [weak self] err in
             if let err { Task { @MainActor in self?.message = "Could not save your task: \(err.localizedDescription)" } }
+        }
+    }
+    /// A to-do an AI says it already finished, which the app did not know about. Counts toward percent done.
+    func addDoneTask(_ title: String, area: String, by: String) {
+        col("tasks")?.addDocument(data: ["title": title, "area": area, "due_on": "", "status": "done", "done_date": Store.today, "done_by": by, "created": FieldValue.serverTimestamp()]) { [weak self] err in
+            if let err { Task { @MainActor in self?.message = "Could not save the to-do: \(err.localizedDescription)" } }
         }
     }
     func toggle(_ t: TaskItem) {
@@ -864,8 +870,8 @@ final class Store: ObservableObject {
     }
     /// Files one needs item. When it comes from a message, the message id rides on the item and the
     /// message is marked filed, so the same message never files twice.
-    func addNeed(text: String, ai: String, roomId: String, messageId: String = "") {
-        var d: [String: Any] = ["text": text, "ai": ai, "roomId": roomId, "source": "room", "status": "open", "createdAt": FieldValue.serverTimestamp()]
+    func addNeed(text: String, ai: String, roomId: String, messageId: String = "", project: String = "", url: String = "", kind: String = "needs") {
+        var d: [String: Any] = ["text": text, "ai": ai, "roomId": roomId, "source": roomId.isEmpty ? "update" : "room", "status": "open", "createdAt": FieldValue.serverTimestamp(), "project": project, "url": url, "kind": kind]
         if !messageId.isEmpty { d["messageId"] = messageId }
         col("needs")?.addDocument(data: d) { [weak self] err in
             if let err { Task { @MainActor in self?.roomError = "Could not save the need: \(err.localizedDescription)" } }

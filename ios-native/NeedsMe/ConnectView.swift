@@ -32,6 +32,7 @@ struct ConnectView: View {
                     }.buttonStyle(SoftButton())
                     Text(statusLines).font(.caption).foregroundColor(p.soft).accessibilityIdentifier("connectionStatus")
                 }
+                FoldSection(id: "updates", icon: "checklist.checked", color: Color(hex: 0xA8C256), title: "Progress, to-dos and alerts", sub: "How your AIs report back to you") { UpdatesCard() }
                 Text("Pick an AI. Tap it to see the steps.").font(.system(.headline, design: .rounded)).foregroundColor(p.ink).padding(.top, 4)
                 ForEach(AIProvider.allCases) { prov in AITile(prov: prov, openId: $openId) }
                 Text("More ways in").font(.system(.headline, design: .rounded)).foregroundColor(p.ink).padding(.top, 8)

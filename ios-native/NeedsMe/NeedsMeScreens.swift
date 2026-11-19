@@ -15,7 +15,7 @@ struct NeedsMeView: View {
     var groups: [(project: String, items: [NeedItem])] {
         var byProject: [String: [NeedItem]] = [:]
         for n in openNeeds {
-            let proj = store.rooms.first { $0.id == n.roomId }?.project ?? ""
+            let proj = store.rooms.first { $0.id == n.roomId }?.project ?? n.project
             byProject[proj, default: []].append(n)
         }
         var out = byProject.keys.filter { !$0.isEmpty }.sorted().map { (project: $0, items: byProject[$0]!) }
@@ -74,7 +74,7 @@ struct NeedsMeView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
                 AIFace(label: n.ai, size: 34, state: .needs)
-                Text("\(n.ai) needs you").font(.system(size: 16, weight: .bold)).foregroundColor(.loam)
+                Text(n.kind == "finished" ? "\(n.ai) finished" : "\(n.ai) needs you").font(.system(size: 16, weight: .bold)).foregroundColor(.loam)
             }
             Text(n.text).font(.system(size: 14.5)).foregroundColor(.loam)
             HStack(spacing: 8) {
@@ -85,7 +85,14 @@ struct NeedsMeView: View {
                             .background(Color.cardTone.opacity(0.9)).foregroundColor(.loam).clipShape(Capsule())
                     }.accessibilityIdentifier("needOpen-" + n.id)
                 }
-                Button("Done") { store.resolveNeed(n) }.buttonStyle(SoftButton()).frame(maxWidth: 120)
+                if !n.url.isEmpty, let link = URL(string: n.url) {
+                    Link(destination: link) {
+                        Label("Open the chat", systemImage: "arrow.up.right.circle.fill").font(.system(size: 14, weight: .semibold))
+                            .padding(.vertical, 10).padding(.horizontal, 14)
+                            .background(Color.loam).foregroundColor(.bone).clipShape(Capsule())
+                    }.accessibilityIdentifier("needChat-" + n.id)
+                }
+                Button(n.kind == "finished" ? "Got it" : "Done") { store.resolveNeed(n) }.buttonStyle(SoftButton()).frame(maxWidth: 120)
                     .accessibilityIdentifier("needDone-" + n.id)
             }
         }
@@ -107,7 +114,7 @@ struct ProjectsView: View {
 
     func needsCount(_ name: String) -> Int {
         let roomIds = Set(store.rooms.filter { $0.project == name }.map { $0.id })
-        return store.needs.filter { $0.status == "open" && roomIds.contains($0.roomId) }.count
+        return store.needs.filter { $0.status == "open" && (roomIds.contains($0.roomId) || ($0.roomId.isEmpty && $0.project == name)) }.count
     }
 
     var body: some View {
