@@ -952,6 +952,9 @@ final class NeedsMeUITests: XCTestCase {
         wait(text("Logo A or B?"), 20, "need not shown. SCREEN: " + screenText()); shot("36-ai-need")
         let chat = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'needChat-'")).firstMatch
         wait(chat, 10, "Open the chat button missing")
+        let feed = app.buttons["updatesFeedLink"]; wait(feed, 10, "All updates link missing"); feed.tap()
+        wait(text("Claude: 2 to-dos added, 1 crossed off, 1 for you to see. Logo A or B?"), 15, "feed row missing. SCREEN: " + screenText()); shot("37-ai-feed")
+        app.navigationBars.buttons.firstMatch.tap()
         app.buttons["tab-Projects"].tap()
         hittable(app.buttons.matching(identifier: "project-Sample launch")).tap()
         wait(text("1 of 3 tasks done"), 15, "percent not counted from the report. SCREEN: " + screenText()); shot("36-ai-project")
