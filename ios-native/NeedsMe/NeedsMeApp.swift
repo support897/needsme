@@ -19,6 +19,7 @@ enum FirebaseBoot {
 
 @main
 struct NeedsMeApp: App {
+    @UIApplicationDelegateAdaptor(PushDelegate.self) private var pushDelegate
     @StateObject private var store = Store()
     @AppStorage("nm_theme") private var themeRaw = AppTheme.white.rawValue
 
@@ -46,6 +47,7 @@ struct NeedsMeApp: App {
                 .preferredColorScheme(AppTheme.from(themeRaw).scheme)
                 .onAppear { if themeRaw == "green" { themeRaw = AppTheme.brand.rawValue } }
                 // Her saved pick wins over the device copy. A fresh account with nothing saved gets White.
+                .onChange(of: store.user?.uid) { uid in if uid != nil { Push.shared.start(); Task { await Push.shared.upload() } } }
                 .onChange(of: store.cloudThemeLoaded) { _ in applyCloud() }
                 .onChange(of: store.cloudTheme) { _ in applyCloud() }
         }
