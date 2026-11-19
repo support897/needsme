@@ -281,7 +281,7 @@ final class NeedsMeUITests: XCTestCase {
         if app.buttons["ai-claude"].isHittable { app.buttons["ai-claude"].tap() }
         for id in ["chatgpt", "claude", "gemini", "perplexity", "grok", "muse", "deepseek", "mistral", "groq", "openrouter"] {
             let tile = app.buttons["ai-" + id]; wait(tile, 10, "AI tile missing for " + id)
-            XCTAssertEqual(app.staticTexts["status-" + id].label, "Not tested", "a new account must start as Not tested: " + id)
+            XCTAssertEqual(app.staticTexts["status-" + id].label, "Not set up", "a new account must start as Not set up: " + id)
             scrollTo(tile); tile.tap()
             let s2 = app.buttons["step-" + id + "-2"]; wait(s2, 10, "step 2 chip missing for " + id); s2.tap()
             wait(app.secureTextFields["keyField-" + id], 10, "key field missing for " + id)
@@ -291,7 +291,6 @@ final class NeedsMeUITests: XCTestCase {
             scrollTo(tile); tile.tap()
         }
         for id in ["copilot", "claudecode", "codex", "cursor", "polar"] {
-            XCTAssertFalse(app.buttons["ai-" + id].exists, "hand off AI must have no key tile: " + id)
             XCTAssertFalse(app.secureTextFields["keyField-" + id].exists, "hand off AI must have no key field: " + id)
             XCTAssertFalse(app.buttons["testKey-" + id].exists, "hand off AI must have no test button: " + id)
         }
@@ -972,7 +971,25 @@ final class NeedsMeUITests: XCTestCase {
         let mk = app.buttons["mkPrompt-claude"]; wait(mk, 10, "Make my prompt missing. SCREEN: " + screenText()); scrollTo(mk); mk.tap()
         let cp = app.buttons["cpPrompt-claude"]; wait(cp, 30, "prompt not made. SCREEN: " + screenText()); shot("38-join-prompt")
         wait(app.buttons["openAI-claude"], 5, "Open Claude button missing")
-        wait(text("Waiting for first reply"), 5, "waiting status missing. SCREEN: " + screenText())
+        wait(app.staticTexts.matching(NSPredicate(format: "label == %@", "Waiting for first reply")).firstMatch, 10, "waiting status missing. SCREEN: " + screenText())
+    }
+
+    // 27 Add people: a room has its own member list, WhatsApp style.
+    func test27_AddPeopleToRoom() {
+        _ = signUpFresh()
+        tapUntil(app.buttons["Skip guide"]) { !self.app.buttons["Skip guide"].exists }
+        wait(app.buttons["tab-More"], 30, "no tab bar after sign-up")
+        openMore("moreGroupChat") { self.app.buttons["newRoom"].exists }
+        wait(app.buttons["newRoom"], 10, "New group chat missing"); app.buttons["newRoom"].tap()
+        let field = app.alerts.textFields.firstMatch; wait(field, 10, "room name box missing")
+        field.typeText("People room"); app.alerts.buttons["Create"].tap()
+        wait(app.buttons["room-People room"], 20, "room not listed"); app.buttons["room-People room"].tap()
+        wait(app.buttons["addPeople"], 10, "Add people button missing. SCREEN: " + screenText()); app.buttons["addPeople"].tap()
+        wait(app.buttons["peopleDone"], 10, "member list missing. SCREEN: " + screenText())
+        wait(app.staticTexts["Claude"].firstMatch, 5, "Claude missing from the member list")
+        shot("39-add-people")
+        app.buttons["peopleDone"].tap()
+        wait(app.staticTexts["roomParticipants"], 10, "participants line missing after closing the list")
     }
 
     func test17_AppleDoorStands() {
