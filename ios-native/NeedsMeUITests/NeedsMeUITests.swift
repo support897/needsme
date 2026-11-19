@@ -971,7 +971,7 @@ final class NeedsMeUITests: XCTestCase {
         let mk = app.buttons["mkPrompt-claude"]; wait(mk, 10, "Make my prompt missing. SCREEN: " + screenText()); scrollTo(mk); mk.tap()
         let cp = app.buttons["cpPrompt-claude"]; wait(cp, 30, "prompt not made. SCREEN: " + screenText()); shot("38-join-prompt")
         wait(app.buttons["openAI-claude"], 5, "Open Claude button missing")
-        wait(app.staticTexts.matching(NSPredicate(format: "label == %@", "Waiting for first reply")).firstMatch, 10, "waiting status missing. SCREEN: " + screenText())
+        wait(app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "linkStatus-")).firstMatch, 10, "link status missing. SCREEN: " + screenText())
     }
 
     // 27 Add people: a room has its own member list, WhatsApp style.
