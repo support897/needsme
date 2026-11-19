@@ -935,6 +935,28 @@ final class NeedsMeUITests: XCTestCase {
         wait(app.buttons["tab-More"], 20, "skip did not close the setup walk")
     }
 
+    // 25 An AI report files itself: project, to-dos, percent done, and a Needs You card with a button to its chat.
+    func test25_AIUpdateFilesItself() {
+        app.terminate(); app.launchArguments = ["-uitest-reset", "-uitest-noask", "-uitest-updatesample"]; app.launch()
+        _ = signUpFresh()
+        wait(app.buttons["tab-Projects"], 30)
+        tapUntil(app.buttons["Skip guide"]) { !self.app.buttons["Skip guide"].exists }
+        openMore("moreConnections") { self.app.buttons["fold-updates"].exists }
+        let f = app.buttons["fold-updates"]; scrollTo(f); f.tap()
+        let b = app.buttons["applySample"]; wait(b, 10, "sample button missing"); scrollTo(b); b.tap()
+        let r = app.staticTexts["updateResult"]; wait(r, 10, "no result line. SCREEN: " + screenText())
+        XCTAssertTrue(r.label.contains("2 to-dos added"), "wrong result: " + r.label)
+        XCTAssertTrue(r.label.contains("1 crossed off"), "wrong result: " + r.label)
+        backToMoreRoot()
+        app.buttons["tab-Needs Me"].tap()
+        wait(text("Logo A or B?"), 20, "need not shown. SCREEN: " + screenText()); shot("36-ai-need")
+        let chat = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'needChat-'")).firstMatch
+        wait(chat, 10, "Open the chat button missing")
+        app.buttons["tab-Projects"].tap()
+        hittable(app.buttons.matching(identifier: "project-Sample launch")).tap()
+        wait(text("1 of 3 tasks done"), 15, "percent not counted from the report. SCREEN: " + screenText()); shot("36-ai-project")
+    }
+
     func test17_AppleDoorStands() {
         wait(app.buttons["appleButton"])
         app.buttons["appleButton"].tap()
