@@ -41,6 +41,10 @@ struct NeedsMeView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 24))
                         .accessibilityElement(children: .contain).accessibilityIdentifier("needsAllClear")
                     }
+                    NavigationLink { UpdatesFeedView() } label: {
+                        HStack(spacing: 10) { Image(systemName: "tray.full.fill").foregroundColor(.sprout); Text("All updates").font(.headline).foregroundColor(.loam); Spacer(); Image(systemName: "chevron.right").foregroundColor(.gray) }
+                            .padding(14).background(Color.white.opacity(0.7)).clipShape(RoundedRectangle(cornerRadius: 16))
+                    }.accessibilityIdentifier("updatesFeedLink")
                     ForEach(groups, id: \.project) { g in
                         VStack(alignment: .leading, spacing: 10) {
                             HStack(spacing: 8) {
