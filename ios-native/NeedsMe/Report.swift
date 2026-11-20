@@ -16,6 +16,7 @@ enum ReportKind {
 /// sender a "we got it" email. Connected to the account and its email, or anonymous for feedback.
 struct ReportView: View {
     let kind: ReportKind
+    var prefill: String = ""
     @EnvironmentObject var store: Store
     @Environment(\.palette) var p
     @State private var text = ""
@@ -43,7 +44,7 @@ struct ReportView: View {
             if sent { thanks } else { form }
         }
         .hidesTabBar().lookBg().navigationTitle(kind.title).navigationBarTitleDisplayMode(.inline)
-        .onAppear { if !sent { DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { focus = true } } }
+        .onAppear { if text.isEmpty { text = prefill }; if !sent { DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { focus = true } } }
     }
 
     var form: some View {

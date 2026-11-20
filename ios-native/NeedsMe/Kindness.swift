@@ -110,6 +110,7 @@ struct Twinkles: View {
 }
 
 struct KindnessView: View {
+    @State private var reporting: KindnessStore.Person?
     @Environment(\.palette) var p
     @Environment(\.openURL) var openURL
     @Environment(\.scenePhase) var scene
@@ -240,9 +241,10 @@ struct KindnessView: View {
                         Text(x.name).font(.caption.bold()).foregroundColor(p.soft)
                     }
                 }
-                .contextMenu { Link("Report this message", destination: URL(string: "mailto:needsmeai@proton.me?subject=Report%20kindness%20message%20" + x.id)!) }
+                .contextMenu { Button { reporting = x } label: { Label("Report this entry", systemImage: "flag") } }
             }
         }
+        .sheet(item: $reporting) { x in NavigationStack { ReportView(kind: .feedback, prefill: "Report kindness entry " + x.id + " (name: " + x.name + "). Why: ") } }
     }
 
     var body: some View {
@@ -355,6 +357,7 @@ struct RainbowBurst: View {
 
 /// Everyone in the rainbow. Names stay here.
 struct RainbowPeopleSheet: View {
+    @State private var reporting: KindnessStore.Person?
     let people: [KindnessStore.Person]
     let count: Int
     @Environment(\.dismiss) var dismiss
@@ -375,10 +378,12 @@ struct RainbowPeopleSheet: View {
                                 if !x.msg.isEmpty { Text(x.msg).font(.subheadline).foregroundColor(.secondary) }
                             }
                         }
+                        .contextMenu { Button { reporting = x } label: { Label("Report this entry", systemImage: "flag") } }
                     }
                 }
             }
             .accessibilityIdentifier("peopleList")
+            .sheet(item: $reporting) { x in NavigationStack { ReportView(kind: .feedback, prefill: "Report kindness entry " + x.id + " (name: " + x.name + "). Why: ") } }
             .navigationTitle("The rainbow").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         }
