@@ -56,16 +56,48 @@ struct LinkAI: Codable, Identifiable {
 }
 
 enum LinkPrompt {
+    /// Steps for adding the connector, per AI. Honest about plans.
+    static func guide(_ key: String, _ name: String) -> (page: String, steps: [String], plan: String) {
+        switch key {
+        case "claude": return ("https://claude.ai/customize/connectors", [
+            "Open Claude on the web (claude.ai) and sign in.",
+            "Go to Settings, then Connectors (or Plugins). Tap Add custom connector.",
+            "Name it the same as here. Paste the link you copied. Leave the sign-in boxes empty. Tap Add.",
+            "Start a new chat. When Claude asks to use a NeedsMe tool, tap Always allow.",
+            "Paste the prompt in that chat. A green tick shows here."], "Works on the free plan (one custom connector). Paid plans can add more.")
+        case "chatgpt": return ("https://chatgpt.com/plugins", [
+            "Open ChatGPT on the web (chatgpt.com), not the phone app.",
+            "Open Plugins, tap Add, then Add custom MCP server.",
+            "Name it the same as here. Paste the link. Set sign-in to No authentication. Tick the risk box and create it.",
+            "Open a new chat, type @ and pick it. Tap Allow when asked.",
+            "Paste the prompt. A green tick shows here."], "Needs a paid plan. Plus and Pro can read but may not post replies, so for a full chat use your API key instead. Business and Enterprise work fully.")
+        case "perplexity": return ("https://www.perplexity.ai/", [
+            "Open Perplexity on the web and sign in.",
+            "Open Plugins (or Settings, Connectors). Tap Add custom, then Add MCP connector, then Remote.",
+            "Name it the same as here. Paste the link. Under Advanced set sign-in to None and transport to Streamable HTTP. Tick the box, tap Add.",
+            "Tap the new connector card to turn it on. Switch it on under Sources in a chat.",
+            "Paste the prompt. A green tick shows here."], "Needs Pro or higher.")
+        case "grok": return ("https://grok.com/connectors", [
+            "Open grok.com/connectors and sign in.",
+            "Tap New Connector, then Custom.",
+            "Name it the same as here. Paste the link. Leave sign-in empty. Save.",
+            "Start a new chat. Grok uses the connector when your question fits.",
+            "Paste the prompt. A green tick shows here."], "Needs a paid Grok plan.")
+        default: return (key == "polar" ? "https://polarbrowser.com" : "https://www.google.com/search?q=" + name.replacingOccurrences(of: " ", with: "+") + "+add+custom+MCP+connector", [
+            "Open \(name) and find its connectors or MCP settings.",
+            "Add a custom or remote MCP server. Name it the same as here. Paste the link. No sign-in.",
+            "Start a new chat and allow the NeedsMe tools.",
+            "Paste the prompt. A green tick shows here."], "If \(name) cannot add a connector, it cannot join by link. Use an API key instead if it has one.")
+        }
+    }
+    /// The chat prompt. It holds no token. The token lives only in the connector link.
     static func text(name: String, token: String) -> String {
         """
-        Join my NeedsMe as "\(name)". It is my own private link. Add it as an MCP server (custom connector) with:
-        Link: \(BridgeCard.base)/mcp/\(token)
-        (The token is inside the link, so no sign-in and no header are needed. If you have a headers box, you may instead use URL \(BridgeCard.base)/mcp with the header Authorization: Bearer \(token).)
-        Then:
+        You are "\(name)" in my NeedsMe, through the NeedsMe connector I just added. Use its tools:
         1. Call get_my_projects and use my exact project names.
         2. After every reply where something changed, call report_update (project, summary, todos_new, todos_done, needs_you, finished, chat_url = the web link to this chat). Use needs_you only when you cannot go on without my answer.
-        3. At the start of every reply call check_inbox. If something is addressed to you, answer it with post_message (use the room named in the message) and write @name to bring in another AI. If you can keep running, call wait_for_message again and again so you answer the moment someone @mentions you.
-        4. Never share this token. If you cannot add MCP servers, say so, and I will send you the paste-block rule instead.
+        3. At the start of every reply call check_inbox. If something is addressed to you, answer it with post_message (use the room named in the message, author "\(name)") and write @name to bring in another AI. If you can keep running, call wait_for_message again and again so you answer the moment someone @mentions you.
+        4. If you cannot see the NeedsMe tools, tell me. Do not ask me for a token.
         """
     }
 }
@@ -82,6 +114,8 @@ struct PromptConnect: View {
     @State var busy = false
     @State var note = ""
     @State var copiedId = ""
+    @State var newName = ""
+    @State var showSteps = true
     var mine: [LinkAI] { store.links.filter { $0.key == key } }
 
     func step(_ n: String, _ t: String) -> some View {
@@ -91,10 +125,17 @@ struct PromptConnect: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            PipSays(text: "No key needed. About 1 minute. Make a link, add it to \(name) as a connector, then paste the prompt.")
-            step("1.circle.fill", "Tap Make my prompt.")
-            step("2.circle.fill", "Tap Copy link. In \(name) open Settings, Connectors, Add custom connector. Paste the link.")
-            step("3.circle.fill", "Then tap Copy prompt and paste it in a new chat. When \(name) answers, a green tick shows here.")
+            PipSays(text: "No key needed. Make a link, add it to \(name) as a connector, then paste the prompt. Each link gets its own name, so you can add the same AI many times.")
+            let g = LinkPrompt.guide(key, name)
+            DisclosureGroup("How to connect \(name)", isExpanded: $showSteps) {
+                VStack(alignment: .leading, spacing: 8) {
+                    step("1.circle.fill", "Name it below and tap Make my link.")
+                    ForEach(Array(g.steps.enumerated()), id: \.offset) { i, t in step("\(i + 2).circle.fill", t) }
+                    Text(g.plan).font(.footnote.bold()).foregroundColor(p.soft)
+                    Button { if let u = URL(string: g.page) { openURL(u) } } label: { Label("Open \(name) connector page", systemImage: "arrow.up.right.square.fill") }
+                        .buttonStyle(SoftButton()).accessibilityIdentifier("openAI-" + key)
+                }.padding(.top, 6)
+            }.accessibilityIdentifier("howto-" + key).tint(tint)
             ForEach(mine) { l in
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
@@ -111,14 +152,19 @@ struct PromptConnect: View {
                         Button { if let t = store.token(l) { UIPasteboard.general.string = LinkPrompt.text(name: l.label, token: t); copiedId = l.id } } label: {
                             Label(copiedId == l.id ? "Copied" : "Copy prompt", systemImage: "doc.on.doc.fill")
                         }.buttonStyle(PrimaryButton()).accessibilityIdentifier("cpPrompt-" + key)
-                        Button { if let u = URL(string: site) { openURL(u) } } label: { Label("Open \(name)", systemImage: "arrow.up.right.square.fill") }
-                            .buttonStyle(SoftButton()).accessibilityIdentifier("openAI-" + key)
                     }
                     Button("Remove this one") { Task { await store.remove(l) } }.font(.footnote).foregroundColor(p.soft)
                 }.padding(12).background(Color.white.opacity(0.6)).clipShape(RoundedRectangle(cornerRadius: 16))
             }
-            Button { Task { busy = true; note = await store.make(key: key, label: nextLabel()) ?? ""; busy = false } } label: {
-                Label(busy ? "Making..." : (mine.isEmpty ? "Make my prompt" : "Add another \(name)"), systemImage: "wand.and.stars")
+            TextField(nextLabel(), text: $newName).textFieldStyle(.roundedBorder).accessibilityIdentifier("linkName-" + key)
+                .textInputAutocapitalization(.words).autocorrectionDisabled()
+            Text("Use this exact name in \(name) too. To add another \(name), give it a new name, like \"\(name) Work\".").font(.caption).foregroundColor(p.soft)
+            Button { Task {
+                let want = newName.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "@", with: "")
+                let label = want.isEmpty ? nextLabel() : String(want.prefix(30))
+                if store.links.contains(where: { $0.label.lowercased() == label.lowercased() }) { note = "That name is taken. Pick another."; return }
+                busy = true; note = await store.make(key: key, label: label) ?? ""; busy = false; if note.isEmpty { newName = "" } } } label: {
+                Label(busy ? "Making..." : (mine.isEmpty ? "Make my link" : "Add another \(name)"), systemImage: "wand.and.stars")
             }.buttonStyle(mine.isEmpty ? AnyButtonStyle(PrimaryButton()) : AnyButtonStyle(SoftButton())).disabled(busy).accessibilityIdentifier("mkPrompt-" + key)
             if !note.isEmpty { Text(note).font(.footnote).foregroundColor(p.soft) }
             Text("Your token stays on this phone and in your private link. Never post it in a public place.").font(.caption).foregroundColor(p.soft)
