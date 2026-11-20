@@ -242,6 +242,21 @@ final class AIConnections: ObservableObject {
         return acc
     }
 
+    /// Adds a custom model account (any OpenAI-style API). The address and model live in CustomAIStore. The key goes to the Keychain.
+    @discardableResult
+    func addCustom(label: String, base: String, model: String, key: String) -> AIAccount? {
+        let clean = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty, let b = CustomAIStore.cleanBase(base), !model.trimmingCharacters(in: .whitespaces).isEmpty else { return nil }
+        let slug = String(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(6)).lowercased()
+        let want = label.trimmingCharacters(in: .whitespacesAndNewlines)
+        let acc = AIAccount(id: "custom-" + slug, provider: "custom", label: uniqueLabel(want.isEmpty ? "My model" : want, provider: .chatgpt, except: nil))
+        guard AIKeys.save(clean, account: acc.id) else { return nil }
+        CustomAIStore.put(CustomAI(id: acc.id, base: b, model: model.trimmingCharacters(in: .whitespaces)))
+        accounts.append(acc)
+        persist(); keyTick += 1
+        return acc
+    }
+
     /// The first account of a provider only loses its key. Any other account is removed whole.
     func remove(_ a: AIAccount) {
         AIKeys.remove(a.id)

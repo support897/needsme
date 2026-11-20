@@ -40,11 +40,15 @@ enum AIClient {
 
     /// Calls take the account: its provider, its key and its label.
     static func test(_ a: AIAccount, key: String) async -> Result<Void, AIError> {
-        await test(a.kind, key: key)
+        if a.provider == "custom" {
+            return (await customChat(a, key: key, system: "", messages: [ChatMsg(role: "user", text: "Hi")], maxTokens: 1)).map { _ in Void() }
+        }
+        return await test(a.kind, key: key)
     }
 
     static func chat(_ a: AIAccount, key: String, system: String, messages: [ChatMsg], maxTokens: Int = 400) async -> Result<String, AIError> {
-        await chat(a.kind, key: key, system: system, messages: messages, maxTokens: maxTokens)
+        if a.provider == "custom" { return await customChat(a, key: key, system: system, messages: messages, maxTokens: maxTokens) }
+        return await chat(a.kind, key: key, system: system, messages: messages, maxTokens: maxTokens)
     }
 
     static func test(_ p: AIProvider, key: String) async -> Result<Void, AIError> {
@@ -195,6 +199,31 @@ enum AIClient {
             let c = (j["candidates"] as? [[String: Any]])?.first
             let parts = ((c?["content"] as? [String: Any])?["parts"] as? [[String: Any]]) ?? []
             return parts.compactMap { $0["text"] as? String }.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+    }
+
+    // MARK: custom model (any OpenAI-style API)
+
+    /// One chat call to the user's own address. Same shape as OpenAI: POST base/chat/completions, Bearer key.
+    static func customChat(_ a: AIAccount, key: String, system: String, messages: [ChatMsg], maxTokens: Int) async -> Result<String, AIError> {
+        guard let c = CustomAIStore.get(a.id), let url = URL(string: c.base + "/chat/completions") else {
+            return .failure(AIError(reason: "address is not valid"))
+        }
+        var list: [[String: String]] = []
+        if !system.isEmpty { list.append(["role": "system", "content": system]) }
+        for m in normalise(messages) { list.append(["role": m.role, "content": m.text]) }
+        guard let data = try? JSONSerialization.data(withJSONObject: ["model": c.model, "messages": list, "max_tokens": maxTokens] as [String: Any]) else {
+            return .failure(AIError(reason: "could not start"))
+        }
+        var r = URLRequest(url: url)
+        r.httpMethod = "POST"; r.httpBody = data; r.timeoutInterval = timeout
+        r.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        r.setValue("Bearer " + key, forHTTPHeaderField: "Authorization")
+        switch await run(r) {
+        case .failure(let e): return .failure(e)
+        case .success(let d):
+            if let t = extractText(.chatgpt, d), !t.isEmpty { return .success(t) }
+            return .failure(AIError(reason: "empty answer"))
         }
     }
 

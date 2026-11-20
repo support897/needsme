@@ -261,6 +261,7 @@ struct UpdatesCard: View {
                 }.buttonStyle(SoftButton()).accessibilityIdentifier("applySample")
             }
             if !line.isEmpty { Text(line).font(.subheadline.weight(.semibold)).foregroundColor(p.ink).accessibilityIdentifier("updateResult") }
+            SharedStatusCard()
             if !sync.lastLine.isEmpty { Text("Live: " + sync.lastLine).font(.footnote).foregroundColor(p.soft) }
         }
     }

@@ -38,8 +38,11 @@ struct ConnectView: View {
                 Text("No key? Join by prompt").font(.system(.headline, design: .rounded)).foregroundColor(p.ink).padding(.top, 8)
                 LinkOnlyTile(key: "polar", name: "Polar", blurb: "Browser agent. Prompt only", icon: "sparkles", tint: Color(hex: 0x3B82F6), site: "https://polarbrowser.com", openId: $openId)
                 LinkOnlyTile(key: "copilot", name: "Copilot", blurb: "Microsoft. Prompt only", icon: "paperplane.fill", tint: Color(hex: 0x0EA5E9), site: "https://copilot.microsoft.com", openId: $openId)
+                LinkOnlyTile(key: "opencode", name: "OpenCode", blurb: "Coding tool. Link, no key", icon: "chevron.left.forwardslash.chevron.right", tint: Color(hex: 0x14B8A6), site: "https://opencode.ai", openId: $openId)
+                LinkOnlyTile(key: "codex", name: "Codex", blurb: "OpenAI coding tool. Link, no key", icon: "terminal.fill", tint: Color(hex: 0x10A37F), site: "https://developers.openai.com/codex", openId: $openId)
                 LinkOnlyTile(key: "other", name: "Any other AI", blurb: "Anything that can add a link", icon: "plus.circle.fill", tint: Color(hex: 0x8B5CF6), site: "https://www.google.com/search?q=add+MCP+server", openId: $openId)
                 Text("More ways in").font(.system(.headline, design: .rounded)).foregroundColor(p.ink).padding(.top, 8)
+                FoldSection(id: "custom", icon: "slider.horizontal.3", color: Color(hex: 0x6366F1), title: "Any other model", sub: "Together, Fireworks, Ollama and more") { CustomModelCard() }
                 FoldSection(id: "signin", icon: "person.crop.circle.badge.checkmark", color: Color(hex: 0x4285F4), title: "Sign in with your AI account", sub: "Bring your chats in") { SignInDoorCard() }
                 FoldSection(id: "import", icon: "square.and.arrow.down.fill", color: Color(hex: 0x10A37F), title: "Take your projects out of an AI", sub: "Import from an export file") { ProjectImportCard() }
                 FoldSection(id: "bring", icon: "key.horizontal.fill", color: Color(hex: 0xD97757), title: "Bring my keys in", sub: "Already saved keys on another phone") { BringKeysCard() }

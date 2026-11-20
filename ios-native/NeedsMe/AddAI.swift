@@ -83,6 +83,17 @@ enum LinkPrompt {
             "Name it the same as here. Paste the link. Leave sign-in empty. Save.",
             "Start a new chat. Grok uses the connector when your question fits.",
             "Paste the prompt. A green tick shows here."], "Needs a paid Grok plan.")
+        case "opencode": return ("https://opencode.ai/docs/mcp-servers/", [
+            "Open a terminal on your computer. OpenCode must be installed.",
+            "Tap Copy terminal command below. Paste it in the terminal and press Enter.",
+            "Start OpenCode. Ask: \"Call get_my_projects from NeedsMe.\"",
+            "Paste the prompt in the chat. A green tick shows here.",
+            "If it asks you to sign in, add \"oauth\": false to the NeedsMe entry in opencode.json."], "Free. Works with any model OpenCode uses. Not yet tested with a real OpenCode by us.")
+        case "codex": return ("https://developers.openai.com/codex/mcp", [
+            "Open a terminal on your computer. Codex must be installed.",
+            "Tap Copy terminal command below. Paste it in the terminal and press Enter.",
+            "Run codex mcp list. You should see your name there.",
+            "Start Codex and paste the prompt. A green tick shows here."], "Works with Codex CLI, and the Codex app shares the same setting. Not yet tested with a real Codex by us.")
         default: return (key == "polar" ? "https://polarbrowser.com" : "https://www.google.com/search?q=" + name.replacingOccurrences(of: " ", with: "+") + "+add+custom+MCP+connector", [
             "Open \(name) and find its connectors or MCP settings.",
             "Add a custom or remote MCP server. Name it the same as here. Paste the link. No sign-in.",
@@ -90,11 +101,16 @@ enum LinkPrompt {
             "Paste the prompt. A green tick shows here."], "If \(name) cannot add a connector, it cannot join by link. Use an API key instead if it has one.")
         }
     }
+    /// One line for the terminal. The link holds the token, so keep it private.
+    static func command(_ key: String, label: String, link: String) -> String {
+        let slug = label.lowercased().map { $0.isLetter || $0.isNumber ? String($0) : "-" }.joined()
+        return key == "opencode" ? "opencode mcp add \(slug) --url \(link)" : "codex mcp add \(slug) --url \(link)"
+    }
     /// The chat prompt. It holds no token. The token lives only in the connector link.
     static func text(name: String, token: String) -> String {
         """
         You are "\(name)" in my NeedsMe, through the NeedsMe connector I just added. Use its tools:
-        1. Call get_my_projects and use my exact project names.
+        1. Call get_my_projects and use my exact project names. In your first reply say exactly: Connected: I can see N projects (N = how many projects get_my_projects returned).
         2. After every reply where something changed, call report_update (project, summary, todos_new, todos_done, needs_you, finished, chat_url = the web link to this chat). Use needs_you only when you cannot go on without my answer.
         3. At the start of every reply call check_inbox. If something is addressed to you, answer it with post_message (use the room named in the message, author "\(name)") and write @name to bring in another AI. If you can keep running, call wait_for_message again and again so you answer the moment someone @mentions you.
         4. If you cannot see the NeedsMe tools, tell me. Do not ask me for a token.
@@ -148,6 +164,11 @@ struct PromptConnect: View {
                     Button { if let t = store.token(l) { UIPasteboard.general.string = BridgeCard.base + "/mcp/" + t; copiedId = "L" + l.id } } label: {
                         Label(copiedId == "L" + l.id ? "Link copied" : "Copy link for connector", systemImage: "link")
                     }.buttonStyle(SoftButton()).accessibilityIdentifier("cpLink-" + key)
+                    if key == "opencode" || key == "codex" {
+                        Button { if let t = store.token(l) { UIPasteboard.general.string = LinkPrompt.command(key, label: l.label, link: BridgeCard.base + "/mcp/" + t); copiedId = "C" + l.id } } label: {
+                            Label(copiedId == "C" + l.id ? "Command copied" : "Copy terminal command", systemImage: "terminal.fill")
+                        }.buttonStyle(SoftButton()).accessibilityIdentifier("cpCmd-" + key)
+                    }
                     HStack(spacing: 8) {
                         Button { if let t = store.token(l) { UIPasteboard.general.string = LinkPrompt.text(name: l.label, token: t); copiedId = l.id } } label: {
                             Label(copiedId == l.id ? "Copied" : "Copy prompt", systemImage: "doc.on.doc.fill")
