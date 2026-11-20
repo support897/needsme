@@ -20,6 +20,8 @@ struct MoreView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     row("Join the AI kindness revolution", "heart.fill", "kindnessItem") { KindnessView() }
+                    row("Report a bug", "ladybug.fill", "moreBug") { ReportView(kind: .bug) }
+                    row("Send feedback", "text.bubble.fill", "moreFeedback") { ReportView(kind: .feedback) }
                     NavigationLink { MeView() } label: {
                         Card {
                             HStack(spacing: 12) {
@@ -316,90 +318,6 @@ struct SettingsView: View {
             Button("Delete everything", role: .destructive) { Task { await store.deleteAccount() } }
             Button("Cancel", role: .cancel) {}
         } message: { Text("This removes your tasks, notes and sign-in. It cannot be undone.") }
-    }
-}
-
-/// Join the AI kindness revolution (build 341, item 8), in NeedsMe's own skin: Pip, Sprout
-/// colours, the rainbow filling with people, message clouds, and the warm line. Giving itself
-/// happens on the Safari giving page, never in the app: the app takes no card details and
-/// shows no payment form, and nothing unlocks for giving.
-struct KindnessView: View {
-    @Environment(\.palette) var p
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                VStack(spacing: 8) {
-                    PipImage(size: 72)
-                    Text("Join the AI kindness revolution").font(.title2.bold()).foregroundColor(p.ink)
-                        .multilineTextAlignment(.center)
-                    Text("NeedsMe Ai is free to use. Kind people help keep it that way, so the next person who needs a hand can have one too.")
-                        .font(.subheadline).foregroundColor(p.soft).multilineTextAlignment(.center)
-                }.frame(maxWidth: .infinity)
-                RainbowView()
-                Text("Be one of the first kind humans")
-                    .font(.headline).foregroundColor(p.ink)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .accessibilityIdentifier("kindHumans")
-                Text("Your gift keeps the AI help free for the next person who needs a hand.")
-                    .font(.subheadline).foregroundColor(p.ink).multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-                Card {
-                    Text("The kindness wall").font(.headline).foregroundColor(p.ink)
-                    Text("Names and kind words from people who gave stand here, and stay here.")
-                        .font(.subheadline).foregroundColor(p.soft)
-                    Text("No messages yet. Yours could be the first.")
-                        .font(.subheadline).foregroundColor(p.ink)
-                        .accessibilityIdentifier("kindnessWall")
-                }
-                Card {
-                    Text("Your gifts").font(.headline).foregroundColor(p.ink)
-                    Text("What you give is private to you. NeedsMe never shows your own total to anyone else.")
-                        .font(.subheadline).foregroundColor(p.soft)
-                }
-                Button("Give to keep it free") {}
-                    .buttonStyle(PrimaryButton()).disabled(true)
-                    .accessibilityIdentifier("giveButton")
-                Text("Giving opens in Safari, on the kindness giving page. The page is being finished, and this button opens it the moment it is live. NeedsMe never takes card details in the app.")
-                    .font(.caption).foregroundColor(p.soft)
-                    .accessibilityIdentifier("giveNote")
-            }.padding()
-        }
-        .hidesTabBar().lookBg().navigationTitle("AI Kindness").navigationBarTitleDisplayMode(.inline)
-    }
-}
-
-/// The rainbow of record: seven bands in the kindness colours, filling with people
-/// (people, never money), and plain clouds over the top. Still by design, so reduced
-/// motion changes nothing.
-struct RainbowView: View {
-    @Environment(\.palette) var p
-    static let bands: [UInt32] = [0xFF6B6B, 0xFF9F43, 0xFFD93D, 0x6BCB77, 0x4D96FF, 0x9B5DE5, 0xFF6BAE]
-    var body: some View {
-        ZStack {
-            ForEach(0..<7, id: \.self) { i in
-                Circle().trim(from: 0.5, to: 1.0)
-                    .stroke(Color(hex: RainbowView.bands[i]), lineWidth: 12)
-                    .frame(width: 252 - CGFloat(i) * 26, height: 252 - CGFloat(i) * 26)
-                    .offset(y: 62)
-            }
-            ForEach(0..<7, id: \.self) { i in
-                let a = Double(i) / 6.0 * Double.pi
-                ZStack {
-                    Circle().fill(Color(hex: RainbowView.bands[i])).frame(width: 15, height: 15)
-                    Circle().fill(Color(hex: RainbowView.bands[i])).frame(width: 7, height: 7).offset(y: -11)
-                }
-                .offset(x: -cos(a) * 104, y: 62 - sin(a) * 104)
-            }
-            Capsule().fill(p.card).overlay(Capsule().stroke(p.line, lineWidth: 1))
-                .frame(width: 74, height: 26).offset(x: -86, y: -18)
-            Capsule().fill(p.card).overlay(Capsule().stroke(p.line, lineWidth: 1))
-                .frame(width: 62, height: 22).offset(x: 88, y: -34)
-            Capsule().fill(p.card).overlay(Capsule().stroke(p.line, lineWidth: 1))
-                .frame(width: 54, height: 20).offset(x: 10, y: -52)
-        }
-        .frame(maxWidth: .infinity).frame(height: 150)
-        .accessibilityHidden(true)
     }
 }
 

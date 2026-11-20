@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import PencilKit
 
 let aiNames = ["Claude", "ChatGPT", "Gemini", "Grok", "Perplexity", "Copilot"]
 
@@ -70,14 +71,14 @@ struct NotesView: View {
             .searchable(text: $query)
             .lookBg().navigationTitle(place == .notes ? "Notes" : place.rawValue)
             .onChange(of: router.noteTick) { _ in if place == .notes { newNote = true } else { newPrompt = true } }
-            .sheet(isPresented: $newNote) { NoteSheet(note: nil) }
-            .sheet(item: $openNote) { n in NoteSheet(note: n) }
-            .sheet(isPresented: $newPrompt) { PromptSheet(prompt: nil) { flash($0) } }
+            .fullScreenCover(isPresented: $newNote) { NoteSheet(note: nil) }
+            .fullScreenCover(item: $openNote) { n in NoteSheet(note: n) }
+            .fullScreenCover(isPresented: $newPrompt) { PromptSheet(prompt: nil) { flash($0) } }
             .alert("Delete this note?", isPresented: Binding(get: { toDelete != nil }, set: { if !$0 { toDelete = nil } })) {
                 Button("Delete", role: .destructive) { if let n = toDelete { store.deleteNote(n); flash("Deleted.") }; toDelete = nil }
                 Button("Cancel", role: .cancel) { toDelete = nil }
             } message: { Text("This cannot be undone.") }
-            .sheet(item: $openPrompt) { n in PromptSheet(prompt: n) { flash($0) } }
+            .fullScreenCover(item: $openPrompt) { n in PromptSheet(prompt: n) { flash($0) } }
             .overlay(alignment: .bottom) {
                 if !toast.isEmpty { Text(toast).padding(12).background(Color.loam).foregroundColor(Color.bone).clipShape(Capsule()).padding(.bottom, 96).transition(.opacity) }
             }
@@ -130,44 +131,51 @@ struct NotesView: View {
             Button("Archived (\(archivedCount))") { showArchived = true }.buttonStyle(SoftButton()).accessibilityIdentifier("showArchived")
         }
         if noteList.isEmpty { Text(showArchived ? "Nothing archived." : "No notes yet. Tap + to start one.").foregroundColor(p.soft) }
-        HStack(alignment: .top, spacing: 12) {
-            VStack(spacing: 12) { ForEach(Array(noteList.enumerated()).filter { $0.offset % 2 == 0 }, id: \.element.id) { _, n in noteCard(n) } }
-            VStack(spacing: 12) { ForEach(Array(noteList.enumerated()).filter { $0.offset % 2 == 1 }, id: \.element.id) { _, n in noteCard(n) } }
-                .padding(.top, noteList.count > 1 ? 26 : 0)
+        LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+            ForEach(noteList) { n in noteCard(n) }
         }
     }
 
-    /// A note as a soft card. Tinted Sprout when one of your AIs wrote it.
+    static func niceDate(_ d: Date?) -> String {
+        guard let d else { return "" }
+        let f = DateFormatter()
+        if Calendar.current.isDateInToday(d) { f.timeStyle = .short; f.dateStyle = .none }
+        else { f.dateStyle = .short; f.timeStyle = .none }
+        return f.string(from: d)
+    }
+
+    /// A note as a small square, like the Apple Notes gallery: bold title, a few lines, the date.
     func noteCard(_ n: NoteItem) -> some View {
         let fromAI = !n.ai.isEmpty
-        return VStack(alignment: .leading, spacing: 8) {
-            Button { openNote = n } label: {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text((n.projects.first ?? "Note").uppercased()).font(.system(size: 11, weight: .heavy)).tracking(0.9).foregroundColor(.sproutDeep)
-                    Text(n.title).font(.system(size: 15.5, weight: .bold)).foregroundColor(.loam).multilineTextAlignment(.leading)
-                    if !n.body.isEmpty { Text(NoteText.preview(n.body)).font(.system(size: 12.5)).foregroundColor(Color(hex: 0x4A4235)).lineLimit(4).multilineTextAlignment(.leading) }
-                }.frame(maxWidth: .infinity, alignment: .leading)
-            }.buttonStyle(.plain)
-            HStack {
-                if fromAI { AIFace(label: n.ai, size: 26) }
-                Spacer()
-                projectRow(n)
-            }
-            if showArchived {
-                Button("Restore") { store.setArchived(n, false); flash("Restored.") }.buttonStyle(PrimaryButton()).accessibilityIdentifier("restore-" + n.id)
-            } else {
-                HStack(spacing: 16) {
-                    Button("Archive") { store.setArchived(n, true); flash("Archived.") }.font(.system(size: 12, weight: .semibold)).foregroundColor(.muted).accessibilityIdentifier("archive-" + n.id)
-                    Button("Delete") { toDelete = n }.font(.system(size: 12, weight: .semibold)).foregroundColor(.red).accessibilityIdentifier("delete-" + n.id)
+        let lines = NoteText.preview(n.body).components(separatedBy: "\n").dropFirst().joined(separator: " ")
+        return Button { openNote = n } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(n.title).font(.system(size: 15, weight: .bold)).foregroundColor(p.ink).lineLimit(2).multilineTextAlignment(.leading)
+                Text(lines).font(.system(size: 12.5)).foregroundColor(p.soft).lineLimit(4).multilineTextAlignment(.leading)
+                Spacer(minLength: 0)
+                HStack(spacing: 6) {
+                    Text(NotesView.niceDate(n.updatedAt ?? n.createdAt)).font(.system(size: 11)).foregroundColor(p.soft)
+                    Spacer()
+                    if fromAI { AIFace(label: n.ai, size: 22) }
+                    if let first = n.projects.first { Text(first).font(.system(size: 10, weight: .bold)).lineLimit(1).padding(.horizontal, 7).padding(.vertical, 3).background(p.chip).clipShape(Capsule()) }
                 }
             }
-            if showArchived {
-                Button("Delete") { toDelete = n }.font(.system(size: 12, weight: .semibold)).foregroundColor(.red).accessibilityIdentifier("delete-" + n.id)
-            }
+            .padding(14).frame(maxWidth: .infinity, minHeight: 156, maxHeight: 156, alignment: .topLeading)
+            .background(Group { if fromAI { LinearGradient(colors: [.sproutPale, .cardTone], startPoint: .topLeading, endPoint: .bottomTrailing) } else { Color.cardTone } })
+            .clipShape(RoundedRectangle(cornerRadius: 20)).shadow(color: Color.loam.opacity(0.07), radius: 8, y: 4)
         }
-        .padding(14).frame(maxWidth: .infinity, alignment: .leading)
-        .background(Group { if fromAI { LinearGradient(colors: [.sproutPale, .cardTone], startPoint: .topLeading, endPoint: .bottomTrailing) } else { Color.cardTone } })
-        .clipShape(RoundedRectangle(cornerRadius: 24)).shadow(color: Color.loam.opacity(0.07), radius: 12, y: 6)
+        .buttonStyle(.plain).accessibilityIdentifier("note-" + n.id)
+        .contextMenu {
+            if showArchived { Button { store.setArchived(n, false); flash("Restored.") } label: { Label("Restore", systemImage: "arrow.uturn.backward") } }
+            else { Button { store.setArchived(n, true); flash("Archived.") } label: { Label("Archive", systemImage: "archivebox") } }
+            Menu("Project") {
+                Button("No project") { store.setProjects(n, []) }
+                ForEach(store.projects, id: \.self) { name in
+                    Button(n.projects.contains(name) ? "Take off \(name)" : "Put on \(name)") { store.toggleProject(n, name) }
+                }
+            }
+            Button(role: .destructive) { toDelete = n } label: { Label("Delete", systemImage: "trash") }
+        }
     }
 
     /// One tap to fix a wrong guess: existing projects plus None. Her pick overrides the stamp.
@@ -226,7 +234,11 @@ enum NoteText {
     }
 }
 
-/// A note opens already typing. No title first. There is no delete here, only Archive.
+
+private let notesYellow = Color(hex: 0xE0A800)
+
+/// A note is the whole screen and you are already typing, like Apple Notes. No modes.
+/// Bottom bar: checklist, picture, drawing. Pictures and drawings sit under the text.
 struct NoteSheet: View {
     let note: NoteItem?
     @EnvironmentObject var store: Store
@@ -234,131 +246,133 @@ struct NoteSheet: View {
     @Environment(\.palette) var p
     @State private var id: String?
     @State private var text = ""
-    @State private var editing = false
     @State private var lastSaved = ""
     @State private var pickerItem: PhotosPickerItem?
     @State private var attachNote = ""
+    @State private var drawing = false
+    @State private var askDelete = false
     @FocusState private var focus: Bool
 
     var current: NoteItem? { store.notes.first { $0.id == id } }
+    var checkLines: [(Int, String)] {
+        text.components(separatedBy: "\n").enumerated().filter { NoteText.isCheck($0.element) }.map { ($0.offset, $0.element) }
+    }
 
     var body: some View {
         NavigationStack {
-            Group {
-                if editing {
-                    VStack(alignment: .leading, spacing: 8) {
-                        TextEditor(text: $text).focused($focus).accessibilityIdentifier("noteBody")
-                        HStack {
-                            Button("Add a checklist line") {
-                                if !text.isEmpty && !text.hasSuffix("\n") { text += "\n" }
-                                text += NoteText.open
-                            }.buttonStyle(SoftButton()).accessibilityIdentifier("addChecklist")
-                        }
-                        Text("Web addresses open when you tap them in the saved note.").font(.caption).foregroundColor(p.soft)
-                    }.padding()
-                } else {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 8) {
-                            let lines = (current?.body ?? text).components(separatedBy: "\n")
-                            ForEach(Array(lines.enumerated()), id: \.offset) { pair in
-                                let line = pair.element
-                                if NoteText.isCheck(line) {
+            VStack(spacing: 0) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        TextEditor(text: $text).focused($focus).scrollContentBackground(.hidden)
+                            .frame(minHeight: 280).accessibilityIdentifier("noteBody")
+                        if !checkLines.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                ForEach(checkLines, id: \.0) { pair in
                                     HStack(alignment: .top) {
-                                        Button { tick(pair.offset) } label: {
-                                            SproutBox(on: line.hasPrefix(NoteText.done), size: 24)
-                                        }.accessibilityLabel(line.hasPrefix(NoteText.done) ? "Mark not done" : "Mark done")
-                                        Text(NoteText.linked(NoteText.clean(line))).strikethrough(line.hasPrefix(NoteText.done)).foregroundColor(p.ink)
+                                        Button { tick(pair.0) } label: { SproutBox(on: pair.1.hasPrefix(NoteText.done), size: 24) }
+                                            .accessibilityLabel(pair.1.hasPrefix(NoteText.done) ? "Mark not done" : "Mark done")
+                                        Text(NoteText.clean(pair.1)).strikethrough(pair.1.hasPrefix(NoteText.done)).foregroundColor(p.ink)
                                     }
-                                } else {
-                                    Text(NoteText.linked(line)).foregroundColor(p.ink)
                                 }
-                            }
-                        }.frame(maxWidth: .infinity, alignment: .leading).padding()
-                        attachmentsSection.padding(.horizontal)
-                    }
+                            }.padding(12).background(p.chip.opacity(0.5)).clipShape(RoundedRectangle(cornerRadius: 14))
+                        }
+                        attachmentsSection
+                        if !attachNote.isEmpty { Text(attachNote).font(.subheadline).foregroundColor(p.soft) }
+                    }.padding(.horizontal, 16).padding(.top, 4)
                 }
+                bottomBar
             }
-            .lookBg()
-            .navigationTitle(NoteText.titleFrom(text)).navigationBarTitleDisplayMode(.inline)
+            .background(Color(.systemBackground).ignoresSafeArea())
+            .navigationTitle("").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { if editing { commit() }; dismiss() }.accessibilityIdentifier("noteClose")
+                    Button { commit(); dismiss() } label: { HStack(spacing: 2) { Image(systemName: "chevron.left"); Text("Notes") } }
+                        .tint(notesYellow).accessibilityIdentifier("noteClose")
                 }
                 ToolbarItemGroup(placement: .confirmationAction) {
-                    if !editing, id != nil, let c = current {
-                        Button("Archive") { store.setArchived(c, true); dismiss() }.accessibilityIdentifier("archiveNote")
+                    if id != nil, let c = current {
+                        Menu {
+                            Button { store.setArchived(c, true); dismiss() } label: { Label("Archive", systemImage: "archivebox") }.accessibilityIdentifier("archiveNote")
+                            Button(role: .destructive) { askDelete = true } label: { Label("Delete", systemImage: "trash") }
+                            ShareLink(item: text) { Label("Share", systemImage: "square.and.arrow.up") }
+                        } label: { Image(systemName: "ellipsis.circle") }.tint(notesYellow).accessibilityLabel("More")
                     }
-                    if editing { Button("Done") { commit(); editing = false; focus = false; if id == nil { dismiss() } }.accessibilityIdentifier("noteDone") }
-                    else { Button("Edit") { editing = true; focus = true }.accessibilityIdentifier("noteEdit") }
+                    Button("Done") { commit(); focus = false }.tint(notesYellow).bold().accessibilityIdentifier("noteDone")
                 }
             }
+            .alert("Delete this note?", isPresented: $askDelete) {
+                Button("Delete", role: .destructive) { if let c = current { store.deleteNote(c) }; dismiss() }
+                Button("Cancel", role: .cancel) {}
+            } message: { Text("This cannot be undone.") }
+            .sheet(isPresented: $drawing) { DrawSheet { img in addImage(img.pngData() ?? Data()) } }
             .onAppear {
-                if let n = note { id = n.id; text = n.body; lastSaved = n.body; editing = false; store.listenAttachments(n.id) }
-                else { editing = true; DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { focus = true } }
+                if let n = note { id = n.id; text = n.body; lastSaved = n.body; store.listenAttachments(n.id) }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { focus = (note == nil) }
             }
             .onChange(of: id) { newId in if let newId { store.listenAttachments(newId) } }
             .onChange(of: pickerItem) { item in
-                guard let item, let nid = id else { return }
+                guard let item else { return }
                 Task {
-                    if let data = try? await item.loadTransferable(type: Data.self) {
-                        if !store.addAttachment(noteId: nid, raw: data) {
-                            attachNote = "That picture is too large to keep with the note."
-                        } else { attachNote = "" }
-                    }
+                    if let data = try? await item.loadTransferable(type: Data.self) { addImage(data) }
                     pickerItem = nil
                 }
             }
-            .onDisappear { if editing { commit() } }
+            .onDisappear { commit() }
         }
     }
 
-    /// Pictures kept with this note (HTML section 10). They live under the note in her own
-    /// space — the one storage shape this app holds — and stand in the note where she reads it.
+    var bottomBar: some View {
+        HStack(spacing: 30) {
+            Button { if !text.isEmpty && !text.hasSuffix("\n") { text += "\n" }; text += NoteText.open; focus = true } label: {
+                Image(systemName: "checklist").font(.system(size: 21))
+            }.accessibilityLabel("Add a checklist line").accessibilityIdentifier("addChecklist")
+            PhotosPicker(selection: $pickerItem, matching: .images) { Image(systemName: "photo.on.rectangle").font(.system(size: 21)) }
+                .accessibilityLabel("Add a picture").accessibilityIdentifier("attachPhoto")
+            Button { commit(forceSave: true); drawing = true } label: { Image(systemName: "pencil.tip.crop.circle").font(.system(size: 22)) }
+                .accessibilityLabel("Draw").accessibilityIdentifier("drawButton")
+            Spacer()
+            Button { focus.toggle() } label: {
+                Image(systemName: focus ? "keyboard.chevron.compact.down" : "square.and.pencil").font(.system(size: 21))
+            }.accessibilityLabel("Keyboard")
+        }
+        .tint(notesYellow).foregroundColor(notesYellow)
+        .padding(.horizontal, 22).padding(.vertical, 12).background(.bar)
+    }
+
     @ViewBuilder var attachmentsSection: some View {
         if let nid = id, current != nil {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Pictures").font(.headline).foregroundColor(p.ink)
-                let atts = store.noteImages[nid] ?? []
-                if atts.isEmpty {
-                    Text("No pictures with this note yet.").font(.subheadline).foregroundColor(p.soft)
-                }
-                ForEach(atts) { a in
-                    VStack(alignment: .leading, spacing: 6) {
-                        if let ui = UIImage(data: a.data) {
-                            Image(uiImage: ui).resizable().scaledToFit()
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                .accessibilityIdentifier("noteAttachmentImage")
-                        }
-                        Button("Remove picture") { store.removeAttachment(noteId: nid, a) }
-                            .buttonStyle(SoftButton()).accessibilityIdentifier("attachRemove")
+            let atts = store.noteImages[nid] ?? []
+            ForEach(atts) { a in
+                if let ui = UIImage(data: a.data) {
+                    ZStack(alignment: .topTrailing) {
+                        Image(uiImage: ui).resizable().scaledToFit().clipShape(RoundedRectangle(cornerRadius: 12))
+                            .accessibilityIdentifier("noteAttachmentImage")
+                        Button { store.removeAttachment(noteId: nid, a) } label: {
+                            Image(systemName: "xmark.circle.fill").font(.system(size: 26)).foregroundColor(.white).shadow(radius: 3)
+                        }.padding(8).accessibilityLabel("Remove picture").accessibilityIdentifier("attachRemove")
                     }
                 }
-                PhotosPicker(selection: $pickerItem, matching: .images) {
-                    Text("Add a picture").font(.subheadline.bold()).foregroundColor(p.ink)
-                        .padding(.horizontal, 12).padding(.vertical, 8).background(p.chip).clipShape(Capsule())
-                }.accessibilityIdentifier("attachPhoto")
-                if !attachNote.isEmpty {
-                    Text(attachNote).font(.subheadline).foregroundColor(p.soft)
-                }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.bottom, 20)
         }
+    }
+
+    func addImage(_ data: Data) {
+        if id == nil { commit(forceSave: true) }
+        guard let nid = id, !data.isEmpty else { attachNote = "Could not keep that picture."; return }
+        attachNote = store.addAttachment(noteId: nid, raw: data) ? "" : "That picture is too large to keep with the note."
     }
 
     func tick(_ index: Int) {
-        guard let c = current else { return }
-        let nb = NoteText.toggled(c.body, line: index)
-        store.saveNote(id: c.id, title: c.title, body: nb, isPrompt: false)
-        text = nb; lastSaved = nb
+        let nb = NoteText.toggled(text, line: index)
+        text = nb; commit()
     }
 
-    /// Saves the note. A blank new note is not saved. Never a delete.
-    func commit() {
+    /// Saves the note. A blank new note is not saved unless a picture needs a home. Never a delete.
+    func commit(forceSave: Bool = false) {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        if t.isEmpty && id == nil { return }
-        if text == lastSaved { return }
-        let title = NoteText.titleFrom(text)
+        if t.isEmpty && id == nil && !forceSave { return }
+        if text == lastSaved && id != nil { return }
+        let title = t.isEmpty ? "Untitled" : NoteText.titleFrom(text)
         let saved = store.saveNote(id: id, title: title, body: text, isPrompt: false)
         if let saved {
             id = saved; lastSaved = text
@@ -367,50 +381,124 @@ struct NoteSheet: View {
     }
 }
 
-/// A prompt is a drafted message for a room. Send now, or schedule an exact time.
+/// Draw with a finger or Apple Pencil. Done keeps it in the note as a picture.
+struct DrawSheet: View {
+    var onDone: (UIImage) -> Void
+    @Environment(\.dismiss) var dismiss
+    @State private var canvas = PKCanvasView()
+    var body: some View {
+        NavigationStack {
+            DrawCanvas(canvas: $canvas).ignoresSafeArea(.container, edges: .bottom)
+                .navigationTitle("Draw").navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.tint(notesYellow) }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") {
+                            let b = canvas.bounds.isEmpty ? CGRect(x: 0, y: 0, width: 600, height: 800) : canvas.bounds
+                            let ink = canvas.drawing.image(from: b, scale: 2)
+                            let out = UIGraphicsImageRenderer(size: b.size).image { ctx in
+                                UIColor.white.setFill(); ctx.fill(b); ink.draw(in: b)
+                            }
+                            if !canvas.drawing.bounds.isEmpty { onDone(out) }
+                            dismiss()
+                        }.bold().tint(notesYellow).accessibilityIdentifier("drawDone")
+                    }
+                }
+        }
+    }
+}
+
+struct DrawCanvas: UIViewRepresentable {
+    @Binding var canvas: PKCanvasView
+    func makeUIView(context: Context) -> PKCanvasView {
+        canvas.drawingPolicy = .anyInput
+        canvas.backgroundColor = .white
+        canvas.overrideUserInterfaceStyle = .light
+        canvas.tool = PKInkingTool(.pen, color: .black, width: 4)
+        let picker = PKToolPicker()
+        picker.setVisible(true, forFirstResponder: canvas)
+        picker.addObserver(canvas)
+        context.coordinator.picker = picker
+        DispatchQueue.main.async { canvas.becomeFirstResponder() }
+        return canvas
+    }
+    func updateUIView(_ ui: PKCanvasView, context: Context) {}
+    func makeCoordinator() -> Coord { Coord() }
+    final class Coord { var picker: PKToolPicker? }
+}
+
+/// A prompt is a drafted message for a room. Same full screen page as a note. The bottom bar
+/// picks the room and the time, and sends now or schedules.
 struct PromptSheet: View {
     let prompt: NoteItem?
     var onDone: (String) -> Void
     @EnvironmentObject var store: Store
     @Environment(\.dismiss) var dismiss
-    @State private var title = ""
+    @Environment(\.palette) var p
     @State private var bodyText = ""
     @State private var roomId = ""
     @State private var when = Date().addingTimeInterval(3600)
+    @State private var picking = false
+    @FocusState private var focus: Bool
 
     var room: RoomItem? { store.rooms.first { $0.id == roomId } }
     var ready: Bool { !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && room != nil }
-    var finalTitle: String { title.trimmingCharacters(in: .whitespaces).isEmpty ? NoteText.titleFrom(bodyText) : title }
+    var finalTitle: String { NoteText.titleFrom(bodyText) }
 
     var body: some View {
         NavigationStack {
-            Form {
-                TextField("Title", text: $title)
-                TextField("Prompt text", text: $bodyText, axis: .vertical).lineLimit(4...10).accessibilityIdentifier("promptText")
-                Picker("Send to which room", selection: $roomId) {
-                    Text("Choose a room").tag("")
-                    ForEach(store.rooms) { Text($0.title).tag($0.id) }
-                }.accessibilityIdentifier("promptRoom")
-                DatePicker("Send at", selection: $when, in: Date()..., displayedComponents: [.date, .hourAndMinute])
-                Text("Sends at this time while NeedsMe is open. Closed app sending comes with the server wake.")
-                    .font(.footnote).accessibilityIdentifier("scheduleNote")
-                Button("Send now") {
-                    store.savePrompt(id: prompt?.id, title: finalTitle, body: bodyText, room: room, sendNow: true, at: when)
-                    onDone("Sent."); dismiss()
-                }.disabled(!ready).accessibilityIdentifier("promptSendNow")
-                Button("Schedule") {
-                    store.savePrompt(id: prompt?.id, title: finalTitle, body: bodyText, room: room, sendNow: false, at: when)
-                    onDone("Scheduled."); dismiss()
-                }.disabled(!ready).accessibilityIdentifier("promptSchedule")
+            VStack(spacing: 0) {
+                ZStack(alignment: .topLeading) {
+                    TextEditor(text: $bodyText).focused($focus).scrollContentBackground(.hidden).padding(.horizontal, 12)
+                        .accessibilityIdentifier("promptText")
+                    if bodyText.isEmpty { Text("Write your prompt").foregroundColor(.secondary).padding(.horizontal, 17).padding(.vertical, 8).allowsHitTesting(false) }
+                }
+                VStack(spacing: 10) {
+                    if picking {
+                        DatePicker("Send at", selection: $when, in: Date()..., displayedComponents: [.date, .hourAndMinute]).tint(notesYellow)
+                        Text("Sends at this time while NeedsMe is open. Closed app sending comes with the server wake.")
+                            .font(.footnote).foregroundColor(p.soft).accessibilityIdentifier("scheduleNote")
+                    }
+                    HStack(spacing: 10) {
+                        Menu {
+                            ForEach(store.rooms) { r in Button(r.title) { roomId = r.id } }
+                        } label: {
+                            HStack(spacing: 4) { Image(systemName: "bubble.left.and.bubble.right"); Text(room?.title ?? "Choose a room").lineLimit(1) }
+                                .font(.subheadline.bold()).padding(.horizontal, 12).padding(.vertical, 9).background(p.chip).clipShape(Capsule())
+                        }.accessibilityIdentifier("promptRoom")
+                        Button { withAnimation { picking.toggle() } } label: {
+                            HStack(spacing: 4) { Image(systemName: "clock"); Text(picking ? "Hide" : "Time") }
+                                .font(.subheadline.bold()).padding(.horizontal, 12).padding(.vertical, 9).background(p.chip).clipShape(Capsule())
+                        }.accessibilityIdentifier("promptTime")
+                        Spacer()
+                    }
+                    HStack(spacing: 10) {
+                        Button("Schedule") {
+                            store.savePrompt(id: prompt?.id, title: finalTitle, body: bodyText, room: room, sendNow: false, at: when)
+                            onDone("Scheduled."); dismiss()
+                        }.buttonStyle(SoftButton()).disabled(!ready).accessibilityIdentifier("promptSchedule")
+                        Button("Send now") {
+                            store.savePrompt(id: prompt?.id, title: finalTitle, body: bodyText, room: room, sendNow: true, at: when)
+                            onDone("Sent."); dismiss()
+                        }.buttonStyle(PrimaryButton()).disabled(!ready).accessibilityIdentifier("promptSendNow")
+                    }
+                }.foregroundColor(p.ink).padding(.horizontal, 16).padding(.vertical, 12).background(.bar)
             }
-            .navigationTitle(prompt == nil ? "New prompt" : "Edit prompt")
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+            .background(Color(.systemBackground).ignoresSafeArea())
+            .navigationTitle("").navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button { dismiss() } label: { HStack(spacing: 2) { Image(systemName: "chevron.left"); Text("Notes") } }.tint(notesYellow)
+                }
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { focus = false }.tint(notesYellow).bold() }
+            }
             .onAppear {
                 if prompt == nil, roomId.isEmpty { roomId = store.rooms.first?.id ?? "" }
                 if let n = prompt {
-                    title = n.title; bodyText = n.body; roomId = n.room
+                    bodyText = n.body; roomId = n.room
                     if let at = n.scheduledFor, at > Date() { when = at }
                 }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { focus = (prompt == nil) }
             }
         }
     }

@@ -117,6 +117,10 @@ struct HomeView: View {
                 Text(greeting).font(.system(size: 17, weight: .bold)).foregroundColor(.loam)
             }
             Spacer()
+            NavigationLink { ReportView(kind: .bug) } label: { HeaderIcon(system: "ladybug") }
+                .accessibilityLabel("Report a bug").accessibilityIdentifier("bugButton")
+            NavigationLink { ReportView(kind: .feedback) } label: { HeaderIcon(system: "text.bubble") }
+                .accessibilityLabel("Send feedback").accessibilityIdentifier("feedbackButton")
             NavigationLink { InboxView() } label: { HeaderIcon(system: "bell", dot: !openNeeds.isEmpty) }
                 .accessibilityLabel("Inbox").accessibilityIdentifier("inboxButton")
         }.padding(.top, 8)
