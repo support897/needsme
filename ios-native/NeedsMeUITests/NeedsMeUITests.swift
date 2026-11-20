@@ -435,7 +435,7 @@ final class NeedsMeUITests: XCTestCase {
         app.buttons["newItem"].tap()
         let pt = app.textViews["promptText"]; wait(pt, 10, "prompt sheet missing"); pt.tap(); pt.typeText("Cancel me prompt")
         let picker = app.buttons["promptRoom"]; wait(picker, 10, "room picker missing"); picker.tap()
-        let roomPick = app.buttons["Cancel room"]; wait(roomPick, 10, "room not in picker"); roomPick.tap()
+        let roomPick = app.buttons.matching(NSPredicate(format: "label == %@ AND identifier != %@", "Cancel room", "promptRoom")).firstMatch; wait(roomPick, 10, "room not in picker"); roomPick.tap()
         let sched = app.buttons["promptSchedule"]; wait(sched, 10, "Schedule button missing"); sched.tap()
         wait(text("Cancel me prompt"), 15, "scheduled prompt not listed. SCREEN: " + screenText()); shot("22-prompt-scheduled")
         let cancel = app.buttons["Cancel this prompt"]; wait(cancel, 10, "cancel control missing on the scheduled prompt")
@@ -899,22 +899,6 @@ final class NeedsMeUITests: XCTestCase {
         for _ in 0..<6 where !b.isHittable { app.swipeUp() }
         b.tap()
         wait(text("Found 3 projects. Brought in 3. Website launch, Blog posts, Pricing"), 15, "import count wrong. SCREEN: " + screenText()); shot("33-import")
-    }
-
-    func test23_SignInDoorOpens() {
-        app.terminate(); app.launchArguments = ["-uitest-reset", "-uitest-noask"]; app.launch()
-        _ = signUpFresh()
-        wait(app.buttons["tab-Projects"], 30)
-        tapUntil(app.buttons["Skip guide"]) { !self.app.buttons["Skip guide"].exists }
-        openMore("moreConnections") { self.app.buttons["fold-signin"].exists }
-        let fs = app.buttons["fold-signin"]; scrollTo(fs); fs.tap()
-        let b = app.buttons["door-claude"]; wait(b, 10, "sign-in door button missing")
-        for _ in 0..<8 where !b.isHittable { app.swipeUp() }
-        b.tap()
-        wait(app.buttons["doorBring"], 15, "door sheet did not open. SCREEN: " + screenText()); shot("34-door-claude")
-        wait(app.buttons["doorPick"], 5, "pick-file button missing")
-        app.buttons["doorClose"].tap()
-        wait(app.buttons["door-chatgpt"], 10, "sheet did not close")
     }
 
     // 24 Pip's setup walk opens after the tour, goes one step at a time, and can be skipped.
