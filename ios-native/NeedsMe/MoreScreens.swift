@@ -455,7 +455,13 @@ struct WorkforceView: View {
                     } else {
                         Text("Not tested yet. Test it in Connections.").font(.caption).foregroundColor(p.soft)
                     }
-                    agentControls(a)
+                    if AIKeys.has(a.id) || AIConsent.testMode {
+                        agentControls(a)
+                    } else {
+                        Text("Nothing to pause yet. This AI has no key or link.").font(.subheadline).foregroundColor(p.ink)
+                        NavigationLink { ConnectView() } label: { Text("Set it up in Connections").font(.subheadline.bold()) }
+                            .accessibilityIdentifier("workerSetup-" + a.id)
+                    }
                 }.transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
@@ -465,6 +471,9 @@ struct WorkforceView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 PipSays(text: "Every AI you connect is a worker. Tap one to see what it may do.")
+                Card {
+                    Text("Connections is where you set an AI up: a key or a link. AI Workforce is where you decide what each connected AI may do: pause it, pick its projects, stop a run.").font(.subheadline).foregroundColor(p.ink)
+                }
                 FoldSection(id: "wake", icon: "bell.badge.fill", color: Color(hex: 0xF5A524), title: "How AIs wake each other", sub: "Tap to watch it happen") { WakeStory().padding(14).background(p.card).clipShape(RoundedRectangle(cornerRadius: 22)) }
                 ForEach(conns.accounts) { a in worker(a) }
                 FoldSection(id: "handoffs", icon: "arrow.left.arrow.right.circle.fill", color: Color(hex: 0xF55036), title: "Copy and paste only", sub: "Not live workers. You carry the answer back.") {

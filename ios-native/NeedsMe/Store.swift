@@ -62,7 +62,7 @@ struct DeviceRecord: Identifiable {
     var firstSeen: Date?; var lastSeen: Date?
 }
 
-struct RoomItem: Identifiable { let id: String; var title: String; var project: String = ""; var members: [String]? = nil }
+struct RoomItem: Identifiable { let id: String; var title: String; var project: String = ""; var members: [String]? = nil; var desc: String = "" }
 struct RoomMessage: Identifiable { let id: String; var author: String; var text: String; var needsYou: Bool; var createdAt: Date? }
 struct NeedItem: Identifiable { let id: String; var text: String; var ai: String; var roomId: String; var status: String; var messageId: String = ""; var project: String = ""; var url: String = ""; var kind: String = "needs" }
 struct NoteItem: Identifiable {
@@ -228,7 +228,7 @@ final class Store: ObservableObject {
             handles.append(c.order(by: "createdAt").addSnapshotListener { [weak self] s, e in
                 if let e { Task { @MainActor in self?.roomError = "Could not load rooms: \(e.localizedDescription)" } }
                 guard let s else { return }
-                let items = s.documents.map { d in RoomItem(id: d.documentID, title: d.data()["title"] as? String ?? "Room", project: d.data()["project"] as? String ?? "", members: d.data()["members"] as? [String]) }
+                let items = s.documents.map { d in RoomItem(id: d.documentID, title: d.data()["title"] as? String ?? "Room", project: d.data()["project"] as? String ?? "", members: d.data()["members"] as? [String], desc: d.data()["desc"] as? String ?? "") }
                 let fresh = !s.metadata.isFromCache
                 Task { @MainActor in
                     self?.rooms = items
@@ -891,6 +891,11 @@ final class Store: ObservableObject {
         }
     }
     /// Who is in a room. A room with no saved list means every connected AI, as before.
+    func setRoomDescription(_ roomId: String, _ text: String) {
+        col("rooms")?.document(roomId).updateData(["desc": text]) { [weak self] err in
+            if let err { Task { @MainActor in self?.roomError = "Could not save the description: \(err.localizedDescription)" } }
+        }
+    }
     func setRoomMembers(_ roomId: String, _ ids: [String]) {
         col("rooms")?.document(roomId).updateData(["members": ids]) { [weak self] err in
             if let err { Task { @MainActor in self?.roomError = "Could not save who is in the room: \(err.localizedDescription)" } }

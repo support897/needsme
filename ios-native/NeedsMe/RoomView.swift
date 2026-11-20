@@ -486,6 +486,7 @@ struct RoomsListView: View {
     @State private var roomToDelete: RoomItem?
     @State private var searching = false
     @State private var query = ""
+    @State private var openId: String? = nil
 
     var shownRooms: [RoomItem] {
         let byProject = projectFilter.isEmpty ? store.rooms : store.rooms.filter { $0.project == projectFilter }
@@ -517,6 +518,7 @@ struct RoomsListView: View {
                 NavigationLink { RoomView(room: r, store: store) } label: {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(r.title).font(.system(size: 16, weight: .bold)).foregroundColor(.loam)
+                        if !r.desc.isEmpty { Text(r.desc).font(.system(size: 12)).foregroundColor(.muted).lineLimit(1) }
                     }.frame(maxWidth: .infinity, alignment: .leading)
                 }.buttonStyle(.plain).accessibilityIdentifier("room-" + r.title)
                 if state == "needs" { CountPill(text: "needs you") }
@@ -534,6 +536,9 @@ struct RoomsListView: View {
         }
         .padding(.horizontal, 16).padding(.vertical, 14).background(Color.cardTone).clipShape(RoundedRectangle(cornerRadius: 24))
         .shadow(color: Color.loam.opacity(0.07), radius: 12, y: 6)
+        .contentShape(Rectangle())
+        .onTapGesture { openId = r.id }
+        .background(NavigationLink(destination: RoomView(room: r, store: store), isActive: Binding(get: { openId == r.id }, set: { if !$0 { openId = nil } })) { EmptyView() }.opacity(0).accessibilityHidden(true))
         .contextMenu { Button(role: .destructive) { roomToDelete = r } label: { Label("Delete room", systemImage: "trash") }.accessibilityIdentifier("deleteRoom-" + r.title) }
     }
 
@@ -586,7 +591,8 @@ struct RoomsListView: View {
             TextField("Room name", text: $title)
             Button("Create") {
                 let t = title.trimmingCharacters(in: .whitespacesAndNewlines)
-                _ = store.createRoom(t.isEmpty ? "My room" : t)
+                let nid = store.createRoom(t.isEmpty ? "My room" : t)
+                if !AIConsent.testMode { openId = nid }
             }
             Button("Cancel", role: .cancel) {}
         }
@@ -616,6 +622,12 @@ struct RoomView: View {
     @State private var addingPeople = false
 
     var roomMembers: [AIAccount] { engine.members(conns.connected) }
+    /// AIs added to this room that are not connected yet. They sit in the room and stay quiet until connected.
+    var roomWaiting: [AIAccount] {
+        guard let ids = store.rooms.first(where: { $0.id == engine.roomId })?.members else { return [] }
+        return conns.accounts.filter { ids.contains($0.id) && !conns.isConnected($0) }
+    }
+    var roomDesc: String { store.rooms.first { $0.id == engine.roomId }?.desc ?? "" }
     var roomLinks: [LinkAI] {
         let ids = store.rooms.first { $0.id == engine.roomId }?.members ?? []
         return LinkStore.shared.links.filter { ids.contains("link-" + $0.id) }
@@ -628,7 +640,7 @@ struct RoomView: View {
     /// Who is in this room, and its project when one is filed. Only connected AIs are named:
     /// a disconnected AI is never shown as taking part (HTML section 12).
     var participantsLine: String {
-        var s = "In this room: " + (["You"] + roomMembers.map { $0.label + (store.agentPaused($0.id) ? " (paused)" : "") } + roomLinks.map { $0.label + " (link)" }).joined(separator: ", ")
+        var s = "In this room: " + (["You"] + roomMembers.map { $0.label + (store.agentPaused($0.id) ? " (paused)" : "") } + roomLinks.map { $0.label + " (link)" } + roomWaiting.map { $0.label + " (not connected yet)" }).joined(separator: ", ")
         let proj = store.rooms.first { $0.id == engine.roomId }?.project ?? ""
         if !proj.isEmpty { s += " · Project: " + proj }
         return s
@@ -644,7 +656,7 @@ struct RoomView: View {
 
     var facesCard: some View {
         HStack {
-            if roomMembers.isEmpty && roomLinks.isEmpty {
+            if roomMembers.isEmpty && roomLinks.isEmpty && roomWaiting.isEmpty {
                 Text("No AI is in this room yet. Tap Add people.").font(.system(size: 13)).foregroundColor(.muted).padding(.vertical, 8)
             }
             ForEach(roomLinks) { l in
@@ -652,6 +664,13 @@ struct RoomView: View {
                     AIFace(label: l.label, size: 46, state: .none)
                     Text(l.label).font(.system(size: 12, weight: .bold)).foregroundColor(.loam)
                     Text("by link").font(.system(size: 11)).foregroundColor(.muted)
+                }.frame(maxWidth: .infinity)
+            }
+            ForEach(roomWaiting) { a in
+                VStack(spacing: 6) {
+                    AIFace(label: a.label, size: 46, state: .none).opacity(0.45)
+                    Text(a.label).font(.system(size: 12, weight: .bold)).foregroundColor(.loam)
+                    Text("not connected yet").font(.system(size: 11)).foregroundColor(.muted)
                 }.frame(maxWidth: .infinity)
             }
             ForEach(roomMembers) { a in
@@ -685,6 +704,7 @@ struct RoomView: View {
                         Color.clear.frame(height: 260)
                         Text("AIs answer while this room is open.")
                             .font(.footnote).foregroundColor(.muted).accessibilityIdentifier("roomNote")
+                        if !roomDesc.isEmpty { Text(roomDesc).font(.footnote).foregroundColor(.loam).accessibilityIdentifier("roomDescText") }
                         Text(participantsLine)
                             .font(.footnote).foregroundColor(.muted).accessibilityIdentifier("roomParticipants")
                         loopBar
@@ -705,10 +725,12 @@ struct RoomView: View {
         .lookBg().navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
+                Button { addingPeople = true } label: {
                 VStack(spacing: 1) {
                     Text(engine.title).font(.system(size: 17, weight: .bold)).foregroundColor(.loam)
-                    Text("\(roomMembers.count + roomLinks.count) AIs here · \(tasksMade) tasks made").font(.system(size: 12)).foregroundColor(.muted)
+                    Text("\(roomMembers.count + roomLinks.count + roomWaiting.count) AIs here · \(tasksMade) tasks made").font(.system(size: 12)).foregroundColor(.muted)
                 }
+                }.buttonStyle(.plain).accessibilityIdentifier("roomInfo")
             }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button { addingPeople = true } label: { Image(systemName: "person.badge.plus").foregroundColor(.loam) }
@@ -798,7 +820,7 @@ struct RoomView: View {
     var chipsBar: some View {
         VStack(alignment: .leading, spacing: 8) {
             if conns.connected.isEmpty {
-                Text("No AI is connected yet. Add a key in the Connect screen, then mention it here.")
+                Text("No AI is connected yet. You can still add AIs with Add people. Connect one in the Connect screen so it can answer.")
                     .font(.footnote).foregroundColor(.muted)
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -847,6 +869,7 @@ struct PeopleSheet: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject private var conns = AIConnections.shared
     @ObservedObject private var links = LinkStore.shared
+    @State private var desc = ""
 
     var current: [String]? { store.rooms.first { $0.id == roomId }?.members }
     func isOn(_ id: String) -> Bool { current?.contains(id) ?? (conns.connected.contains { $0.id == id }) }
@@ -861,17 +884,20 @@ struct PeopleSheet: View {
     var body: some View {
         NavigationView {
             List {
+                Section(header: Text("About this room")) {
+                    TextField("Add a description", text: $desc, axis: .vertical).lineLimit(1...4).accessibilityIdentifier("roomDesc")
+                }
                 Section(header: Text("You")) { Text(store.user?.displayName ?? "You") }
-                Section(header: Text("AIs with a key. They answer on their own while the room is open.")) {
+                Section(header: Text("AIs. Add any of them now. One without a key stays quiet until you connect it.")) {
                     ForEach(conns.accounts) { a in
                         HStack {
                             AIFace(label: a.label, size: 34, state: .none)
                             VStack(alignment: .leading) {
                                 Text(a.label).font(.body.weight(.semibold))
-                                Text(conns.isConnected(a) ? "Ready" : conns.status(a) + ". Set it up in Connections.").font(.caption).foregroundColor(.secondary)
+                                Text(conns.isConnected(a) ? "Ready" : "Not connected yet. In the room, but quiet until you connect it.").font(.caption).foregroundColor(.secondary)
                             }
                             Spacer()
-                            Toggle("", isOn: binding(a.id)).labelsHidden().disabled(!conns.isConnected(a))
+                            Toggle("", isOn: binding(a.id)).labelsHidden()
                                 .accessibilityIdentifier("member-" + a.id)
                         }
                     }
@@ -892,8 +918,9 @@ struct PeopleSheet: View {
                     }
                 }
             }
-            .navigationTitle("Add people").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() }.accessibilityIdentifier("peopleDone") } }
+            .navigationTitle("Room info").navigationBarTitleDisplayMode(.inline)
+            .onAppear { desc = store.rooms.first { $0.id == roomId }?.desc ?? "" }
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { store.setRoomDescription(roomId, desc.trimmingCharacters(in: .whitespacesAndNewlines)); dismiss() }.accessibilityIdentifier("peopleDone") } }
         }
     }
 }
