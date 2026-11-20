@@ -21,40 +21,47 @@
 <body>
 <main>
 <h1>Needs Me — Privacy Policy</h1>
-<p class="date">Last updated: 28 October 2026</p>
-<p>Needs Me is a personal to-do app. Each person who signs up gets their own private account. It is operated by Ilse Placencia (needsmeai@proton.me).</p>
+<p class="date">Last updated: 20 November 2026</p>
+<p>Needs Me (the app is called NeedsMe Ai) helps you keep track of projects and to-dos, and lets you connect the AI assistants you already use. It is run by Ilse Placencia. Contact: <a href="/cdn-cgi/l/email-protection#b7d9d2d2d3c4dad2d6def7c7c5d8c3d8d999dad2"><span class="__cf_email__" data-cfemail="4b252e2e2f38262e2a220b3b39243f242565262e">[email&#160;protected]</span></a>.</p>
+
 <h2>Signing in</h2>
-<p>You sign in with Google, with Apple, or with your email and a password you choose. Accounts are run by Firebase Authentication (a Google service). Your password is held by Firebase in hashed form — we never see it or store it ourselves. If you use the demo instead, the app opens a temporary anonymous session with made-up sample data; no account is created.</p>
-<h2>What the app holds</h2>
+<p>You sign in with Google, with Apple, or with an email and a password you choose. Accounts run on Firebase Authentication (a Google service). Your password is held by Firebase in hashed form. We never see it. You can also use the app as a guest: the app opens a temporary anonymous session.</p>
+
+<h2>What we collect and why</h2>
 <ul>
-<li>Your name, the one you give at sign-up (or the name on your Google or Apple account).</li>
-<li>Your email address, used to sign you in and for password resets.</li>
-<li>Your account ID, a code Firebase gives your account. Every record in the app is kept under it.</li>
-<li>The content you put in: tasks, notes, goals, calendar items and updates.</li>
-<li>If you turn reminders on, a push subscription for your device so reminders can reach it. Nothing is collected for this until you turn reminders on.</li>
+<li><b>Your name and email</b>, from sign-up or from your Google or Apple account. Used to sign you in and to reset a password.</li>
+<li><b>An account ID</b> that Firebase gives your account. Every record is kept under it.</li>
+<li><b>Your content</b>: projects, to-dos, notes, prompts, group chat rooms and their messages (including AI replies), and your settings. Used only to run the app for you. Stored in Firebase Cloud Firestore (Google Cloud), Sydney, Australia.</li>
+<li><b>Alert settings and a device token</b>, only if you turn alerts on. The token is how Apple's push service reaches your phone.</li>
+<li><b>Connection links</b>, only if you make one (see "Links to your AI tools" below).</li>
 </ul>
-<h2>What the app does not do</h2>
-<ul>
-<li>No advertising. No ad networks.</li>
-<li>No analytics or tracking SDKs. Nothing is tracked across apps or websites.</li>
-<li>Your data is never sold. It is not shared with third parties, except the services named on this page that run the app.</li>
-<li>Nothing is sent to any AI service unless you set one up yourself (see "Optional AI features" below).</li>
-</ul>
-<h2>Optional AI features</h2>
-<p>You can connect an AI provider you choose (for example OpenAI, Anthropic, Google Gemini, Perplexity, or a server of your own) using your own key. When you extract tasks or send a message in an AI room, the text you send, and up to the last 20 messages of that room, go directly from your device to that provider. Their terms and privacy policy then apply. Your provider key is encrypted on your device before it is saved to your account, and the device key does not leave your device. Room messages and AI replies are saved in your private account. Needs Me never sends your list to an AI provider on its own.</p>
-<p>Local reminders, if you turn them on, are scheduled on your device and are not sent to us.</p>
+<p>We use no advertising, no ad networks, no analytics and no tracking SDKs. Nothing is tracked across apps or websites. We do not sell your data.</p>
+
+<h2>AI services: what is shared and who gets it</h2>
+<p>Needs Me sends nothing to an AI company until you connect that AI and tap Allow in the box at the top of the Connect screen. You can turn sharing off again there at any time.</p>
+<p>When you use an AI you connected with your own key, the app sends your message, up to the last 20 messages of that chat room, and, when you ask it to sort or check your work, the project and to-do names involved. This goes straight from your phone to the company you chose. It does not pass through our servers. That company's own terms and privacy policy then apply, including how long it keeps the data.</p>
+<p>The companies you can choose are: OpenAI (ChatGPT), Anthropic (Claude), Google (Gemini), Perplexity, xAI (Grok), Meta (Muse), DeepSeek, Mistral AI, Groq, OpenRouter, and any other service with an OpenAI-style API that you add yourself in "Any other model". Needs Me only talks to the ones you set up.</p>
+<p>Your AI keys are kept in this phone's Keychain, on this device only, and are not sent to us. Exception: if you tap "Bring my keys in", the app sends your sign-in token to our key service (keys.ilseplacencia.shop), which returns keys you earlier saved to your own account on the Needs Me web app.</p>
+
+<h2>Links to your AI tools (the bridge)</h2>
+<p>If you make a link so that Claude, ChatGPT, OpenCode, Codex or another tool can read your projects, a small service we run on Cloudflare Workers holds: a secret link token (stored as a one-way hash), the name you gave the link, a copy of your project names, open to-do names and counts, short messages waiting for an AI in a group chat, updates the AI sends back, the time each AI last asked for your projects, and your device token if alerts are on. The AI tool you connected can read the project copy through your link. Anyone who has your link can read it too, so keep the link private.</p>
+<p>Links expire after 90 days. "Cut off all my links" turns every link off. "Erase everything on the link" deletes all of the above. Deleting your account erases it too.</p>
+
 <h2>Where it lives</h2>
-<p>Your account and content are stored in Firebase (Google Cloud) in Sydney, Australia, and travel over encrypted connections. The database rules keep every account separate: only your signed-in account can read your data.</p>
-<h2>Your choices</h2>
-<ul>
-<li>Turn reminders off any time in the app or your phone settings.</li>
-<li>Delete your account and all its content inside the app: open Account and choose Delete my account. It happens straight away.</li>
-<li>You can also ask by email: needsmeai@proton.me. Email deletions are completed within 30 days.</li>
-</ul>
+<p>Firebase (Google Cloud, Sydney, Australia) for your account and content. Cloudflare for the bridge. Apple for push alerts. All travel over encrypted connections. Database rules keep each account separate.</p>
+
+<h2>Keeping and deleting your data</h2>
+<p>We keep your data until you delete it. In the app, open Settings, then Privacy and your data, then Delete my account. This removes your account, your content and everything on the bridge, straight away. You can export your notes from the same screen. You can also ask by email at <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="5c323939382f31393d351c2c2e33283332723139">[email&#160;protected]</a>. Email requests are done within 30 days. To withdraw consent for AI sharing, turn it off on the Connect screen.</p>
+
 <h2>Children</h2>
-<p>The app is not directed at children under 13.</p>
+<p>The app is not for children under 13.</p>
+
+<h2>Your rights</h2>
+<p>You can ask to see, correct, export or delete your data by emailing <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="99f7fcfcfdeaf4fcf8f0d9e9ebf6edf6f7b7f4fc">[email&#160;protected]</a>. If you live in the EU, UK or Australia you also have the rights your local law gives you, including the right to complain to your data protection authority.</p>
+
 <h2>Changes</h2>
-<p>If this policy changes, the new version will be posted at the same address with a new date at the top.</p>
+<p>If this policy changes, the new version is posted at this address with a new date at the top.</p>
+
 </main>
-</body>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script></body>
 </html>
