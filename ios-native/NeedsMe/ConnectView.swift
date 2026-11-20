@@ -44,7 +44,6 @@ struct ConnectView: View {
                 LinkOnlyTile(key: "other", name: "Any other AI", blurb: "Anything that can add a link", icon: "plus.circle.fill", tint: Color(hex: 0x8B5CF6), site: "https://www.google.com/search?q=add+MCP+server", openId: $openId)
                 Text("More ways in").font(.system(.headline, design: .rounded)).foregroundColor(p.ink).padding(.top, 8)
                 FoldSection(id: "custom", icon: "slider.horizontal.3", color: Color(hex: 0x6366F1), title: "Any other model", sub: "Together, Fireworks, Ollama and more") { CustomModelCard() }
-                FoldSection(id: "signin", icon: "person.crop.circle.badge.checkmark", color: Color(hex: 0x4285F4), title: "Sign in with your AI account", sub: "Bring your chats in") { SignInDoorCard() }
                 FoldSection(id: "import", icon: "square.and.arrow.down.fill", color: Color(hex: 0x10A37F), title: "Take your projects out of an AI", sub: "Import from an export file") { ProjectImportCard() }
                 FoldSection(id: "bring", icon: "key.horizontal.fill", color: Color(hex: 0xD97757), title: "Bring my keys in", sub: "Already saved keys on another phone") { BringKeysCard() }
                 FoldSection(id: "bridge", icon: "link.circle.fill", color: Color(hex: 0x8B5CF6), title: "Polar, Claude Code and other tools", sub: "Make a live link") { BridgeCard(); CustomMCPCard(); WorkToolsCard() }

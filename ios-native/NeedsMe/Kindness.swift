@@ -56,11 +56,11 @@ import FirebaseAuth
         guard !giveUrl.isEmpty, var c = URLComponents(string: giveUrl), c.scheme == "https" else { return nil }
         var q = c.queryItems ?? []
         q.append(URLQueryItem(name: "amount", value: String(amount)))
-        q.append(URLQueryItem(name: "anon", value: anon ? "1" : "0"))
-        if !anon && !name.isEmpty { q.append(URLQueryItem(name: "name", value: name)) }
-        if !msg.isEmpty { q.append(URLQueryItem(name: "message", value: msg)) }
+        if anon { q.append(URLQueryItem(name: "name", value: "heart")) }
+        else if !name.isEmpty { q.append(URLQueryItem(name: "display", value: name)) }
+        if !msg.isEmpty { q.append(URLQueryItem(name: "msg", value: msg)) }
         q.append(URLQueryItem(name: "ref", value: ref))
-        q.append(URLQueryItem(name: "source", value: "ios"))
+        q.append(URLQueryItem(name: "from", value: "ios"))
         c.queryItems = q
         return c.url
     }
