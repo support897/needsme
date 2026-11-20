@@ -59,8 +59,8 @@ enum LinkPrompt {
     static func text(name: String, token: String) -> String {
         """
         Join my NeedsMe as "\(name)". It is my own private link. Add it as an MCP server (custom connector) with:
-        URL: \(BridgeCard.base)/mcp
-        Header: Authorization: Bearer \(token)
+        Link: \(BridgeCard.base)/mcp/\(token)
+        (The token is inside the link, so no sign-in and no header are needed. If you have a headers box, you may instead use URL \(BridgeCard.base)/mcp with the header Authorization: Bearer \(token).)
         Then:
         1. Call get_my_projects and use my exact project names.
         2. After every reply where something changed, call report_update (project, summary, todos_new, todos_done, needs_you, finished, chat_url = the web link to this chat). Use needs_you only when you cannot go on without my answer.
@@ -91,10 +91,10 @@ struct PromptConnect: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            PipSays(text: "No key needed. About 30 seconds. Make a prompt, paste it into \(name), done.")
+            PipSays(text: "No key needed. About 1 minute. Make a link, add it to \(name) as a connector, then paste the prompt.")
             step("1.circle.fill", "Tap Make my prompt.")
-            step("2.circle.fill", "Tap Copy, then Open \(name) and paste it in a chat.")
-            step("3.circle.fill", "When \(name) answers, a green tick shows here.")
+            step("2.circle.fill", "Tap Copy link. In \(name) open Settings, Connectors, Add custom connector. Paste the link.")
+            step("3.circle.fill", "Then tap Copy prompt and paste it in a new chat. When \(name) answers, a green tick shows here.")
             ForEach(mine) { l in
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
@@ -104,6 +104,9 @@ struct PromptConnect: View {
                         Text(l.seen ? "Connected" : "Waiting for first reply").font(.caption.bold()).foregroundColor(l.seen ? .sprout : .orange)
                             .accessibilityIdentifier("linkStatus-" + l.id)
                     }
+                    Button { if let t = store.token(l) { UIPasteboard.general.string = BridgeCard.base + "/mcp/" + t; copiedId = "L" + l.id } } label: {
+                        Label(copiedId == "L" + l.id ? "Link copied" : "Copy link for connector", systemImage: "link")
+                    }.buttonStyle(SoftButton()).accessibilityIdentifier("cpLink-" + key)
                     HStack(spacing: 8) {
                         Button { if let t = store.token(l) { UIPasteboard.general.string = LinkPrompt.text(name: l.label, token: t); copiedId = l.id } } label: {
                             Label(copiedId == l.id ? "Copied" : "Copy prompt", systemImage: "doc.on.doc.fill")
