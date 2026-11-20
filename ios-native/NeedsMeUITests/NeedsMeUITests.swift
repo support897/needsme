@@ -986,6 +986,22 @@ final class NeedsMeUITests: XCTestCase {
         wait(app.descendants(matching: .any).matching(NSPredicate(format: "identifier == %@", "cpCmd-opencode")).firstMatch, 30, "terminal command button missing. SCREEN: " + screenText())
     }
 
+    // 29 Apple review basics: privacy policy and help links in Settings, sharing ask on Connect.
+    func test29_ReviewBasics() {
+        app.terminate(); app.launchArguments = ["-uitest-reset", "-uitest-noask"]; app.launch()
+        _ = signUpFresh()
+        wait(app.buttons["tab-Projects"], 30)
+        tapUntil(app.buttons["Skip guide"]) { !self.app.buttons["Skip guide"].exists }
+        openMore("settingsRow") { self.app.buttons["deleteAccount"].exists }
+        for id in ["linkPrivacy", "linkSupport"] {
+            let el = app.descendants(matching: .any).matching(NSPredicate(format: "identifier == %@", id)).firstMatch
+            scrollTo(el); wait(el, 10, id + " missing in Settings. SCREEN: " + screenText())
+        }
+        backToMoreRoot()
+        openMore("moreConnections") { self.app.buttons["ai-claude"].exists }
+        wait(app.descendants(matching: .any).matching(NSPredicate(format: "identifier == %@", "aiConsentAllow")).firstMatch, 10, "sharing ask missing on Connect. SCREEN: " + screenText())
+    }
+
     // 27 Add people: a room has its own member list, WhatsApp style.
     func test27_AddPeopleToRoom() {
         _ = signUpFresh()
