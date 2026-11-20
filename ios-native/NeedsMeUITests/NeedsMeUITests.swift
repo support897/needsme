@@ -176,7 +176,7 @@ final class NeedsMeUITests: XCTestCase {
         app.buttons["New"].tap()
         let nb = app.textViews["noteBody"]; wait(nb, 10, "new note did not open typing"); nb.typeText("UI test note about UITestProject")
         shot("06-note-typing")
-        app.buttons["noteDone"].tap(); wait(app.staticTexts["UI test note about UITestProject"], 10, "note text not shown after Done"); shot("06-note-saved")
+        app.buttons["noteDone"].tap(); wait(app.textViews["noteBody"], 10, "note editor gone after Done"); XCTAssertTrue(((app.textViews["noteBody"].value as? String) ?? "").contains("UI test note about UITestProject"), "note text not kept after Done"); shot("06-note-saved")
         app.buttons["noteClose"].tap()
         app.buttons["Prompts Scheduled"].tap(); wait(text("No prompts scheduled. Tap + to write one.")); shot("06-prompts-empty")
 
@@ -433,7 +433,7 @@ final class NeedsMeUITests: XCTestCase {
         app.buttons["tab-Notes"].tap()
         app.buttons["Prompts Scheduled"].tap()
         app.buttons["newItem"].tap()
-        let pt = app.textFields["promptText"]; wait(pt, 10, "prompt sheet missing"); pt.tap(); pt.typeText("Cancel me prompt")
+        let pt = app.textViews["promptText"]; wait(pt, 10, "prompt sheet missing"); pt.tap(); pt.typeText("Cancel me prompt")
         let picker = app.buttons["promptRoom"]; wait(picker, 10, "room picker missing"); picker.tap()
         let roomPick = app.buttons["Cancel room"]; wait(roomPick, 10, "room not in picker"); roomPick.tap()
         let sched = app.buttons["promptSchedule"]; wait(sched, 10, "Schedule button missing"); sched.tap()
@@ -469,9 +469,9 @@ final class NeedsMeUITests: XCTestCase {
         XCTAssertTrue(kind.frame.minY < me.frame.minY, "kindness item is not at the very top of the menu")
         shot("24-more-top")
         kind.tap()
-        wait(text("Be one of the first kind humans"), 10, "kind humans counter missing. SCREEN: " + screenText())
-        XCTAssertTrue(app.buttons["giveButton"].exists, "give button missing")
-        XCTAssertTrue(app.staticTexts["kindnessWall"].exists, "kindness wall missing")
+        wait(app.staticTexts["kindHumans"], 10, "kind humans counter missing. SCREEN: " + screenText())
+        let gb = app.descendants(matching: .any).matching(NSPredicate(format: "identifier == %@", "giveButton")).firstMatch; scrollTo(gb); XCTAssertTrue(gb.exists, "give button missing")
+        let kw = app.descendants(matching: .any).matching(NSPredicate(format: "identifier == %@", "kindnessWall")).firstMatch; scrollTo(kw); XCTAssertTrue(kw.exists, "kindness wall missing")
         shot("24-kindness")
         backToMoreRoot()
         openMore("settingsRow") { self.app.segmentedControls["motionPicker"].exists }
@@ -1024,6 +1024,21 @@ final class NeedsMeUITests: XCTestCase {
         while Date() < end { if line.label.contains("not connected yet") { ok = true; break }; Thread.sleep(forTimeInterval: 0.4) }
         XCTAssertTrue(ok, "unconnected AI not in room. LINE: " + line.label)
         wait(app.staticTexts["roomDescText"], 10, "description not shown. SCREEN: " + screenText())
+    }
+
+    // 31 Bug and feedback icons on Home, sent screens; rainbow people list.
+    func test31_ReportAndRainbow() {
+        app.terminate(); app.launchArguments = ["-uitest-reset", "-uitest-noask"]; app.launch()
+        _ = signUpFresh()
+        tapUntil(app.buttons["Skip guide"]) { !self.app.buttons["Skip guide"].exists }
+        let bug = app.buttons["bugButton"]; wait(bug, 20, "bug icon missing on Home. SCREEN: " + screenText()); bug.tap()
+        let t = app.textViews["reportText"]; wait(t, 10, "bug box missing"); t.tap(); t.typeText("Test bug")
+        let send = app.buttons["reportSend"]; wait(send, 10, "send missing"); send.tap()
+        wait(app.descendants(matching: .any).matching(NSPredicate(format: "identifier == %@", "reportDone")).firstMatch, 10, "thanks missing. SCREEN: " + screenText())
+        app.navigationBars.buttons.firstMatch.tap()
+        let fb = app.buttons["feedbackButton"]; wait(fb, 10, "feedback icon missing"); fb.tap()
+        wait(app.textViews["reportText"], 10, "feedback box missing")
+        app.navigationBars.buttons.firstMatch.tap()
     }
 
     // 27 Add people: a room has its own member list, WhatsApp style.
