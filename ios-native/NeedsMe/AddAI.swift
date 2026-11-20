@@ -20,6 +20,7 @@ struct LinkAI: Codable, Identifiable {
     func connectedCount(_ key: String) -> Int { links.filter { $0.key == key && $0.seen }.count }
 
     func make(key: String, label: String) async -> String? {
+        if !AIConsent.granted { return AIConsent.needed }
         guard let u = Auth.auth().currentUser, let idt = try? await u.getIDToken(), let url = URL(string: BridgeCard.base + "/tokens") else { return "Sign in first." }
         var r = URLRequest(url: url); r.httpMethod = "POST"; r.timeoutInterval = 30
         r.setValue("Bearer " + idt, forHTTPHeaderField: "Authorization"); r.setValue("application/json", forHTTPHeaderField: "Content-Type")

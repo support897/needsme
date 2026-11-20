@@ -40,6 +40,7 @@ enum AIClient {
 
     /// Calls take the account: its provider, its key and its label.
     static func test(_ a: AIAccount, key: String) async -> Result<Void, AIError> {
+        if !AIConsent.granted { return .failure(AIError(reason: "sharing is not allowed yet")) }
         if a.provider == "custom" {
             return (await customChat(a, key: key, system: "", messages: [ChatMsg(role: "user", text: "Hi")], maxTokens: 1)).map { _ in Void() }
         }
@@ -47,6 +48,7 @@ enum AIClient {
     }
 
     static func chat(_ a: AIAccount, key: String, system: String, messages: [ChatMsg], maxTokens: Int = 400) async -> Result<String, AIError> {
+        if !AIConsent.granted { return .failure(AIError(reason: "sharing is not allowed yet")) }
         if a.provider == "custom" { return await customChat(a, key: key, system: system, messages: messages, maxTokens: maxTokens) }
         return await chat(a.kind, key: key, system: system, messages: messages, maxTokens: maxTokens)
     }

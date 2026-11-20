@@ -274,6 +274,7 @@ struct SettingsView: View {
                         .buttonStyle(SoftButton()).accessibilityIdentifier("deleteAccount")
                     if !store.deleteMessage.isEmpty { Text(store.deleteMessage).font(.footnote).foregroundColor(p.ink).accessibilityIdentifier("deleteMessage") }
                 }
+                Card { LegalCard() }
                 Card {
                     Text("Your devices").font(.headline).foregroundColor(p.ink)
                     Text("Devices that have signed in to your account.").font(.caption).foregroundColor(p.soft)

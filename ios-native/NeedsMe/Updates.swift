@@ -170,7 +170,7 @@ enum NMUpdates {
             let pr = store.progress(name)
             return ["name": name, "open_todos": store.tasks.filter { $0.area == name && !$0.isDone }.map { $0.title }, "done": pr.done, "total": pr.total]
         }
-        if let d = try? JSONSerialization.data(withJSONObject: ["projects": snap]), let s = String(data: d, encoding: .utf8), s != lastSnap {
+        if let d = try? JSONSerialization.data(withJSONObject: ["projects": snap]), let s = String(data: d, encoding: .utf8), s != lastSnap, AIConsent.granted {
             if await send("PUT", "/snapshot", body: d, token: t) != nil { lastSnap = s }
         }
         guard let data = await send("GET", "/events", body: nil, token: t),

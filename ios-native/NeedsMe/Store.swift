@@ -381,6 +381,7 @@ final class Store: ObservableObject {
                 do { try await r.delete() }
                 catch { try? await r.setData(["rooms": [String](), "prompts": [String](), "updatedAt": FieldValue.serverTimestamp()]) }
             }
+            await BridgeSync.shared.eraseAll()
             try await u.delete()
             deleteMessage = ""
             try? Auth.auth().signOut()
