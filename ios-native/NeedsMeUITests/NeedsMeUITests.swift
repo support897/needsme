@@ -1002,6 +1002,30 @@ final class NeedsMeUITests: XCTestCase {
         wait(app.descendants(matching: .any).matching(NSPredicate(format: "identifier == %@", "aiConsentAllow")).firstMatch, 10, "sharing ask missing on Connect. SCREEN: " + screenText())
     }
 
+    // 30 A room takes AIs that are not connected yet, and a description.
+    func test30_RoomUnconnectedAI() {
+        app.terminate(); app.launchArguments = ["-uitest-reset", "-uitest-noask"]; app.launch()
+        _ = signUpFresh()
+        tapUntil(app.buttons["Skip guide"]) { !self.app.buttons["Skip guide"].exists }
+        wait(app.buttons["tab-More"], 30, "no tab bar after sign-up")
+        openMore("moreGroupChat") { self.app.buttons["newRoom"].exists }
+        app.buttons["newRoom"].tap()
+        let field = app.alerts.textFields.firstMatch; wait(field, 10, "room name box missing")
+        field.typeText("Info room"); app.alerts.buttons["Create"].tap()
+        wait(app.buttons["room-Info room"], 20, "room not listed"); app.buttons["room-Info room"].tap()
+        let add = app.buttons["addPeople"]; wait(add, 10, "add people missing"); add.tap()
+        let d = app.descendants(matching: .any).matching(NSPredicate(format: "identifier == %@", "roomDesc")).firstMatch
+        wait(d, 10, "description box missing"); d.tap(); d.typeText("Plan the launch")
+        let sw = app.descendants(matching: .any).matching(NSPredicate(format: "identifier == %@", "member-claude")).firstMatch
+        scrollTo(sw); wait(sw, 10, "Claude toggle missing"); sw.tap()
+        app.buttons["peopleDone"].tap()
+        let line = app.staticTexts["roomParticipants"]; wait(line, 10, "participants line missing")
+        let end = Date().addingTimeInterval(15); var ok = false
+        while Date() < end { if line.label.contains("not connected yet") { ok = true; break }; Thread.sleep(forTimeInterval: 0.4) }
+        XCTAssertTrue(ok, "unconnected AI not in room. LINE: " + line.label)
+        wait(app.staticTexts["roomDescText"], 10, "description not shown. SCREEN: " + screenText())
+    }
+
     // 27 Add people: a room has its own member list, WhatsApp style.
     func test27_AddPeopleToRoom() {
         _ = signUpFresh()
