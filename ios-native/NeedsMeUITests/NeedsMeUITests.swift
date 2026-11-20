@@ -970,7 +970,7 @@ final class NeedsMeUITests: XCTestCase {
         let seg = app.buttons["Copy a prompt"]; wait(seg, 10, "mode switch missing. SCREEN: " + screenText()); seg.tap()
         let mk = app.buttons["mkPrompt-claude"]; wait(mk, 10, "Make my prompt missing. SCREEN: " + screenText()); scrollTo(mk); mk.tap()
         let cp = app.buttons["cpPrompt-claude"]; wait(cp, 30, "prompt not made. SCREEN: " + screenText()); shot("38-join-prompt")
-        wait(app.buttons["openAI-claude"], 5, "Open Claude button missing")
+        wait(app.descendants(matching: .any).matching(NSPredicate(format: "identifier == %@", "cpLink-claude")).firstMatch, 10, "Copy link for connector missing. SCREEN: " + screenText())
         wait(app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "linkStatus-")).firstMatch, 10, "link status missing. SCREEN: " + screenText())
     }
 
