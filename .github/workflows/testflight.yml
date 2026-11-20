@@ -2,9 +2,6 @@ name: NeedsMe iOS to TestFlight
 # Handout recipe: unsigned archive, then export with Admin key + allowProvisioningUpdates (Apple signs). Never submits for App Review.
 on:
   workflow_dispatch:
-  push:
-    branches: [qa-fixes-2026-10-26]
-    paths: ['.github/workflows/testflight.yml']
 permissions:
   contents: write
 env:
