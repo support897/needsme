@@ -974,6 +974,18 @@ final class NeedsMeUITests: XCTestCase {
         wait(app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "linkStatus-")).firstMatch, 10, "link status missing. SCREEN: " + screenText())
     }
 
+    // 28 OpenCode joins by link: tile, make a link, terminal command button.
+    func test28_OpenCodeLink() {
+        app.terminate(); app.launchArguments = ["-uitest-reset", "-uitest-noask"]; app.launch()
+        _ = signUpFresh()
+        wait(app.buttons["tab-Projects"], 30)
+        tapUntil(app.buttons["Skip guide"]) { !self.app.buttons["Skip guide"].exists }
+        openMore("moreConnections") { self.app.buttons["ai-opencode"].exists }
+        let tile = app.buttons["ai-opencode"]; scrollTo(tile); tile.tap()
+        let mk = app.buttons["mkPrompt-opencode"]; wait(mk, 10, "Make my link missing. SCREEN: " + screenText()); scrollTo(mk); mk.tap()
+        wait(app.descendants(matching: .any).matching(NSPredicate(format: "identifier == %@", "cpCmd-opencode")).firstMatch, 30, "terminal command button missing. SCREEN: " + screenText())
+    }
+
     // 27 Add people: a room has its own member list, WhatsApp style.
     func test27_AddPeopleToRoom() {
         _ = signUpFresh()
