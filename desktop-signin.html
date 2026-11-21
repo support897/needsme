@@ -1,0 +1,22 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NeedsMe sign in</title>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#fff;font:16px -apple-system,Helvetica,Arial,sans-serif;color:#17140f}
+.c{max-width:360px;text-align:center;padding:24px}h1{font-size:24px;margin:0 0 8px}p{color:#6b655b;line-height:1.5}
+button{margin-top:16px;padding:12px 22px;border-radius:999px;border:0;background:#17140f;color:#fff;font-size:15px;cursor:pointer}</style></head>
+<body><div class="c"><h1>Sign in to NeedsMe</h1><p id="m">Tap the button, choose your Google account, then allow NeedsMe to open.</p>
+<button id="b">Continue with Google</button></div>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script>
+const st=new URLSearchParams(location.search).get('state')||'';
+const m=document.getElementById('m'),b=document.getElementById('b');
+if(!/^[a-f0-9]{32,64}$/.test(st)){m.textContent='This link is not valid. Please start again from the NeedsMe app.';b.style.display='none'}
+else{
+firebase.initializeApp({apiKey:"AIzaSyD3pfsSI-NpEPZgZhk4jiqdIZjyfmbkTVs",authDomain:"needs-me-480ea.firebaseapp.com",appId:"1:943521917653:web:8b24fe223741acfb2c105c"});
+b.onclick=async()=>{try{
+ const r=await firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider());
+ const j=btoa(unescape(encodeURIComponent(JSON.stringify(r.user.toJSON())))).replace(/\+/g,'-').replace(/\//g,'_');
+ m.textContent='Signed in. Click Allow when your browser asks to open NeedsMe. You can close this tab after.';b.style.display='none';
+ location.href='needsme://auth?state='+st+'#'+j;
+}catch(e){m.textContent='Could not sign in: '+(e.message||e)}}}
+</script></body></html>
