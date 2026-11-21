@@ -62,7 +62,7 @@ final class NeedsMeUITests: XCTestCase {
     }
     func goMore() {
         let more = app.buttons["tab-More"]
-        if app.buttons["kindnessItem"].isHittable { return }
+        if app.buttons["moreBug"].isHittable { return }
         if !more.isHittable { app.buttons["tab-Home"].tap() }
         let end = Date().addingTimeInterval(8)
         while Date() < end && !more.isHittable { Thread.sleep(forTimeInterval: 0.3) }
@@ -76,7 +76,7 @@ final class NeedsMeUITests: XCTestCase {
         // tapUntil/openAddTask. The assertion below is unchanged.
         for _ in 0..<4 {
             goMore()
-            let top = app.buttons["kindnessItem"]
+            let top = app.buttons["moreBug"]
             let end = Date().addingTimeInterval(6)
             while Date() < end && !top.isHittable { Thread.sleep(forTimeInterval: 0.3) }
             if top.isHittable { break }
@@ -163,7 +163,6 @@ final class NeedsMeUITests: XCTestCase {
         app.buttons["Save"].tap()
         wait(text("UI test task"), 20, "task not shown. SCREEN: " + screenText()); shot("04-task-added")
         app.buttons["Mark done"].firstMatch.tap(); wait(app.buttons["Mark not done"]); shot("04-task-done")
-        wait(text("Nice work, that one is done."), 10, "kindness moment did not show after marking done"); shot("04-kindness-moment")
         backToMoreRoot()
 
         app.buttons["tab-Home"].tap(); wait(text("UITestProject"), 20, "project progress not shown"); shot("05-home-project")
@@ -458,21 +457,16 @@ final class NeedsMeUITests: XCTestCase {
         XCTAssertTrue(roomGone, "room still listed after delete"); shot("23-room-deleted")
     }
 
-    // 14 Item 7 + item 8 shape: the kindness item stands FIRST in More; Settings holds every
-    // setting; Me holds none; the kindness screen stands with its counter and wall.
+    // 14 Menu order and Settings: bug and feedback stand first in More; Settings holds every
+    // setting; Me holds none.
     func test14_MenuOrderSettingsAndKindness() {
         _ = signUpFresh()
         tapUntil(app.buttons["Skip guide"]) { !self.app.buttons["Skip guide"].exists }
         goMore()
-        let kind = app.buttons["kindnessItem"]; wait(kind, 10, "kindness item missing in More")
+        let top = app.buttons["moreBug"]; wait(top, 10, "bug row missing in More")
         let me = app.buttons["meRow"]; wait(me, 10, "Me row missing in More")
-        XCTAssertTrue(kind.frame.minY < me.frame.minY, "kindness item is not at the very top of the menu")
+        XCTAssertTrue(top.frame.minY < me.frame.minY, "bug row is not at the top of the menu")
         shot("24-more-top")
-        kind.tap()
-        wait(app.staticTexts["kindHumans"], 10, "kind humans counter missing. SCREEN: " + screenText())
-        let gb = app.descendants(matching: .any).matching(NSPredicate(format: "identifier == %@", "giveButton")).firstMatch; scrollTo(gb); XCTAssertTrue(gb.exists, "give button missing")
-        let kw = app.descendants(matching: .any).matching(NSPredicate(format: "identifier == %@", "kindnessWall")).firstMatch; scrollTo(kw); XCTAssertTrue(kw.exists, "kindness wall missing")
-        shot("24-kindness")
         backToMoreRoot()
         openMore("settingsRow") { self.app.segmentedControls["motionPicker"].exists }
         XCTAssertTrue(app.segmentedControls["digestPicker"].exists, "digest setting not in Settings")
@@ -1010,8 +1004,8 @@ final class NeedsMeUITests: XCTestCase {
         wait(app.staticTexts["roomDescText"], 10, "description not shown. SCREEN: " + screenText())
     }
 
-    // 31 Bug and feedback icons on Home, sent screens; rainbow people list.
-    func test31_ReportAndRainbow() {
+    // 31 Bug and feedback icons on Home, sent screens.
+    func test31_ReportBugAndFeedback() {
         app.terminate(); app.launchArguments = ["-uitest-reset", "-uitest-noask"]; app.launch()
         _ = signUpFresh()
         tapUntil(app.buttons["Skip guide"]) { !self.app.buttons["Skip guide"].exists }
