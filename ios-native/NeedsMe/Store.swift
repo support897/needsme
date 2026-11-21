@@ -89,10 +89,6 @@ final class Store: ObservableObject {
     @Published var user: User?
     @Published var tasks: [TaskItem] = []
     @Published var manualProjects: [String] = []
-    /// The kindness offer (main-round item 8): stands after a task is finished,
-    /// on whichever task surface the person is standing on. It belongs to the
-    /// act of finishing, not to one screen, so it lives here and not in a view.
-    @Published var kindnessOffer = false
     @Published var notes: [NoteItem] = []
     @Published var rooms: [RoomItem] = []
     @Published var needs: [NeedItem] = []
@@ -464,7 +460,6 @@ final class Store: ObservableObject {
         }
     }
     func toggle(_ t: TaskItem) {
-        if !t.isDone { kindnessOffer = true }
         col("tasks")?.document(t.id).updateData(["status": t.isDone ? "waiting" : "done", "done_date": t.isDone ? "" : Store.today, "done_by": "user"])
     }
     func deleteTask(_ t: TaskItem) { col("tasks")?.document(t.id).delete() }

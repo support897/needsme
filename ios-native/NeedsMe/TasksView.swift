@@ -70,22 +70,6 @@ struct TasksView: View {
             if !store.message.isEmpty {
                 rowBox(Text(store.message).font(.footnote.weight(.medium)).foregroundColor(.red).accessibilityIdentifier("taskMessage"))
             }
-            if store.kindnessOffer {
-                rowBox(VStack(alignment: .leading, spacing: 8) {
-                    Text("Nice work, that one is done.").font(.headline).foregroundColor(.loam)
-                    Text("Kindness keeps NeedsMe free for the next person who needs a hand.")
-                        .font(.subheadline).foregroundColor(.muted)
-                    HStack {
-                        NavigationLink { KindnessView() } label: {
-                            Text("Join the AI kindness revolution").font(.subheadline.bold()).foregroundColor(.loam)
-                        }.accessibilityIdentifier("kindnessMoment")
-                        Spacer()
-                        Button("Not now") { store.kindnessOffer = false }.font(.subheadline).foregroundColor(.muted)
-                    }
-                }
-                .padding(16).background(LinearGradient(colors: [.sproutPale, .cardTone], startPoint: .leading, endPoint: .trailing))
-                .clipShape(RoundedRectangle(cornerRadius: 20)))
-            }
             if store.tasks.isEmpty && store.needs.isEmpty && store.message.isEmpty {
                 rowBox(Text("No tasks yet. Tap + to add your first one.").foregroundColor(.muted))
             }
@@ -294,20 +278,6 @@ struct TaskDetailView: View {
             Text("Actions").font(.headline).foregroundColor(p.ink)
             Button(t.isDone ? "Mark not done" : "Mark done") { store.toggle(t) }
                 .buttonStyle(PrimaryButton()).accessibilityIdentifier("taskToggle")
-            if store.kindnessOffer {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Nice work, that one is done.").font(.headline).foregroundColor(p.ink)
-                    Text("Kindness keeps NeedsMe free for the next person who needs a hand.")
-                        .font(.subheadline).foregroundColor(p.soft)
-                    HStack {
-                        NavigationLink { KindnessView() } label: {
-                            Text("Join the AI kindness revolution").font(.subheadline.bold()).foregroundColor(p.ink)
-                        }.accessibilityIdentifier("kindnessMoment")
-                        Spacer()
-                        Button("Not now") { store.kindnessOffer = false }.font(.subheadline).foregroundColor(p.soft)
-                    }
-                }
-            }
             Button("Delete this task") { store.deleteTask(t); dismiss() }
                 .buttonStyle(SoftButton()).accessibilityIdentifier("taskDelete")
         }

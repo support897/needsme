@@ -1,8 +1,7 @@
 import SwiftUI
 import FirebaseAuth
 
-/// The More menu. First row is the kindness revolution (her word, 14 Nov 15:19: it stands
-/// at the very top of the menu, above everything else). Then the profile, then the remaining
+/// The More menu. First the bug and feedback rows, then the profile, then the remaining
 /// destinations in the HTML section 2 sidebar order, and Settings last with its gear icon.
 /// No setting lives here or in Me: every setting stands in Settings (Settings law).
 struct MoreView: View {
@@ -19,7 +18,6 @@ struct MoreView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    row("Join the AI kindness revolution", "heart.fill", "kindnessItem") { KindnessView() }
                     row("Report a bug", "ladybug.fill", "moreBug") { ReportView(kind: .bug) }
                     row("Send feedback", "text.bubble.fill", "moreFeedback") { ReportView(kind: .feedback) }
                     NavigationLink { MeView() } label: {
