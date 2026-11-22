@@ -171,8 +171,8 @@ footer a{color:var(--tint);text-decoration:none;margin-left:18px}
       <a class="small" style="text-align:center" href="https://github.com/support897/needsme/releases/latest/download/NeedsMe-x64.dmg">Intel Mac</a></div>
     <div class="card" data-os="ios"><span class="badge">Phone</span><h3>iPhone</h3><p>Join the beta on TestFlight.</p>
       <a class="btn" href="https://testflight.apple.com/TESTFLIGHT_URL" id="iosA">Get on TestFlight</a></div>
-    <div class="card" data-os="android"><span class="badge">Phone</span><h3>Android</h3><p>Google Play version is on its way.</p>
-      <a class="soon" href="mailto:hello@needsme.xyz?subject=Tell%20me%20when%20NeedsMe%20is%20on%20Android">Tell me when it's ready</a></div>
+    <div class="card" data-os="android"><span class="badge">Phone</span><h3>Android</h3><p>Direct download for Android phones and tablets. Open the file and allow the install. Google Play is on its way.</p>
+      <a class="btn" href="https://github.com/support897/needsme-android/releases/latest/download/NeedsMe-Android.apk" id="andA">Download for Android</a></div>
     <div class="card" data-os="win"><span class="badge">Computer</span><h3>Windows</h3><p>Coming soon. The web app works today.</p>
       <a class="btn ghost" href="./app/">Open web app</a></div>
   </div>
@@ -195,7 +195,7 @@ var ua=navigator.userAgent||'',p=navigator.platform||'';
 var os=/iPhone|iPad|iPod/.test(ua)||(p==='MacIntel'&&navigator.maxTouchPoints>1)?'ios':/Android/i.test(ua)?'android':/CrOS/.test(ua)?'chromebook':/Win/i.test(p)||/Windows/.test(ua)?'win':/Mac/i.test(p)?'mac':'other';
 var cta=document.getElementById('mainCta'),st=document.getElementById('stickyCta'),note=document.getElementById('ctaNote'),lead=document.getElementById('dlLead');
 var iosEl=document.getElementById('iosA'),TF=iosEl.getAttribute('href');if(/TESTFLIGHT_URL/.test(TF)){TF='./app/';iosEl.href=TF;iosEl.textContent='Open web app (TestFlight soon)'}
-var map={mac:['Download for Mac',document.getElementById('macA').href],ios:['Get it on TestFlight',TF],android:['Android is coming soon','mailto:hello@needsme.xyz?subject=Tell%20me%20when%20NeedsMe%20is%20on%20Android'],win:['Open the web app','./app/'],chromebook:['Open the web app','./app/'],other:['Download','#download']};
+var map={mac:['Download for Mac',document.getElementById('macA').href],ios:['Get it on TestFlight',TF],android:['Download for Android','https://github.com/support897/needsme-android/releases/latest/download/NeedsMe-Android.apk'],win:['Open the web app','./app/'],chromebook:['Open the web app','./app/'],other:['Download','#download']};
 var m=map[os]||map.other;cta.textContent=m[0];cta.href=m[1];st.textContent=m[0];st.href=m[1];
 if(os==='ios'||os==='android'){note.innerHTML='We detected your '+(os==='ios'?'iPhone':'Android phone')+'. <a href="#download">Other devices</a>'}
 if(os==='chromebook')note.innerHTML='Chromebook: use the web app, same account. <a href="#download">Other devices</a>';
