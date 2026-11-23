@@ -173,8 +173,8 @@ footer a{color:var(--tint);text-decoration:none;margin-left:18px}
       <a class="btn" href="https://testflight.apple.com/TESTFLIGHT_URL" id="iosA">Get on TestFlight</a></div>
     <div class="card" data-os="android"><span class="badge">Phone</span><h3>Android</h3><p>Direct download for Android phones and tablets. Open the file and allow the install. Google Play is on its way.</p>
       <a class="btn" href="https://github.com/support897/needsme-android/releases/latest/download/NeedsMe-Android.apk" id="andA">Download for Android</a></div>
-    <div class="card" data-os="win"><span class="badge">Computer</span><h3>Windows</h3><p>Windows 10 and 11. Unzip, open NeedsMe. If Windows warns, click More info, then Run anyway.</p>
-      <a class="btn" href="https://github.com/support897/needsme/releases/download/v1.2.1-win/NeedsMe-Windows-x64.zip">Download for Windows</a> <a class="btn ghost" href="./app/">Open web app</a></div>
+    <div class="card" data-os="win"><span class="badge">Computer</span><h3>Windows</h3><p>Windows 10 and 11. One file: download it and double-click. If Windows warns, click More info, then Run anyway.</p>
+      <a class="btn" href="https://github.com/support897/needsme/releases/download/v1.2.1-win/NeedsMe-Windows-App.exe">Download for Windows</a> <a class="btn ghost" href="./app/">Open web app</a></div>
   </div>
   <div class="small" style="margin-top:26px;max-width:560px;margin-left:auto;margin-right:auto;text-align:left">
     <b>Mac: first time you open it</b>
@@ -195,11 +195,11 @@ var ua=navigator.userAgent||'',p=navigator.platform||'';
 var os=/iPhone|iPad|iPod/.test(ua)||(p==='MacIntel'&&navigator.maxTouchPoints>1)?'ios':/Android/i.test(ua)?'android':/CrOS/.test(ua)?'chromebook':/Win/i.test(p)||/Windows/.test(ua)?'win':/Mac/i.test(p)?'mac':'other';
 var cta=document.getElementById('mainCta'),st=document.getElementById('stickyCta'),note=document.getElementById('ctaNote'),lead=document.getElementById('dlLead');
 var iosEl=document.getElementById('iosA'),TF=iosEl.getAttribute('href');if(/TESTFLIGHT_URL/.test(TF)){TF='./app/';iosEl.href=TF;iosEl.textContent='Open web app (TestFlight soon)'}
-var map={mac:['Download for Mac',document.getElementById('macA').href],ios:['Get it on TestFlight',TF],android:['Download for Android','https://github.com/support897/needsme-android/releases/latest/download/NeedsMe-Android.apk'],win:['Download for Windows','https://github.com/support897/needsme/releases/download/v1.2.1-win/NeedsMe-Windows-x64.zip'],chromebook:['Open the web app','./app/'],other:['Download','#download']};
+var map={mac:['Download for Mac',document.getElementById('macA').href],ios:['Get it on TestFlight',TF],android:['Download for Android','https://github.com/support897/needsme-android/releases/latest/download/NeedsMe-Android.apk'],win:['Download for Windows','https://github.com/support897/needsme/releases/download/v1.2.1-win/NeedsMe-Windows-App.exe'],chromebook:['Open the web app','./app/'],other:['Download','#download']};
 var m=map[os]||map.other;cta.textContent=m[0];cta.href=m[1];st.textContent=m[0];st.href=m[1];
 if(os==='ios'||os==='android'){note.innerHTML='We detected your '+(os==='ios'?'iPhone':'Android phone')+'. <a href="#download">Other devices</a>'}
 if(os==='chromebook')note.innerHTML='Chromebook: use the web app, same account. <a href="#download">Other devices</a>';
-if(os==='win')note.innerHTML='Unzip, open NeedsMe. If Windows warns, click More info, then Run anyway. <a href="#download">Other devices</a>';
+if(os==='win')note.innerHTML='Double-click the file you downloaded. If Windows warns, click More info, then Run anyway. <a href="#download">Other devices</a>';
 var cards=document.querySelectorAll('[data-os]');cards.forEach(function(c){if(c.dataset.os===os)c.classList.add('me')});
 if(os!=='other')lead.textContent='We picked the best one for your device.';
 function fit(){var w=window.innerWidth,d=w<600?'phone':w<1024?'tablet':'desktop';document.documentElement.setAttribute('data-screen',d)}fit();addEventListener('resize',fit);addEventListener('orientationchange',fit);
