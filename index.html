@@ -9,6 +9,8 @@
 <meta property="og:description" content="Every AI you use, one calm place. Group chats, one-tap account switching, and alerts when an AI needs you.">
 <meta property="og:image" content="https://support897.github.io/needsme/media/poster.jpg">
 <meta name="theme-color" content="#16120E">
+<link rel="canonical" href="https://support897.github.io/needsme/"><meta property="og:type" content="website"><meta property="og:url" content="https://support897.github.io/needsme/"><meta property="og:site_name" content="NeedsMe AI"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="NeedsMe AI: every AI you use, one calm place"><meta name="twitter:description" content="One app for Claude, ChatGPT, Gemini and more. One-tap account switching, group chats, alerts when an AI needs you."><meta name="twitter:image" content="https://support897.github.io/needsme/media/poster.jpg">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"NeedsMe AI","applicationCategory":"ProductivityApplication","operatingSystem":"macOS, Windows, iOS, Android","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"url":"https://support897.github.io/needsme/"}</script>
 <link rel="icon" type="image/png" href="./icons/icon-192.png">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <link rel="manifest" href="./manifest.webmanifest">
@@ -167,14 +169,14 @@ footer a{color:var(--tint);text-decoration:none;margin-left:18px}
   <p class="lead" style="margin:0 auto" id="dlLead">Pick your device.</p>
   <div class="dlgrid">
     <div class="card" data-os="mac"><span class="badge">Computer</span><h3>Mac</h3><p>Apple silicon and Intel. Opens like any app.</p>
-      <a class="btn" href="https://github.com/support897/needsme/releases/latest/download/NeedsMe-arm64.dmg" id="macA">Download (Apple silicon)</a>
-      <a class="small" style="text-align:center" href="https://github.com/support897/needsme/releases/latest/download/NeedsMe-x64.dmg">Intel Mac</a></div>
+      <a class="btn" href="https://github.com/support897/needsme/releases/download/v1.3.0/NeedsMe-1.3.0-arm64.dmg" id="macA">Download (Apple silicon)</a>
+      <a class="small" style="text-align:center" href="https://github.com/support897/needsme/releases/download/v1.3.0/NeedsMe-1.3.0-x64.dmg">Intel Mac</a></div>
     <div class="card" data-os="ios"><span class="badge">Phone</span><h3>iPhone</h3><p>Join the beta on TestFlight.</p>
-      <a class="btn" href="https://testflight.apple.com/TESTFLIGHT_URL" id="iosA">Get on TestFlight</a></div>
+      <a class="btn" href="https://testflight.apple.com/join/BtwT2AdG" id="iosA">Get on TestFlight</a></div>
     <div class="card" data-os="android"><span class="badge">Phone</span><h3>Android</h3><p>Direct download for Android phones and tablets. Open the file and allow the install. Google Play is on its way.</p>
       <a class="btn" href="https://github.com/support897/needsme-android/releases/latest/download/NeedsMe-Android.apk" id="andA">Download for Android</a></div>
     <div class="card" data-os="win"><span class="badge">Computer</span><h3>Windows</h3><p>Windows 10 and 11. Download it and double-click to install. If Windows warns, click More info, then Run anyway.</p>
-      <a class="btn" href="https://github.com/support897/needsme/releases/download/v1.2.1-win/NeedsMe-Windows-Setup.exe">Download for Windows</a> <a class="btn ghost" href="./app/">Open web app</a></div>
+      <a class="btn" href="https://github.com/support897/needsme/releases/download/v1.3.0/NeedsMe-1.3.0-x64.exe">Download for Windows</a> <a class="btn ghost" href="./app/">Open web app</a></div>
   </div>
   <div class="small" style="margin-top:26px;max-width:560px;margin-left:auto;margin-right:auto;text-align:left">
     <b>Mac: first time you open it</b>
@@ -194,14 +196,22 @@ footer a{color:var(--tint);text-decoration:none;margin-left:18px}
 var ua=navigator.userAgent||'',p=navigator.platform||'';
 var os=/iPhone|iPad|iPod/.test(ua)||(p==='MacIntel'&&navigator.maxTouchPoints>1)?'ios':/Android/i.test(ua)?'android':/CrOS/.test(ua)?'chromebook':/Win/i.test(p)||/Windows/.test(ua)?'win':/Mac/i.test(p)?'mac':'other';
 var cta=document.getElementById('mainCta'),st=document.getElementById('stickyCta'),note=document.getElementById('ctaNote'),lead=document.getElementById('dlLead');
-var iosEl=document.getElementById('iosA'),TF=iosEl.getAttribute('href');if(/TESTFLIGHT_URL/.test(TF)){TF='./app/';iosEl.href=TF;iosEl.textContent='Open web app (TestFlight soon)'}
-var map={mac:['Download for Mac',document.getElementById('macA').href],ios:['Get it on TestFlight',TF],android:['Download for Android','https://github.com/support897/needsme-android/releases/latest/download/NeedsMe-Android.apk'],win:['Download for Windows','https://github.com/support897/needsme/releases/download/v1.2.1-win/NeedsMe-Windows-Setup.exe'],chromebook:['Open the web app','./app/'],other:['Download','#download']};
+var iosEl=document.getElementById('iosA'),TF=iosEl.getAttribute('href');
+var map={mac:['Download for Mac',document.getElementById('macA').href],ios:['Get it on TestFlight',TF],android:['Download for Android','https://github.com/support897/needsme-android/releases/latest/download/NeedsMe-Android.apk'],win:['Download for Windows','https://github.com/support897/needsme/releases/download/v1.3.0/NeedsMe-1.3.0-x64.exe'],chromebook:['Open the web app','./app/'],other:['Download','#download']};
 var m=map[os]||map.other;cta.textContent=m[0];cta.href=m[1];st.textContent=m[0];st.href=m[1];
 if(os==='ios'||os==='android'){note.innerHTML='We detected your '+(os==='ios'?'iPhone':'Android phone')+'. <a href="#download">Other devices</a>'}
 if(os==='chromebook')note.innerHTML='Chromebook: use the web app, same account. <a href="#download">Other devices</a>';
 if(os==='win')note.innerHTML='Double-click the file you downloaded. If Windows warns, click More info, then Run anyway. <a href="#download">Other devices</a>';
 var cards=document.querySelectorAll('[data-os]');cards.forEach(function(c){if(c.dataset.os===os)c.classList.add('me')});
 if(os!=='other')lead.textContent='We picked the best one for your device.';
+
+fetch('https://api.github.com/repos/support897/needsme/releases/latest').then(function(r){return r.ok?r.json():null}).then(function(j){if(!j||!j.assets)return;var f=function(re){for(var i=0;i<j.assets.length;i++)if(re.test(j.assets[i].name))return j.assets[i].browser_download_url};
+var a=f(/arm64\.dmg$/),x=f(/x64\.dmg$/),w=f(/\.exe$/);
+document.querySelectorAll('a[href*="arm64.dmg"]').forEach(function(e){if(a)e.href=a});
+document.querySelectorAll('a[href*="x64.dmg"]').forEach(function(e){if(x)e.href=x});
+document.querySelectorAll('a[href$=".exe"]').forEach(function(e){if(w)e.href=w});
+var c=document.getElementById('mainCta');if(c){if(os==='mac'&&a)c.href=a;if(os==='win'&&w)c.href=w}
+var s=document.getElementById('stickyCta');if(s){if(os==='mac'&&a)s.href=a;if(os==='win'&&w)s.href=w}}).catch(function(){});
 function fit(){var w=window.innerWidth,d=w<600?'phone':w<1024?'tablet':'desktop';document.documentElement.setAttribute('data-screen',d)}fit();addEventListener('resize',fit);addEventListener('orientationchange',fit);
 var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{threshold:.12});
 document.querySelectorAll('.rv').forEach(function(el){io.observe(el)});
