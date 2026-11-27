@@ -169,14 +169,14 @@ footer a{color:var(--tint);text-decoration:none;margin-left:18px}
   <p class="lead" style="margin:0 auto" id="dlLead">Pick your device.</p>
   <div class="dlgrid">
     <div class="card" data-os="mac"><span class="badge">Computer</span><h3>Mac</h3><p>Apple silicon and Intel. Opens like any app.</p>
-      <a class="btn" href="https://github.com/support897/needsme/releases/download/v1.3.0/NeedsMe-1.3.0-arm64.dmg" id="macA">Download (Apple silicon)</a>
-      <a class="small" style="text-align:center" href="https://github.com/support897/needsme/releases/download/v1.3.0/NeedsMe-1.3.0-x64.dmg">Intel Mac</a></div>
+      <a class="btn" href="https://github.com/support897/needsme/releases/download/v1.5.0/NeedsMe-1.5.0-mac-arm64.zip" id="macA">Download (Apple silicon)</a>
+      <a class="small" style="text-align:center" href="https://github.com/support897/needsme/releases/download/v1.5.0/NeedsMe-1.5.0-mac-x64.zip">Intel Mac</a></div>
     <div class="card" data-os="ios"><span class="badge">Phone</span><h3>iPhone</h3><p>Join the beta on TestFlight.</p>
       <a class="btn" href="https://testflight.apple.com/join/BtwT2AdG" id="iosA">Get on TestFlight</a></div>
     <div class="card" data-os="android"><span class="badge">Phone</span><h3>Android</h3><p>Direct download for Android phones and tablets. Open the file and allow the install. Google Play is on its way.</p>
       <a class="btn" href="https://github.com/support897/needsme-android/releases/latest/download/NeedsMe-Android.apk" id="andA">Download for Android</a></div>
     <div class="card" data-os="win"><span class="badge">Computer</span><h3>Windows</h3><p>Windows 10 and 11. Download it and double-click to install. If Windows warns, click More info, then Run anyway.</p>
-      <a class="btn" href="https://github.com/support897/needsme/releases/download/v1.3.0/NeedsMe-1.3.0-x64.exe">Download for Windows</a> <a class="btn ghost" href="./app/">Open web app</a></div>
+      <a class="btn" href="https://github.com/support897/needsme/releases/download/v1.5.0/NeedsMe-1.5.0-Windows-x64.zip">Download for Windows</a> <a class="btn ghost" href="./app/">Open web app</a></div>
   </div>
   <div class="small" style="margin-top:26px;max-width:560px;margin-left:auto;margin-right:auto;text-align:left">
     <b>Mac: first time you open it</b>
@@ -197,7 +197,7 @@ var ua=navigator.userAgent||'',p=navigator.platform||'';
 var os=/iPhone|iPad|iPod/.test(ua)||(p==='MacIntel'&&navigator.maxTouchPoints>1)?'ios':/Android/i.test(ua)?'android':/CrOS/.test(ua)?'chromebook':/Win/i.test(p)||/Windows/.test(ua)?'win':/Mac/i.test(p)?'mac':'other';
 var cta=document.getElementById('mainCta'),st=document.getElementById('stickyCta'),note=document.getElementById('ctaNote'),lead=document.getElementById('dlLead');
 var iosEl=document.getElementById('iosA'),TF=iosEl.getAttribute('href');
-var map={mac:['Download for Mac',document.getElementById('macA').href],ios:['Get it on TestFlight',TF],android:['Download for Android','https://github.com/support897/needsme-android/releases/latest/download/NeedsMe-Android.apk'],win:['Download for Windows','https://github.com/support897/needsme/releases/download/v1.3.0/NeedsMe-1.3.0-x64.exe'],chromebook:['Open the web app','./app/'],other:['Download','#download']};
+var map={mac:['Download for Mac',document.getElementById('macA').href],ios:['Get it on TestFlight',TF],android:['Download for Android','https://github.com/support897/needsme-android/releases/latest/download/NeedsMe-Android.apk'],win:['Download for Windows','https://github.com/support897/needsme/releases/download/v1.5.0/NeedsMe-1.5.0-Windows-x64.zip'],chromebook:['Open the web app','./app/'],other:['Download','#download']};
 var m=map[os]||map.other;cta.textContent=m[0];cta.href=m[1];st.textContent=m[0];st.href=m[1];
 if(os==='ios'||os==='android'){note.innerHTML='We detected your '+(os==='ios'?'iPhone':'Android phone')+'. <a href="#download">Other devices</a>'}
 if(os==='chromebook')note.innerHTML='Chromebook: use the web app, same account. <a href="#download">Other devices</a>';
