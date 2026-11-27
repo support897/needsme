@@ -1,0 +1,386 @@
+[
+ {
+  "id": "chatgpt",
+  "name": "ChatGPT",
+  "url": "https://chatgpt.com/",
+  "group": "Chat",
+  "how": "web",
+  "convo": "a[href^=\"/c/\"]"
+ },
+ {
+  "id": "claude",
+  "name": "Claude",
+  "url": "https://claude.ai/",
+  "group": "Chat",
+  "how": "web",
+  "convo": "a[href^=\"/chat/\"]"
+ },
+ {
+  "id": "gemini",
+  "name": "Gemini",
+  "url": "https://gemini.google.com/app",
+  "group": "Chat",
+  "how": "web",
+  "convo": "a[href*=\"/app/\"]"
+ },
+ {
+  "id": "grok",
+  "name": "Grok",
+  "url": "https://grok.com/",
+  "group": "Chat",
+  "how": "web",
+  "convo": "a[href*=\"/chat/\"]"
+ },
+ {
+  "id": "muse",
+  "name": "Muse (Meta)",
+  "url": "https://muse.ai/",
+  "group": "Agent",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "metaai",
+  "name": "Meta AI",
+  "url": "https://www.meta.ai/",
+  "group": "Chat",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "copilot",
+  "name": "Microsoft Copilot",
+  "url": "https://copilot.microsoft.com/",
+  "group": "Chat",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "perplexity",
+  "name": "Perplexity",
+  "url": "https://www.perplexity.ai/",
+  "group": "Chat",
+  "how": "web",
+  "convo": "a[href*=\"/search/\"]"
+ },
+ {
+  "id": "deepseek",
+  "name": "DeepSeek",
+  "url": "https://chat.deepseek.com/",
+  "group": "Chat",
+  "how": "web",
+  "convo": "a[href*=\"/a/chat/s/\"]"
+ },
+ {
+  "id": "mistral",
+  "name": "Le Chat (Mistral)",
+  "url": "https://chat.mistral.ai/chat",
+  "group": "Chat",
+  "how": "web",
+  "convo": "a[href*=\"/chat/\"]"
+ },
+ {
+  "id": "qwen",
+  "name": "Qwen",
+  "url": "https://chat.qwen.ai/",
+  "group": "Chat",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "kimi",
+  "name": "Kimi",
+  "url": "https://www.kimi.com/",
+  "group": "Chat",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "zai",
+  "name": "Z.ai (GLM)",
+  "url": "https://chat.z.ai/",
+  "group": "Chat",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "poe",
+  "name": "Poe",
+  "url": "https://poe.com/",
+  "group": "Chat",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "you",
+  "name": "You.com",
+  "url": "https://you.com/",
+  "group": "Chat",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "pi",
+  "name": "Pi",
+  "url": "https://pi.ai/",
+  "group": "Chat",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "character",
+  "name": "Character.AI",
+  "url": "https://character.ai/",
+  "group": "Chat",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "hugging",
+  "name": "HuggingChat",
+  "url": "https://huggingface.co/chat/",
+  "group": "Chat",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "duck",
+  "name": "Duck.ai",
+  "url": "https://duck.ai/",
+  "group": "Chat",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "phind",
+  "name": "Phind",
+  "url": "https://www.phind.com/",
+  "group": "Chat",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "cohere",
+  "name": "Cohere North / Playground",
+  "url": "https://dashboard.cohere.com/playground/chat",
+  "group": "Chat",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "ernie",
+  "name": "ERNIE Bot",
+  "url": "https://ernie.baidu.com/",
+  "group": "Chat",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "doubao",
+  "name": "Doubao",
+  "url": "https://www.doubao.com/chat/",
+  "group": "Chat",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "yuanbao",
+  "name": "Tencent Yuanbao",
+  "url": "https://yuanbao.tencent.com/",
+  "group": "Chat",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "manus",
+  "name": "Manus",
+  "url": "https://manus.im/app",
+  "group": "Agent",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "genspark",
+  "name": "Genspark",
+  "url": "https://www.genspark.ai/",
+  "group": "Agent",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "notebooklm",
+  "name": "NotebookLM",
+  "url": "https://notebooklm.google.com/",
+  "group": "Research",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "jules",
+  "name": "Jules (Google)",
+  "url": "https://jules.google.com/",
+  "group": "Coding",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "codex",
+  "name": "ChatGPT Codex",
+  "url": "https://chatgpt.com/codex",
+  "group": "Coding",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "claudecode",
+  "name": "Claude Code (web)",
+  "url": "https://claude.ai/code",
+  "group": "Coding",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "copilotgh",
+  "name": "GitHub Copilot",
+  "url": "https://github.com/copilot",
+  "group": "Coding",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "devin",
+  "name": "Devin",
+  "url": "https://app.devin.ai/",
+  "group": "Coding",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "cursor",
+  "name": "Cursor (web agents)",
+  "url": "https://cursor.com/agents",
+  "group": "Coding",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "replit",
+  "name": "Replit Agent",
+  "url": "https://replit.com/",
+  "group": "Coding",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "lovable",
+  "name": "Lovable",
+  "url": "https://lovable.dev/",
+  "group": "Builder",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "bolt",
+  "name": "Bolt",
+  "url": "https://bolt.new/",
+  "group": "Builder",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "v0",
+  "name": "v0 (Vercel)",
+  "url": "https://v0.dev/",
+  "group": "Builder",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "gamma",
+  "name": "Gamma",
+  "url": "https://gamma.app/",
+  "group": "Builder",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "midjourney",
+  "name": "Midjourney",
+  "url": "https://www.midjourney.com/",
+  "group": "Images",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "ideogram",
+  "name": "Ideogram",
+  "url": "https://ideogram.ai/",
+  "group": "Images",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "runway",
+  "name": "Runway",
+  "url": "https://app.runwayml.com/",
+  "group": "Video",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "suno",
+  "name": "Suno",
+  "url": "https://suno.com/",
+  "group": "Music",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "eleven",
+  "name": "ElevenLabs",
+  "url": "https://elevenlabs.io/app",
+  "group": "Voice",
+  "how": "web",
+  "convo": ""
+ },
+ {
+  "id": "opencode",
+  "name": "OpenCode",
+  "url": "https://opencode.ai/",
+  "group": "Coding",
+  "how": "terminal",
+  "convo": ""
+ },
+ {
+  "id": "claudecli",
+  "name": "Claude Code (terminal)",
+  "url": "",
+  "group": "Coding",
+  "how": "terminal",
+  "convo": ""
+ },
+ {
+  "id": "codexcli",
+  "name": "Codex CLI",
+  "url": "",
+  "group": "Coding",
+  "how": "terminal",
+  "convo": ""
+ },
+ {
+  "id": "geminicli",
+  "name": "Gemini CLI",
+  "url": "",
+  "group": "Coding",
+  "how": "terminal",
+  "convo": ""
+ },
+ {
+  "id": "custom",
+  "name": "Any other AI (paste its link)",
+  "url": "",
+  "group": "Any",
+  "how": "web",
+  "convo": ""
+ }
+]
