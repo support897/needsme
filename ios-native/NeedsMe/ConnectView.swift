@@ -4,6 +4,7 @@ let setupPrompt = "You are my friendly setup helper for the NeedsMe Ai app. Help
 
 struct ConnectView: View {
     @Environment(\.palette) var p
+    @EnvironmentObject var store: Store
     @State private var copied = false
     @State private var openId: String? = nil
     @State private var wizard = false
@@ -33,6 +34,21 @@ struct ConnectView: View {
                     Text(statusLines).font(.caption).foregroundColor(p.soft).accessibilityIdentifier("connectionStatus")
                 }
                 ConsentCard()
+                if !store.sharedAIs.isEmpty {
+                    Card {
+                        Text("Already logged in").font(.system(.headline, design: .rounded)).foregroundColor(p.ink)
+                        Text("The same AIs as on your computer, the web and your other phone.").font(.caption).foregroundColor(p.soft)
+                        ForEach(store.sharedAIs) { a in
+                            if let u = URL(string: a.url), !a.url.isEmpty {
+                                Link(destination: u) {
+                                    HStack { Text(a.emoji.isEmpty ? String(a.aiName.prefix(1)) : a.emoji).frame(width: 28, height: 28).background(Circle().fill(p.chip))
+                                        VStack(alignment: .leading) { Text(a.title).font(.subheadline.weight(.semibold)); if !a.desc.isEmpty { Text(a.desc).font(.caption).foregroundColor(p.soft) } }
+                                        Spacer() }.foregroundColor(p.ink)
+                                }.accessibilityIdentifier("sharedAI-\(a.id)")
+                            }
+                        }
+                    }.accessibilityIdentifier("sharedAIs")
+                }
                 FoldSection(id: "updates", icon: "checklist.checked", color: Color(hex: 0xA8C256), title: "Progress, to-dos and alerts", sub: "How your AIs report back to you") { UpdatesCard() }
                 Text("Pick an AI. Tap it to see the steps.").font(.system(.headline, design: .rounded)).foregroundColor(p.ink).padding(.top, 4)
                 ForEach(AIProvider.allCases) { prov in AITile(prov: prov, openId: $openId) }

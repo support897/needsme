@@ -99,6 +99,8 @@ final class Store: ObservableObject {
     @Published var agentControls: [String: AgentControl] = [:]
     /// Devices that have signed in (HTML section 15), newest seen first.
     @Published var devices: [DeviceRecord] = []
+    /// Items 2, 9, 14: the AIs she is logged in to on her other devices (phone, web, Mac, Windows). Same shared list everywhere.
+    @Published var sharedAIs: [SharedAI] = []
     @Published var roomError = ""
     /// Her saved colour pick, from users/{uid}/settings/app. Nil until one is saved.
     @Published var cloudTheme: String?
@@ -172,6 +174,10 @@ final class Store: ObservableObject {
                                                        projects: m["projects"] as? [String] ?? [],
                                                        tools: m["tools"] as? [String] ?? [])
                         }
+                    } else if d.documentID == "aiaccounts" {
+                        let list = SharedAI.parse(x["json"] as? String ?? "")
+                        if Thread.isMainThread { MainActor.assumeIsolated { self?.sharedAIs = list } }
+                        else { Task { @MainActor in self?.sharedAIs = list } }
                     } else if d.documentID.hasPrefix("device-") {
                         devs.append(DeviceRecord(id: d.documentID, name: x["name"] as? String ?? "",
                                                  model: x["model"] as? String ?? "", system: x["system"] as? String ?? "",
@@ -1023,4 +1029,20 @@ extension Store {
                 m("5", "chatgpt", "I can start the announcement post once the date is set."),
                 m("6", "system", "Note made\nAnnouncement outline")]
     }()
+}
+
+
+/// One AI from the shared list (Firestore users/{uid}/settings/aiaccounts, written by the Android, web, Mac and Windows apps).
+struct SharedAI: Identifiable, Equatable {
+    let id: String, aiName: String, name: String, desc: String, url: String, color: String, emoji: String
+    var title: String { name.isEmpty || name == "Main" ? aiName : aiName + " \u{00B7} " + name }
+    static func parse(_ json: String) -> [SharedAI] {
+        guard let data = json.data(using: .utf8), let obj = try? JSONSerialization.jsonObject(with: data) else { return [] }
+        let arr = (obj as? [String: Any])?["accounts"] as? [[String: Any]] ?? (obj as? [[String: Any]] ?? [])
+        return arr.compactMap { a in
+            guard let id = a["id"] as? String, !id.isEmpty, (a["del"] as? Bool) != true else { return nil }
+            return SharedAI(id: id, aiName: a["aiName"] as? String ?? (a["ai"] as? String ?? "AI"), name: a["name"] as? String ?? "",
+                            desc: a["desc"] as? String ?? "", url: a["url"] as? String ?? "", color: a["color"] as? String ?? "", emoji: a["emoji"] as? String ?? "")
+        }
+    }
 }
