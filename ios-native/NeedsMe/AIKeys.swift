@@ -55,7 +55,7 @@ enum AIProvider: String, CaseIterable, Identifiable {
         case .gemini: return "https://gemini.google.com/app"
         case .perplexity: return "https://www.perplexity.ai"
         case .grok: return "https://grok.com"
-        case .muse: return "https://www.meta.ai"
+        case .muse: return "https://muse.ai/"
         case .deepseek: return "https://chat.deepseek.com"
         case .mistral: return "https://chat.mistral.ai"
         case .groq: return "https://console.groq.com/playground"
@@ -73,7 +73,10 @@ struct AIAccount: Codable, Identifiable, Equatable {
     var id: String        // the provider name for the first account, else provider plus a short slug
     var provider: String  // AIProvider raw value
     var label: String
+    var url: String? = nil   // only for "Any other AI"
     var kind: AIProvider { AIProvider(rawValue: provider) ?? .chatgpt }
+    var site: String { url ?? webAI(provider)?.url ?? kind.site }
+    var platformName: String { provider == "custom" ? "Other AI" : (webAI(provider)?.name ?? kind.name) }
 }
 
 /// Keys live in the device Keychain only. One item per ACCOUNT, keyed by the account id.
@@ -159,6 +162,7 @@ final class AIConnections: ObservableObject {
     func accounts(for p: AIProvider) -> [AIAccount] {
         accounts.filter { $0.provider == p.rawValue }
     }
+    func accounts(forId id: String) -> [AIAccount] { accounts.filter { $0.provider == id } }
     func account(_ id: String) -> AIAccount? { accounts.first { $0.id == id } }
 
     func hasKey(_ a: AIAccount) -> Bool { _ = keyTick; return AIKeys.has(a.id) }
@@ -167,6 +171,13 @@ final class AIConnections: ObservableObject {
         _ = keyTick
         if Store.demo { return ["claude", "chatgpt", "gemini"].contains(a.id) }
         return AIKeys.has(a.id) && results[a.id]?.ok == true
+    }
+
+    /// Every account you have signed into or opened, so the switcher never hides one. Confirmed ones come first.
+    var mine: [AIAccount] {
+        let seen = OpenTabs.shared.seen
+        let m = accounts.filter { isConnected($0) || seen.contains($0.id) }
+        return m.filter { isConnected($0) } + m.filter { !isConnected($0) }
     }
 
     var connected: [AIAccount] {
@@ -258,7 +269,29 @@ final class AIConnections: ObservableObject {
     }
 
     /// The first account of a provider only loses its key. Any other account is removed whole.
+    /// Adds a web account for any catalog AI. Its login lives in its own private browser store.
+    @discardableResult
+    func addWeb(id: String, label: String, url: String? = nil) -> AIAccount {
+        let name = webAI(id)?.name ?? "Other AI"
+        let slug = String(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(6)).lowercased()
+        var want = label.trimmingCharacters(in: .whitespacesAndNewlines)
+        if want.isEmpty { want = accounts(forId: id).isEmpty ? name : "\(name) 2" }
+        var n = 2, l = want
+        while taken(l, except: nil) { l = "\(want) \(n)"; n += 1 }
+        let acc = AIAccount(id: id + "-" + slug, provider: id, label: l, url: url)
+        accounts.append(acc)
+        persist(); keyTick += 1
+        return acc
+    }
+
+    func connectWeb(_ a: AIAccount) {
+        _ = AIKeys.save("web", account: a.id)
+        results[a.id] = AITestResult(ok: true, reason: "", at: Date())
+        persist(); keyTick += 1
+    }
+
     func remove(_ a: AIAccount) {
+        WebHub.forget(a)
         AIKeys.remove(a.id)
         results[a.id] = nil
         if a.id != a.provider { accounts.removeAll { $0.id == a.id } }

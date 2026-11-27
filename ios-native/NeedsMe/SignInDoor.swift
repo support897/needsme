@@ -17,7 +17,7 @@ let aiDoors: [AIDoor] = [
     AIDoor(id: "gemini", name: "Gemini", login: "https://gemini.google.com/app", exportPage: "https://takeout.google.com/settings/takeout/custom/gemini_gems", reads: false),
     AIDoor(id: "perplexity", name: "Perplexity", login: "https://www.perplexity.ai/", exportPage: "https://www.perplexity.ai/settings/account", reads: false),
     AIDoor(id: "grok", name: "Grok", login: "https://grok.com/", exportPage: "https://accounts.x.ai/account", reads: false),
-    AIDoor(id: "muse", name: "Muse", login: "https://www.meta.ai/", exportPage: "https://accountscenter.meta.com/info_and_permissions/dyi", reads: false),
+    AIDoor(id: "muse", name: "Muse", login: "https://muse.ai/", exportPage: "https://accountscenter.meta.com/info_and_permissions/dyi", reads: false),
     AIDoor(id: "copilot", name: "Copilot", login: "https://copilot.microsoft.com/", exportPage: "https://account.microsoft.com/privacy", reads: false),
     AIDoor(id: "polar", name: "Polar", login: "https://polarbrowser.com/", exportPage: "https://polarbrowser.com/", reads: false),
 ]

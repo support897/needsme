@@ -9,6 +9,7 @@ struct RootView: View {
     @State private var tabBeforeTour = 0
     @State private var askClosedNow = false
     @State private var showWizard = false
+    @State private var alertOpen: AIAccount?
     @State private var nameDraft = ""
     static let launchId = UUID().uuidString
     @AppStorage("nm_motion") private var motion = "system"
@@ -28,12 +29,15 @@ struct RootView: View {
                     PipTour(onClose: {
                         tourDone = true; showTour = false; tab = tabBeforeTour
                         let testing = CommandLine.arguments.contains("-uitest-reset") && !CommandLine.arguments.contains("-uitest-wizard")
-                        if !testing && AIConnections.shared.connected.isEmpty { showWizard = true }
+                        _ = testing
                     }, goTo: { tab = $0 })
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
         }
+        .fullScreenCover(item: $alertOpen) { WebAIScreen(account: $0).environment(\.palette, p) }
+        .onReceive(AlertRouter.shared.$open) { if let a = $0, !AlertRouter.shared.screenUp { alertOpen = a; AlertRouter.shared.open = nil } }
+        .onAppear { AlertWatcher.shared.start() }
         .fullScreenCover(isPresented: $showWizard) { SetupWizard(onClose: { showWizard = false }).environment(\.palette, p) }
         .task(id: store.user?.uid) {
             while !Task.isCancelled {
@@ -118,11 +122,14 @@ struct MainTabs: View {
                 layer(1) { NeedsMeView() }
                 layer(2) { ProjectsView() }
                 layer(3) { NotesView() }
-                layer(4) { MoreView(replayTour: replayTour) }
+                layer(4) { MoreView(replayTour: replayTour, goTab: { tab = $0 }) }
+                layer(5) { NavigationStack { RoomsListView().lookBg().navigationTitle("Chats") } }
+                layer(6) { NavigationStack { ConnectView() } }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: router.hideBar ? 0 : 84) }
             if !router.hideBar { LookTabBar(tab: $tab) }
         }
+        .overlay(alignment: .bottomTrailing) { KeyboardDownButton() }
         .environmentObject(router)
         .sheet(isPresented: $router.adding) {
             NavigationStack {

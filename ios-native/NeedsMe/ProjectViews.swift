@@ -20,10 +20,17 @@ struct ProjectView: View {
 
     func who(_ t: TaskItem) -> String { t.doneBy.isEmpty || t.doneBy == "user" ? t.sourceBy : t.doneBy }
 
+    @State private var asking: TaskItem?
     func taskRow(_ t: TaskItem) -> some View {
-        LookRow(lead: { CheckCircle(on: t.isDone, working: !t.isDone && !t.sourceRoom.isEmpty) }, title: t.title,
-                sub: t.stamp.isEmpty ? (t.isDone ? "Done" : "") : t.stamp,
-                trail: { if !who(t).isEmpty { AIFace(label: who(t), size: 34) } })
+        HStack(spacing: 8) {
+            LookRow(lead: { Button { store.toggle(t) } label: { CheckCircle(on: t.isDone, working: !t.isDone && !t.sourceRoom.isEmpty) }.buttonStyle(.plain) }, title: t.title,
+                    sub: t.stamp.isEmpty ? (t.isDone ? "Done" : "") : t.stamp,
+                    trail: { if !who(t).isEmpty { AIFace(label: who(t), size: 34) } })
+            if !t.isDone {
+                Button { asking = t } label: { Text("Ask AI").font(.system(size: 12, weight: .bold)).padding(.horizontal, 10).padding(.vertical, 7)
+                    .background(Color.loam).foregroundColor(.sprout).clipShape(Capsule()) }.buttonStyle(.plain).accessibilityIdentifier("ask-" + t.title)
+            }
+        }
     }
 
     var body: some View {
@@ -66,6 +73,7 @@ struct ProjectView: View {
                 .padding(16)
                 .background(LinearGradient(colors: [.sproutPale, .cardTone], startPoint: .topLeading, endPoint: .bottomTrailing))
                 .clipShape(RoundedRectangle(cornerRadius: 24)).shadow(color: Color.loam.opacity(0.07), radius: 12, y: 6)
+                ProjectAIPanel(project: name)
                 PillTabs(items: ["All tasks", "Recent", "Done"], selection: $seg)
                 if seg == 0 {
                     if !projectNeeds.isEmpty {
@@ -117,6 +125,7 @@ struct ProjectView: View {
         }
         .lookBg()
         .navigationTitle(name).navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $asking) { AskAISheet(task: $0, project: name).environmentObject(store).environment(\.palette, p) }
     }
 }
 

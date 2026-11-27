@@ -1,74 +1,373 @@
 import SwiftUI
+import WebKit
+import CryptoKit
 
 let setupPrompt = "You are my friendly setup helper for the NeedsMe Ai app. Help me connect my own AI in under 60 seconds. Ask me ONE question at a time: 1) Which AI do I want to connect (OpenAI, Claude or Gemini)? 2) Give me the exact key page link and the 3 clicks to create an API key. 3) Tell me to copy the key and paste it ONLY into the NeedsMe app Connect page, never into this chat. 4) Tell me which model name to type. 5) Ask me to press Test connection and tell you the result. Use short plain words. If something fails, give the single next fix."
 
+
+// MARK: Real AI websites inside the app. One private saved login per account (iOS 17+).
+@MainActor
+enum WebHub {
+    private static var views: [String: WKWebView] = [:]
+    private static var busy: Set<String> = []
+    static let ua = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1"
+
+    static func uuid(_ id: String) -> UUID {
+        var b = Array(SHA256.hash(data: Data(("needsme-web-" + id).utf8)).prefix(16))
+        b[6] = (b[6] & 0x0F) | 0x50; b[8] = (b[8] & 0x3F) | 0x80
+        return b.withUnsafeBytes { UUID(uuid: $0.load(as: uuid_t.self)) }
+    }
+
+    static func existing(_ id: String) -> WKWebView? { views[id] }
+
+    static func view(for a: AIAccount) -> WKWebView {
+        if let v = views[a.id] { return v }
+        let c = WKWebViewConfiguration()
+        c.websiteDataStore = WKWebsiteDataStore(forIdentifier: uuid(a.id))
+        c.allowsInlineMediaPlayback = true
+        c.defaultWebpagePreferences.preferredContentMode = .mobile
+        let vp = "var m=document.querySelector('meta[name=viewport]');if(!m){m=document.createElement('meta');m.name='viewport';(document.head||document.documentElement).appendChild(m)}m.content='width=device-width,initial-scale=1,viewport-fit=cover';"
+        c.userContentController.addUserScript(WKUserScript(source: vp, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+        let sz = UIScreen.main.bounds.size
+        let v = WKWebView(frame: CGRect(x: 0, y: 0, width: sz.width, height: sz.height), configuration: c)
+        v.customUserAgent = ua
+        v.allowsBackForwardNavigationGestures = true
+        views[a.id] = v
+        park(v)
+        if let u = URL(string: a.site) { v.load(URLRequest(url: u)) }
+        return v
+    }
+
+    /// Keeps a page alive out of sight, so it can still be asked things.
+    static func park(_ v: WKWebView) {
+        guard let w = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene })
+            .flatMap({ $0.windows }).first(where: { $0.isKeyWindow }) else { return }
+        v.removeFromSuperview()
+        v.frame = CGRect(x: -3000, y: 0, width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
+        w.addSubview(v)
+    }
+
+    static func blurAll() { for v in views.values { v.evaluateJavaScript("document.activeElement&&document.activeElement.blur()", completionHandler: nil) } }
+
+    static func forget(_ a: AIAccount) {
+        if let v = views[a.id] { v.removeFromSuperview() }
+        views[a.id] = nil
+        let id = uuid(a.id)
+        Task { try? await WKWebsiteDataStore.remove(forIdentifier: id) }
+    }
+
+    static func js(_ v: WKWebView, _ code: String) async -> String {
+        await withCheckedContinuation { (c: CheckedContinuation<String, Never>) in
+            v.evaluateJavaScript(code) { r, _ in
+                if let s = r as? String { c.resume(returning: s) }
+                else if let r { c.resume(returning: "\(r)") }
+                else { c.resume(returning: "") }
+            }
+        }
+    }
+
+    static func settle(_ v: WKWebView) async {
+        let t0 = Date()
+        while Date().timeIntervalSince(t0) < 20 {
+            if !v.isLoading, await js(v, "document.readyState") == "complete" { break }
+            try? await Task.sleep(nanoseconds: 500_000_000)
+        }
+        try? await Task.sleep(nanoseconds: 2_500_000_000)
+    }
+
+    static let findBox = #"(()=>{const el=[...document.querySelectorAll('textarea,[contenteditable="true"],[role="textbox"]')].filter(e=>e.offsetParent).pop();return el?'1':'0'})()"#
+    static let typeJS = #"(()=>{const el=[...document.querySelectorAll('textarea,[contenteditable="true"],[role="textbox"]')].filter(e=>e.offsetParent).pop();if(!el)return '0';el.focus();const t=__T__;if(el.tagName==='TEXTAREA'||el.tagName==='INPUT'){const s=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el),'value').set;s.call(el,t);el.dispatchEvent(new Event('input',{bubbles:true}));}else{document.execCommand('selectAll',false,null);document.execCommand('insertText',false,t);if(!(el.innerText||'').trim()){el.textContent=t;el.dispatchEvent(new InputEvent('input',{bubbles:true,data:t,inputType:'insertText'}));}}return '1'})()"#
+    static let sendJS = #"(()=>{const el=[...document.querySelectorAll('textarea,[contenteditable="true"],[role="textbox"]')].filter(e=>e.offsetParent).pop();const root=(el&&el.closest('form'))||document;const b=[...root.querySelectorAll('button,[role=button]')].filter(x=>x.offsetParent&&!x.disabled&&x.getAttribute('aria-disabled')!=='true').find(x=>/send|submit|enviar/i.test((x.getAttribute('aria-label')||'')+' '+(x.getAttribute('data-testid')||'')+' '+(x.innerText||'')))||root.querySelector('button[type=submit]');if(b){b.click();return 'click'}if(el){for(const t of ['keydown','keypress','keyup'])el.dispatchEvent(new KeyboardEvent(t,{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true}));return 'enter'}return 'none'})()"#
+
+    /// Checks that the page shows a message box, which means the user is signed in.
+    static func test(_ a: AIAccount) async -> Result<Void, AIError> {
+        let v = view(for: a)
+        if await js(v, findBox) == "1" { return .success(()) }
+        return .failure(AIError(reason: "no message box yet. Sign in on the page first"))
+    }
+
+    /// Types into the real page and reads the answer, one job at a time per account.
+    static func ask(_ a: AIAccount, _ text: String) async -> Result<String, AIError> {
+        while busy.contains(a.id) { try? await Task.sleep(nanoseconds: 700_000_000) }
+        busy.insert(a.id); defer { busy.remove(a.id) }
+        let v = view(for: a)
+        if let u = URL(string: a.site) { v.load(URLRequest(url: u)) }
+        await settle(v)
+        let before = await js(v, "document.body.innerText")
+        guard let d = try? JSONEncoder().encode(text), let lit = String(data: d, encoding: .utf8) else { return .failure(AIError(reason: "bad text")) }
+        if await js(v, typeJS.replacingOccurrences(of: "__T__", with: lit)) != "1" {
+            return .failure(AIError(reason: "cannot find the message box. Open \(a.label) in AIs and sign in first"))
+        }
+        try? await Task.sleep(nanoseconds: 900_000_000)
+        _ = await js(v, sendJS)
+        var last = "", stable = 0
+        let t0 = Date()
+        try? await Task.sleep(nanoseconds: 3_000_000_000)
+        while Date().timeIntervalSince(t0) < 180 {
+            let now = await js(v, "document.body.innerText")
+            if now == last && now != before { stable += 1 } else { stable = 0 }
+            last = now
+            if stable >= 4 { break }
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+        }
+        let tail = String(text.suffix(40))
+        var out = last
+        if let r = last.range(of: tail, options: .backwards) { out = String(last[r.upperBound...]) }
+        else if last.count > before.count { out = String(last.dropFirst(before.count)) }
+        out = out.trimmingCharacters(in: .whitespacesAndNewlines)
+        return out.isEmpty ? .failure(AIError(reason: "no answer came back")) : .success(out)
+    }
+}
+
+struct WebBrowser: UIViewRepresentable {
+    let account: AIAccount
+    func makeUIView(context: Context) -> WKWebView { WebHub.view(for: account) }
+    func updateUIView(_ uiView: WKWebView, context: Context) {}
+    static func dismantleUIView(_ uiView: WKWebView, coordinator: ()) {
+        MainActor.assumeIsolated { WebHub.park(uiView) }
+    }
+}
+
+// MARK: AIs: every platform, with its accounts, and the real site inside the app.
 struct ConnectView: View {
     @Environment(\.palette) var p
-    @EnvironmentObject var store: Store
-    @State private var copied = false
-    @State private var openId: String? = nil
-    @State private var wizard = false
     @ObservedObject private var conns = AIConnections.shared
-    var statusLines: String {
-        conns.accounts.map { a in "\(a.label): \(conns.status(a))" + ((conns.status(a) == "Connected" ? conns.connectSeconds[a.id] : nil).map { String(format: " in %.1f s", $0) } ?? "") }.joined(separator: "\n")
+    @State private var opened: AIAccount?
+    @State private var newFor: String?
+    @State private var newLabel = ""
+
+    var signedCount: Int { conns.mine.count }
+    @State private var showAll = false
+    @State private var otherLink = ""
+    @State private var otherOpen = false
+    @State private var query = ""
+    @State private var editing: AIAccount?
+
+    func chip(_ a: AIAccount) -> some View {
+        let on = conns.isConnected(a)
+        return Button { opened = a } label: {
+            HStack(spacing: 6) {
+                Circle().fill(on ? Color.sprout : Color.faint.opacity(0.5)).frame(width: 8, height: 8)
+                Text(a.label).font(.system(size: 13, weight: .semibold))
+            }
+            .padding(.horizontal, 12).padding(.vertical, 8)
+            .background(p.chip).clipShape(Capsule()).foregroundColor(p.ink)
+        }.buttonStyle(.plain).accessibilityIdentifier("ai-" + a.label)
+        .contextMenu { Button { editing = a } label: { Label("Edit name and icon", systemImage: "pencil") } }
     }
-    var connectedCount: Int { AIProvider.allCases.filter { conns.isConnected(conns.account($0.rawValue) ?? AIAccount(id: $0.rawValue, provider: $0.rawValue, label: $0.name)) }.count }
+
+    func platform(_ w: WebAI) -> some View {
+        let accts = conns.accounts(forId: w.id)
+        let signed = accts.filter { conns.isConnected($0) }
+        return Card {
+            HStack(spacing: 12) {
+                AIFace(label: w.name, size: 40, state: .none)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(w.name).font(.headline).foregroundColor(p.ink)
+                    Text(signed.isEmpty ? w.group : (signed.count == 1 ? "1 account signed in" : "\(signed.count) accounts signed in"))
+                        .font(.subheadline).foregroundColor(p.soft)
+                }
+                Spacer()
+            }
+            if signed.isEmpty {
+                Button { detail = nil; opened = accts.first ?? conns.addWeb(id: w.id, label: "") } label: { Text("Sign in") }
+                    .buttonStyle(PrimaryButton()).accessibilityIdentifier("signin-" + w.name)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(signed) { chip($0) }
+                        Button { newLabel = ""; newFor = w.id } label: {
+                            Label("Account", systemImage: "plus").font(.system(size: 13, weight: .semibold))
+                                .padding(.horizontal, 12).padding(.vertical, 8)
+                                .overlay(Capsule().stroke(Color.faint.opacity(0.6), lineWidth: 1)).foregroundColor(p.soft)
+                        }.buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    @State private var group = "All"
+    @State private var detail: WebAI?
+    var groups: [String] { ["All"] + webCatalog.map { $0.group }.reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } } }
+    var shown: [WebAI] {
+        webCatalog.filter { (group == "All" || $0.group == group) && (query.isEmpty || $0.name.localizedCaseInsensitiveContains(query)) }
+    }
+    func tile(_ w: WebAI) -> some View {
+        let n = conns.accounts(forId: w.id).filter { conns.isConnected($0) }.count
+        return Button { if w.url.isEmpty { return }; detail = w } label: {
+            VStack(spacing: 8) {
+                AIFace(label: w.name, size: 44, state: .none)
+                Text(w.name).font(.system(size: 13, weight: .bold)).foregroundColor(p.ink).multilineTextAlignment(.center).lineLimit(2)
+                Text(w.url.isEmpty ? "Terminal, on your computer" : (n > 0 ? "\(n) signed in" : w.group)).font(.system(size: 11)).foregroundColor(n > 0 ? .sprout : p.soft)
+            }
+            .frame(maxWidth: .infinity, minHeight: 112).padding(8)
+            .background(p.card).clipShape(RoundedRectangle(cornerRadius: 18))
+        }.buttonStyle(.plain).accessibilityIdentifier("tile-" + w.name)
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 Card {
                     HStack(spacing: 12) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Set up, with Pip.").font(.system(.title2, design: .rounded).weight(.heavy))
-                            Text("\(connectedCount) of \(AIProvider.allCases.count) AIs connected").font(.subheadline.weight(.semibold)).foregroundColor(p.soft)
-                            StepDots(count: AIProvider.allCases.count, current: max(connectedCount - 1, 0))
+                            Text("Your AIs").font(.system(.title2, design: .rounded).weight(.heavy))
+                            Text(signedCount == 0 ? "Sign in once. Stay signed in." : "\(signedCount) signed in. Tap one to open it.")
+                                .font(.subheadline.weight(.semibold)).foregroundColor(p.soft)
                         }
-                        Spacer(); PipArt(pose: .welcome, height: 70)
+                        Spacer(); PipArt(pose: .welcome, height: 64)
                     }.foregroundColor(p.ink)
-                    Button { wizard = true } label: { Label("Start Pip's setup", systemImage: "wand.and.stars") }
-                        .buttonStyle(PrimaryButton()).accessibilityIdentifier("startWizard")
-                    Button(copied ? "Copied. Paste it into your AI." : "Copy setup prompt") {
-                        UIPasteboard.general.string = setupPrompt; copied = true
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { copied = false }
-                    }.buttonStyle(SoftButton())
-                    Text(statusLines).font(.caption).foregroundColor(p.soft).accessibilityIdentifier("connectionStatus")
                 }
                 ConsentCard()
-                if !store.sharedAIs.isEmpty {
-                    Card {
-                        Text("Already logged in").font(.system(.headline, design: .rounded)).foregroundColor(p.ink)
-                        Text("The same AIs as on your computer, the web and your other phone.").font(.caption).foregroundColor(p.soft)
-                        ForEach(store.sharedAIs) { a in
-                            if let u = URL(string: a.url), !a.url.isEmpty {
-                                Link(destination: u) {
-                                    HStack { Text(a.emoji.isEmpty ? String(a.aiName.prefix(1)) : a.emoji).frame(width: 28, height: 28).background(Circle().fill(p.chip))
-                                        VStack(alignment: .leading) { Text(a.title).font(.subheadline.weight(.semibold)); if !a.desc.isEmpty { Text(a.desc).font(.caption).foregroundColor(p.soft) } }
-                                        Spacer() }.foregroundColor(p.ink)
-                                }.accessibilityIdentifier("sharedAI-\(a.id)")
+                if !conns.mine.isEmpty {
+                    Text("Switch").font(.headline).foregroundColor(p.ink)
+                    AccountSwitcher(accounts: conns.mine, onPick: { opened = $0 }).padding(.horizontal, -14)
+                }
+                Button { withAnimation { showAll.toggle() } } label: {
+                    HStack { Text(conns.mine.isEmpty ? "Pick an AI" : "Add another AI").font(.headline); Spacer()
+                        Image(systemName: "chevron.down").rotationEffect(.degrees(showAll || conns.mine.isEmpty ? 180 : 0)) }
+                        .foregroundColor(p.ink).padding(14).background(p.card).clipShape(RoundedRectangle(cornerRadius: 16))
+                }.buttonStyle(.plain).accessibilityIdentifier("addAnotherAI")
+                if showAll || conns.mine.isEmpty || !query.isEmpty {
+                TextField("Search \(webCatalog.count) AIs", text: $query).textFieldStyle(.roundedBorder).accessibilityIdentifier("aiSearch")
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(groups, id: \.self) { g in
+                            Button { group = g } label: {
+                                Text(g).font(.system(size: 13, weight: .semibold)).padding(.horizontal, 14).padding(.vertical, 8)
+                                    .background(group == g ? Color.loam : p.chip).foregroundColor(group == g ? .sprout : p.ink).clipShape(Capsule())
+                            }.buttonStyle(.plain)
+                        }
+                    }
+                }
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                    ForEach(shown) { tile($0) }
+                    if group == "All" || query.isEmpty && group == "Any" {
+                        Button { otherLink = ""; newLabel = ""; otherOpen = true } label: {
+                            VStack(spacing: 8) {
+                                Image(systemName: "plus").font(.system(size: 20, weight: .bold)).foregroundColor(.loam).frame(width: 44, height: 44).background(Color.sprout).clipShape(Circle())
+                                Text("Any other AI").font(.system(size: 13, weight: .bold)).foregroundColor(p.ink)
+                                Text("Paste a link").font(.system(size: 11)).foregroundColor(p.soft)
+                            }.frame(maxWidth: .infinity, minHeight: 112).padding(8).background(p.card).clipShape(RoundedRectangle(cornerRadius: 18))
+                        }.buttonStyle(.plain).accessibilityIdentifier("tile-other")
+                    }
+                }
+                }
+                let extra = conns.accounts(forId: "custom").filter { $0.url != nil }
+                if !extra.isEmpty {
+                    Text("Added by link").font(.headline).foregroundColor(p.ink)
+                    ForEach(extra) { chip($0) }
+                }
+                Text("You sign in on each AI's own page, inside this app. Your logins stay on this phone and are never mixed between accounts.")
+                    .font(.footnote).foregroundColor(p.soft)
+            }.padding().padding(.bottom, 100)
+        }
+        .lookBg().navigationTitle("AIs")
+        .sheet(item: $detail) { w in ScrollView { platform(w).padding() }.background(p.bg).presentationDetents([.medium]).environment(\.palette, p) }
+        .fullScreenCover(item: $opened) { WebAIScreen(account: $0).environment(\.palette, p) }
+        .sheet(item: $editing) { AccountEditor(account: $0).environment(\.palette, p) }
+        .scrollDismissesKeyboard(.interactively)
+        .alert("Add another \(webAI(newFor ?? "")?.name ?? "") account", isPresented: Binding(get: { newFor != nil }, set: { if !$0 { newFor = nil } })) {
+            TextField("Name, like Work", text: $newLabel)
+            Button("Add") { if let id = newFor { detail = nil; opened = conns.addWeb(id: id, label: newLabel) }; newFor = nil }
+            Button("Cancel", role: .cancel) { newFor = nil }
+        } message: { Text("It gets its own private login.") }
+        .alert("Add any AI", isPresented: $otherOpen) {
+            TextField("Name", text: $newLabel)
+            TextField("https://...", text: $otherLink).textInputAutocapitalization(.never).keyboardType(.URL)
+            Button("Add") {
+                var u = otherLink.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !u.isEmpty && !u.hasPrefix("http") { u = "https://" + u }
+                if URL(string: u)?.host != nil { opened = conns.addWeb(id: "custom", label: newLabel.isEmpty ? "Other AI" : newLabel, url: u) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { Text("Type a name and the AI's web address.") }
+    }
+}
+
+struct WebAIScreen: View {
+    @Environment(\.dismiss) var dismiss
+    @Environment(\.palette) var p
+    @ObservedObject private var conns = AIConnections.shared
+    @ObservedObject private var tabs = OpenTabs.shared
+    @State var current: AIAccount
+    @State private var msg = ""
+    @State private var checking = false
+    @State private var picking = false
+    @State private var editing: AIAccount?
+    init(account: AIAccount) { _current = State(initialValue: account) }
+
+    func done() async {
+        checking = true
+        let r = await WebHub.test(current)
+        checking = false
+        switch r {
+        case .success: conns.connectWeb(current); msg = ""; if AvatarStore.shared.shouldPrompt(current.id) { editing = current }
+        case .failure(let e): msg = "Not ready: " + e.reason + "."
+        }
+    }
+    func show(_ a: AIAccount) { tabs.open(a); current = a; msg = "" }
+    func close(_ a: AIAccount) {
+        tabs.close(a.id)
+        if a.id == current.id {
+            if let n = tabs.accounts.first { current = n; msg = "" } else { dismiss() }
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Button { dismiss() } label: { Image(systemName: "chevron.down").font(.system(size: 14, weight: .bold)).foregroundColor(p.ink)
+                    .frame(width: 34, height: 34).background(p.chip).clipShape(Circle()) }.accessibilityIdentifier("webClose")
+                ScrollViewReader { proxy in
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(tabs.accounts) { a in
+                                TabChip(account: a, selected: a.id == current.id, onTap: { show(a) }, onClose: { close(a) }).id(a.id)
                             }
                         }
-                    }.accessibilityIdentifier("sharedAIs")
+                    }.onChange(of: current.id) { id in withAnimation { proxy.scrollTo(id, anchor: .center) } }
                 }
-                FoldSection(id: "updates", icon: "checklist.checked", color: Color(hex: 0xA8C256), title: "Progress, to-dos and alerts", sub: "How your AIs report back to you") { UpdatesCard() }
-                Text("Pick an AI. Tap it to see the steps.").font(.system(.headline, design: .rounded)).foregroundColor(p.ink).padding(.top, 4)
-                ForEach(AIProvider.allCases) { prov in AITile(prov: prov, openId: $openId) }
-                Text("No key? Join by prompt").font(.system(.headline, design: .rounded)).foregroundColor(p.ink).padding(.top, 8)
-                LinkOnlyTile(key: "polar", name: "Polar", blurb: "Browser agent. Prompt only", icon: "sparkles", tint: Color(hex: 0x3B82F6), site: "https://polarbrowser.com", openId: $openId)
-                LinkOnlyTile(key: "copilot", name: "Copilot", blurb: "Microsoft. Prompt only", icon: "paperplane.fill", tint: Color(hex: 0x0EA5E9), site: "https://copilot.microsoft.com", openId: $openId)
-                LinkOnlyTile(key: "opencode", name: "OpenCode", blurb: "Coding tool. Link, no key", icon: "chevron.left.forwardslash.chevron.right", tint: Color(hex: 0x14B8A6), site: "https://opencode.ai", openId: $openId)
-                LinkOnlyTile(key: "codex", name: "Codex", blurb: "OpenAI coding tool. Link, no key", icon: "terminal.fill", tint: Color(hex: 0x10A37F), site: "https://developers.openai.com/codex", openId: $openId)
-                LinkOnlyTile(key: "other", name: "Any other AI", blurb: "Anything that can add a link", icon: "plus.circle.fill", tint: Color(hex: 0x8B5CF6), site: "https://www.google.com/search?q=add+MCP+server", openId: $openId)
-                Text("More ways in").font(.system(.headline, design: .rounded)).foregroundColor(p.ink).padding(.top, 8)
-                FoldSection(id: "custom", icon: "slider.horizontal.3", color: Color(hex: 0x6366F1), title: "Any other model", sub: "Together, Fireworks, Ollama and more") { CustomModelCard() }
-                FoldSection(id: "import", icon: "square.and.arrow.down.fill", color: Color(hex: 0x10A37F), title: "Take your projects out of an AI", sub: "Import from an export file") { ProjectImportCard() }
-                FoldSection(id: "bring", icon: "key.horizontal.fill", color: Color(hex: 0xD97757), title: "Bring my keys in", sub: "Already saved keys on another phone") { BringKeysCard() }
-                FoldSection(id: "bridge", icon: "link.circle.fill", color: Color(hex: 0x8B5CF6), title: "Polar, Claude Code and other tools", sub: "Make a live link") { BridgeCard(); CustomMCPCard(); WorkToolsCard() }
-                FoldSection(id: "handoff", icon: "arrow.left.arrow.right.circle.fill", color: Color(hex: 0xF55036), title: "Copy and paste AIs", sub: "Copilot, Codex, Cursor and more") { AIRoutesCard() }
-                Text("Never paste your key into a chat. Keep it private.").font(.footnote).foregroundColor(p.soft)
-            }.padding()
+                Menu {
+                    ForEach(conns.mine.map { $0.platformName }.reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }, id: \.self) { plat in
+                        Section(plat) {
+                            ForEach(conns.mine.filter { $0.platformName == plat }) { a in
+                                Button { show(a) } label: { Label(a.label, systemImage: a.id == current.id ? "checkmark.circle.fill" : (conns.isConnected(a) ? "person.crop.circle.badge.checkmark" : "person.crop.circle")) }
+                            }
+                        }
+                    }
+                } label: { Image(systemName: "person.2.circle").font(.system(size: 17, weight: .semibold)).foregroundColor(p.ink)
+                    .frame(width: 34, height: 34).background(p.chip).clipShape(Circle()) }.accessibilityIdentifier("switchMenu")
+                Button { picking = true } label: { Image(systemName: "plus").font(.system(size: 15, weight: .bold)).foregroundColor(.loam)
+                    .frame(width: 34, height: 34).background(Color.sprout).clipShape(Circle()) }.accessibilityIdentifier("addTab")
+            }.padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 6).background(p.bg)
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(current.platformName).font(.system(size: 12, weight: .semibold)).foregroundColor(p.soft).lineLimit(1)
+                    if !AvatarStore.shared.desc(current.id).isEmpty { Text(AvatarStore.shared.desc(current.id)).font(.system(size: 11)).foregroundColor(p.soft).lineLimit(1) }
+                }
+                Spacer()
+                Menu {
+                    Button { editing = current } label: { Label("Edit name and icon", systemImage: "pencil") }
+                    Button { show(conns.addWeb(id: current.provider, label: "", url: current.url)) } label: { Label("Add another \(current.platformName) account", systemImage: "person.badge.plus") }
+                } label: { Image(systemName: "ellipsis").font(.system(size: 14, weight: .bold)).foregroundColor(p.ink).frame(width: 30, height: 28).background(p.chip).clipShape(Capsule()) }
+                    .accessibilityIdentifier("webMore")
+                Button { Task { await done() } } label: { Text(checking ? "Checking" : "I'm signed in").font(.system(size: 12, weight: .bold))
+                    .foregroundColor(.loam).padding(.horizontal, 12).padding(.vertical, 6).background(Color.sprout).clipShape(Capsule()) }
+                    .disabled(checking).accessibilityIdentifier("webDone")
+            }.padding(.horizontal, 14).padding(.bottom, 6).background(p.bg)
+            if !msg.isEmpty { Text(msg).font(.footnote).foregroundColor(p.soft).padding(.horizontal, 16).padding(.bottom, 6) }
+            WebBrowser(account: current).id(current.id)
         }
-        .hidesTabBar().lookBg().navigationTitle("Connections")
-        .sheet(isPresented: $wizard) { SetupWizard(onClose: { wizard = false }) }
+        .background(p.bg.ignoresSafeArea())
+        .overlay(alignment: .bottomTrailing) { KeyboardDownButton() }
+        .onAppear { tabs.open(current); AlertRouter.shared.screenUp = true; AlertRouter.shared.viewing = current.id }
+        .onDisappear { AlertRouter.shared.screenUp = false }
+        .onChange(of: current.id) { AlertRouter.shared.viewing = $0 }
+        .onReceive(AlertRouter.shared.$open) { if let a = $0 { show(a); AlertRouter.shared.open = nil } }
+        .sheet(isPresented: $picking) { AddTabSheet(onPick: { show($0) }).environment(\.palette, p) }
+        .sheet(item: $editing) { AccountEditor(account: $0, onRemoved: { if let n = tabs.accounts.first(where: { conns.account($0.id) != nil }) { current = n } else { dismiss() } }).environment(\.palette, p) }
     }
 }
 

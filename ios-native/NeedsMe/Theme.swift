@@ -120,6 +120,12 @@ struct AIFace: View {
     let label: String
     var size: CGFloat = 34
     var state: FaceState = .none
+    @ObservedObject private var avatars = AvatarStore.shared
+    var custom: (UIImage?, String?, String?)? {
+        guard let id = avatars.accountId(forLabel: label) else { return nil }
+        let i = avatars.image(id), s = avatars.symbol(id), e = avatars.emoji(id)
+        return (i != nil || s != nil || e != nil) ? (i, s, e) : nil
+    }
     var short: String {
         let l = label.lowercased()
         if l.hasPrefix("claude") { return "Cl" }
@@ -127,18 +133,31 @@ struct AIFace: View {
         if l.hasPrefix("gemini") { return "Ge" }
         return String(label.prefix(2))
     }
+    var tint: Int? { avatars.accountId(forLabel: label).flatMap { avatars.colorHex($0) } }
+    var tintLight: Bool { tint.map { avatars.isLight($0) } ?? true }
     var fill: Color {
+        if let t = tint { return Color(hex: UInt32(t)) }
         let l = label.lowercased()
         if l.hasPrefix("claude") { return .loam }
         if l.hasPrefix("gemini") { return .sprout }
         if l.hasPrefix("chatgpt") { return .bone }
         return .sproutPale
     }
-    var textColor: Color { fill == .loam ? .bone : .loam }
+    var textColor: Color { tint != nil ? (tintLight ? .loam : .bone) : (fill == .loam ? .bone : .loam) }
     var body: some View {
         ZStack {
-            Circle().fill(fill)
-            Text(short).font(.system(size: size * 0.38, weight: .heavy)).foregroundColor(textColor)
+            if let c = custom, let img = c.0 {
+                Image(uiImage: img).resizable().scaledToFill().frame(width: size, height: size).clipShape(Circle())
+            } else if let c = custom, let e = c.2 {
+                Circle().fill(tint != nil ? fill : Color.sproutPale)
+                Text(e).font(.system(size: size * 0.52))
+            } else if let c = custom, let s = c.1 {
+                Circle().fill(tint != nil ? fill : Color.loam)
+                Image(systemName: s).font(.system(size: size * 0.44, weight: .medium)).foregroundColor(tint != nil ? textColor : .sprout)
+            } else {
+                Circle().fill(fill)
+                Text(short).font(.system(size: size * 0.38, weight: .heavy)).foregroundColor(textColor)
+            }
             if state == .working { Circle().stroke(Color.sprout, style: StrokeStyle(lineWidth: 2.5, dash: [4, 3])).padding(-4) }
             if state == .needs { Circle().stroke(Color.sprout, lineWidth: 2.5).padding(-4) }
             if state == .done { Circle().stroke(Color.loam.opacity(0.5), lineWidth: 2.5).padding(-4) }
@@ -349,7 +368,7 @@ struct LookTabBar: View {
     var body: some View {
         HStack {
             item(0, "house", "Home")
-            item(1, "exclamationmark.circle", "Needs Me")
+            item(5, "bubble.left.and.bubble.right", "Chats")
             Button { if tab == 3 { router.noteTick += 1 } else { router.adding = true } } label: {
                 Image(systemName: "plus").font(.system(size: 26, weight: .heavy)).foregroundColor(.loam)
                     .frame(width: 62, height: 62).background(Color.sprout).clipShape(Circle())
@@ -358,8 +377,8 @@ struct LookTabBar: View {
             }
             .offset(y: -22).frame(width: 66)
             .accessibilityLabel(tab == 3 ? "New" : "Add a task").accessibilityIdentifier(tab == 3 ? "newItem" : "addButton")
-            item(2, "rectangle.on.rectangle", "Projects")
-            item(3, "doc.text", "Notes")
+            item(6, "square.grid.2x2", "AIs")
+            item(1, "exclamationmark.circle", "Needs Me")
         }
         .padding(.horizontal, 10).frame(height: 66)
         .background(RoundedRectangle(cornerRadius: 28).fill(Color.cardTone))

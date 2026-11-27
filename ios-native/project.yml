@@ -2,7 +2,7 @@ name: NeedsMe
 options:
   bundleIdPrefix: shop.ilseplacencia
   deploymentTarget:
-    iOS: "16.0"
+    iOS: "17.0"
 packages:
   Firebase:
     url: https://github.com/firebase/firebase-ios-sdk
@@ -30,6 +30,7 @@ targets:
       path: NeedsMe/Info.plist
       properties:
         CFBundleDisplayName: NeedsMe Ai
+        CFBundleShortVersionString: "2.0"
         UILaunchScreen: {}
         ITSAppUsesNonExemptEncryption: false
         CFBundleURLTypes:
@@ -39,8 +40,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: shop.ilseplacencia.needsme
         DEVELOPMENT_TEAM: GZ9Z6BPTFR
-        MARKETING_VERSION: "1.0.0"
-        CURRENT_PROJECT_VERSION: "348"
+        MARKETING_VERSION: "2.0.0"
+        CURRENT_PROJECT_VERSION: "381"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGN_STYLE: Automatic
@@ -55,7 +56,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: shop.ilseplacencia.needsme.uitests
         DEVELOPMENT_TEAM: GZ9Z6BPTFR
         GENERATE_INFOPLIST_FILE: YES
-        CURRENT_PROJECT_VERSION: "348"
+        CURRENT_PROJECT_VERSION: "381"
 schemes:
   NeedsMe:
     build:

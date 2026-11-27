@@ -6,6 +6,7 @@ import FirebaseAuth
 /// No setting lives here or in Me: every setting stands in Settings (Settings law).
 struct MoreView: View {
     var replayTour: () -> Void
+    var goTab: (Int) -> Void = { _ in }
     @EnvironmentObject var store: Store
     @Environment(\.palette) var p
 
@@ -35,14 +36,15 @@ struct MoreView: View {
                             }
                         }
                     }.buttonStyle(.plain).accessibilityIdentifier("meRow")
+                    Button { goTab(2) } label: { Card { HStack(spacing: 12) { Image(systemName: "rectangle.on.rectangle").foregroundColor(p.ink).frame(width: 24); Text("Projects").font(.headline).foregroundColor(p.ink); Spacer(); Image(systemName: "chevron.right").font(.caption.bold()).foregroundColor(p.soft) } } }.buttonStyle(.plain).accessibilityIdentifier("moreProjects")
+                    Button { goTab(3) } label: { Card { HStack(spacing: 12) { Image(systemName: "doc.text").foregroundColor(p.ink).frame(width: 24); Text("Notes").font(.headline).foregroundColor(p.ink); Spacer(); Image(systemName: "chevron.right").font(.caption.bold()).foregroundColor(p.soft) } } }.buttonStyle(.plain).accessibilityIdentifier("moreNotes")
                     row("Tasks", "checkmark", "moreTasks") { TasksView() }
                     row("Changes", "list.bullet", "moreChanges") { ChangesView() }
-                    row("AI Workforce", "person.2", "moreWorkforce") { WorkforceView() }
                     row("AI Group Chat", "bubble.left.and.bubble.right", "moreGroupChat") { RoomsListView() }
                     row("Automations", "gearshape.2", "moreAutomations") { AutomationsView() }
                     row("Sessions", "clock.arrow.circlepath", "moreSessions") { SessionsView() }
                     row("Knowledge", "books.vertical", "moreKnowledge") { KnowledgeView() }
-                    row("Connections", "link", "moreConnections") { ConnectView() }
+                    row("AIs", "sparkles", "moreConnections") { ConnectView() }
                     row("Operations", "waveform.path.ecg", "moreOperations") { OperationsView() }
                     Button("Replay Pip's guide", action: replayTour).buttonStyle(SoftButton())
                     row("Settings", "gearshape", "settingsRow") { SettingsView() }
@@ -250,11 +252,6 @@ struct SettingsView: View {
                     HStack { Text("Autonomy level"); Spacer(); Text("Draft").bold() }.foregroundColor(p.ink)
                     Text("Your AIs can read what you allow and prepare drafts. You approve before anything is sent or shared.")
                         .font(.subheadline).foregroundColor(p.soft)
-                    NavigationLink { WorkforceView() } label: {
-                        Text("See your AI workers").font(.system(.body, design: .rounded).weight(.semibold))
-                            .frame(maxWidth: .infinity).padding(.vertical, 12)
-                            .background(p.chip).foregroundColor(p.ink).clipShape(Capsule())
-                    }.accessibilityIdentifier("settingsWorkforce")
                 }
                 Card {
                     Text("Needs Me rules").font(.headline).foregroundColor(p.ink)

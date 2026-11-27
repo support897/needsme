@@ -7,7 +7,7 @@ enum AIConsent {
     /// UI tests skip the ask, like they skip the push prompt.
     static var testMode: Bool { CommandLine.arguments.contains { $0.hasPrefix("-uitest") } }
     static var granted: Bool { testMode || UserDefaults.standard.bool(forKey: key) }
-    static let needed = "Allow sharing first. Open the Connect tab and tap Allow in the box at the top."
+    static let needed = "Allow sharing first. Open AIs and tap Allow in the box at the top."
 }
 
 enum LegalLinks {
