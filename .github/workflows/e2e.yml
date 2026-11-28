@@ -1,0 +1,16 @@
+name: NeedsMe end-to-end check
+# Runs the real sync + bridge (MCP link, alert, push) checks against the live servers with a throwaway user that is deleted at the end.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "20 8 * * *"   # 18:20 Brisbane, after Firebase's daily quota resets
+permissions:
+  contents: read
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - run: node e2e/e2e.js
