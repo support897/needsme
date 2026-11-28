@@ -290,7 +290,20 @@ final class AIConnections: ObservableObject {
         persist(); keyTick += 1
     }
 
+    /// Items 2, 9, 14: an account that came from her other devices (shared list).
+    func adoptShared(_ a: AIAccount) {
+        guard !accounts.contains(where: { $0.id == a.id }) else { return }
+        accounts.append(a); persist(); keyTick += 1
+    }
+    /// A removal that came from another device. Same as remove, but does not echo back.
+    func removeShared(_ a: AIAccount) {
+        WebHub.forget(a); AIKeys.remove(a.id); results[a.id] = nil
+        if a.id != a.provider { accounts.removeAll { $0.id == a.id } }
+        persist(); keyTick += 1
+    }
+
     func remove(_ a: AIAccount) {
+        SharedSync.shared.removed(a.id)
         WebHub.forget(a)
         AIKeys.remove(a.id)
         results[a.id] = nil

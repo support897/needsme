@@ -39,6 +39,11 @@ final class AvatarStore: ObservableObject {
         return !has(id) && desc(id).isEmpty && colorHex(id) == nil
     }
     func has(_ id: String) -> Bool { map[id] != nil }
+    /// Changes when the picture changes (size of the saved file), so the shared list knows to send it.
+    func imageStamp(_ id: String) -> Int {
+        guard map[id] == "img", let at = try? FileManager.default.attributesOfItem(atPath: file(id).path) else { return 0 }
+        return (at[.size] as? Int) ?? 0
+    }
     func setSymbol(_ s: String, _ id: String) { var m = map; m[id] = "sf:" + s; save(m) }
     func setImage(_ img: UIImage, _ id: String) {
         let side: CGFloat = 256

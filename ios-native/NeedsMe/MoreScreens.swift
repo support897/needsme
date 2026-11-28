@@ -385,7 +385,19 @@ struct WorkforceView: View {
             VStack(alignment: .leading, spacing: 14) {
                 PipSays(text: "Every AI you connect is a worker. Tap one to see what it may do.")
                 Card {
-                    Text("Connections is where you set an AI up: a key or a link. AI Workforce is where you decide what each connected AI may do: pause it, pick its projects, stop a run.").font(.subheadline).foregroundColor(p.ink)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("One AI or a workforce?").font(.headline).foregroundColor(p.ink)
+                        Text("One AI is one helper. You ask, it does one job.").font(.subheadline).foregroundColor(p.ink)
+                        Text("An AI workforce is a team of AIs. Each has its own job. They pass work along, and they tell you when they are stuck.").font(.subheadline).foregroundColor(p.ink)
+                        Text("In NeedsMe, Connections is where you set each AI up (a key or a link). Your workforce is all of them together: who is busy, who needs you, and what each one finished. Here you decide what each one may do: pause it, pick its projects, stop a run.").font(.subheadline).foregroundColor(p.soft)
+                    }
+                }
+                Card {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("AIs that plug in with MCP").font(.headline).foregroundColor(p.ink)
+                        Text("MCP is a plug that lets an AI use another app. You paste a link into the AI. These take your own link: Claude, ChatGPT (web), Grok, Perplexity (Pro), Mistral, Gemini (limited), Cursor, VS Code, Claude Code, Codex CLI and Gemini CLI. Meta AI and DeepSeek do not. Copilot only through a company admin.").font(.subheadline).foregroundColor(p.ink)
+                        Text("Polar is in your AI list. Add it and open it like any other AI.").font(.footnote).foregroundColor(p.soft)
+                    }
                 }
                 FoldSection(id: "wake", icon: "bell.badge.fill", color: Color(hex: 0xF5A524), title: "How AIs wake each other", sub: "Tap to watch it happen") { WakeStory().padding(14).background(p.card).clipShape(RoundedRectangle(cornerRadius: 22)) }
                 ForEach(conns.accounts) { a in worker(a) }

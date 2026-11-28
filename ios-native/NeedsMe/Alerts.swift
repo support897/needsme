@@ -10,10 +10,15 @@ final class AlertPrefs: ObservableObject {
     private let key = "needsme.alertPrefs"
     private var map: [String: [String: Bool]] { (UserDefaults.standard.dictionary(forKey: key) as? [String: [String: Bool]]) ?? [:] }
     func on(_ id: String, _ kind: String) -> Bool { map[id]?[kind] ?? true }
+    /// From the shared list (another device changed it). No permission prompt here.
+    func importFlags(_ id: String, done: Bool, needs: Bool, msgs: Bool, chats: Bool = true, uneeds: Bool = true, updates: Bool = true) {
+        var m = map; m[id] = ["done": done, "needs": needs, "msgs": msgs, "uchats": chats, "uneeds": uneeds, "uupdates": updates]
+        UserDefaults.standard.set(m, forKey: key)
+    }
     func set(_ v: Bool, _ id: String, _ kind: String) {
         var m = map; var a = m[id] ?? [:]; a[kind] = v; m[id] = a
         UserDefaults.standard.set(m, forKey: key); tick += 1
-        if v { UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in } }
+        if v, !["uchats", "uneeds", "uupdates"].contains(kind) { UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in } }
     }
 }
 
@@ -38,7 +43,7 @@ final class AlertWatcher {
     private var lastTail: [String: String] = [:]
     private var bg: UIBackgroundTaskIdentifier = .invalid
 
-    static let probe = #"(()=>{const b=!!document.querySelector('button[aria-label*="Stop" i],[data-testid*="stop" i],button[aria-label*="stop generating" i],[aria-label*="Stop response" i]');const t=(document.body&&document.body.innerText||'').trim();return JSON.stringify({b:b,t:t.slice(-300)})})()"#
+    static let probe = #"(()=>{const b=!!document.querySelector('button[aria-label*="Stop" i],[data-testid*="stop" i],button[aria-label*="stop generating" i],[aria-label*="Stop response" i]');const q=document.querySelectorAll('[data-message-author-role="assistant"],[data-testid="assistant-message"],.font-claude-message,.font-claude-response,message-content,.model-response-text,[data-test-render-count],.markdown');const l=q.length?q[q.length-1]:null;const t=((l&&l.innerText)||(document.body&&document.body.innerText)||'').trim();return JSON.stringify({b:b,t:t.slice(-600)})})()"#
 
     func start() {
         guard !started else { return }; started = true
@@ -63,6 +68,7 @@ final class AlertWatcher {
     func scan() async {
         for id in OpenTabs.shared.seen {
             guard let a = AIConnections.shared.account(id), let v = WebHub.existing(id) else { continue }
+            if !AlertPrefs.shared.on(id, "uneeds") && !AlertPrefs.shared.on(id, "uupdates") { continue }
             let s = await WebHub.js(v, Self.probe)
             guard let d = s.data(using: .utf8), let j = try? JSONSerialization.jsonObject(with: d) as? [String: Any] else { continue }
             let busy = j["b"] as? Bool ?? false
@@ -77,7 +83,7 @@ final class AlertWatcher {
             } else if !busy && tail != pt && !tail.isEmpty, AlertPrefs.shared.on(id, "needs"), Self.asksYou(tail) {
                 post(a, "Needs you", "\(a.label) is waiting for your answer.")
             } else if !busy && tail != pt && !tail.isEmpty, AlertPrefs.shared.on(id, "msgs") {
-                post(a, "New message", String(tail.suffix(90)).replacingOccurrences(of: "\n", with: " "))
+                post(a, "New message", String(tail.suffix(240)))
             }
         }
     }
@@ -88,7 +94,7 @@ final class AlertWatcher {
 
     func post(_ a: AIAccount, _ title: String, _ body: String) {
         let c = UNMutableNotificationContent()
-        c.title = a.label + ": " + title; c.body = body; c.sound = .default
+        c.title = (a.label == a.platformName ? a.label : a.platformName + " \u{00B7} " + a.label); c.subtitle = title; c.body = body; c.sound = .default
         c.userInfo = ["acct": a.id]
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: UUID().uuidString, content: c, trigger: nil))
     }
@@ -109,7 +115,11 @@ struct AlertTicks: View {
             row("When it finishes a job", "done")
             row("When it needs me", "needs")
             row("When a new message comes", "msgs")
-            Text("Tap an alert to open this account. Alerts come while the app is open or just after you leave it.").font(.footnote).foregroundColor(p.soft)
+            Text("Use this AI in NeedsMe").font(.headline).foregroundColor(p.ink).padding(.top, 6)
+            row("Pull its chats and projects", "uchats")
+            row("Use it as NeedsMe (find what needs me)", "uneeds")
+            row("Show its updates", "uupdates")
+            Text("Tap an alert to open this account. Alerts come while the app is open or just after you leave it. These choices follow you to your other devices.").font(.footnote).foregroundColor(p.soft)
         }.id(prefs.tick)
     }
 }

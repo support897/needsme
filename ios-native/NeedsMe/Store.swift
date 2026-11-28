@@ -155,9 +155,11 @@ final class Store: ObservableObject {
         agentControls = [:]; devices = []
         cloudTheme = nil; cloudThemeLoaded = false; cloudName = nil
         roomsFresh = false; promptsFresh = false; registrySynced = false
+        SharedSync.shared.stop()
         guard user != nil else { return }
         if Store.demo { loadDemo(); return }
         registerDevice()
+        if let u = user { SharedSync.shared.start(uid: u.uid) }
         if let c = col("settings") {
             handles.append(c.addSnapshotListener { [weak self] s, _ in
                 guard let s else { return }

@@ -52,6 +52,7 @@ let webCatalog: [WebAI] = [
     WebAI(id: "runway", name: "Runway", url: "https://app.runwayml.com/", group: "Video"),
     WebAI(id: "suno", name: "Suno", url: "https://suno.com/", group: "Music"),
     WebAI(id: "eleven", name: "ElevenLabs", url: "https://elevenlabs.io/app", group: "Voice"),
+    WebAI(id: "polar", name: "Polar", url: "https://polarbrowser.com/", group: "Agent"),
     WebAI(id: "opencode", name: "OpenCode", url: "https://opencode.ai/", group: "Coding"),
     WebAI(id: "custom", name: "Any other AI (paste its link)", url: "", group: "Any"),
     WebAI(id: "claudecli", name: "Claude Code (terminal)", url: "", group: "Coding"),

@@ -19,6 +19,7 @@ final class OpenTabs: ObservableObject {
         ids = ids.enumerated().sorted { (rank($0.element), $0.offset) < (rank($1.element), $1.offset) }.map { $0.element }
         save()
     }
+    func markSeen(_ id: String) { if !seen.contains(id) { seen.insert(id); save() } }
     func close(_ id: String) { ids.removeAll { $0 == id }; save() }
     /// Open tabs that still exist.
     var accounts: [AIAccount] { ids.compactMap { AIConnections.shared.account($0) } }
