@@ -325,6 +325,35 @@ ipcMain.handle('catalog', () => catalog);
 ipcMain.handle('notify', (_e, { title, body, id, url }) => notify(title, body, id, url));
 ipcMain.handle('openExternal', (_e, u) => { if (/^(https:|mailto:)/.test(u)) shell.openExternal(u); });
 ipcMain.handle('prefs', (_e, p) => { prefs = { ...prefs, ...p }; });
+
+// ---------- alerts from the NeedsMe bridge: AIs (Polar, Claude, ChatGPT...) report "needs you" / "finished" through their MCP link ----------
+const BRIDGE = 'https://billowing-lake-5abc.placenciailse.workers.dev';
+const brFile = () => path.join(app.getPath('userData'), 'bridge.json');
+let br = {}; try { br = JSON.parse(require('fs').readFileSync(brFile(), 'utf8')); } catch {}
+const brSave = () => { try { require('fs').writeFileSync(brFile(), JSON.stringify(br)); } catch {} };
+async function bridgePoll() {
+  try {
+    if (!signedIn) return;
+    if (!br.t) {
+      const t = await idToken(); if (!t) return;
+      const r = await fetch(BRIDGE + '/tokens', { method: 'POST', headers: { authorization: 'Bearer ' + t.token, 'content-type': 'application/json' }, body: JSON.stringify({ name: 'NeedsMe ' + (process.platform === 'darwin' ? 'Mac' : 'Windows') }) });
+      if (!r.ok) return; br = { t: (await r.json()).token, since: new Date().toISOString() }; brSave();
+    }
+    const r = await fetch(BRIDGE + '/events', { headers: { authorization: 'Bearer ' + br.t } });
+    if (r.status === 401) { br = {}; brSave(); return; }
+    if (!r.ok) return;
+    const ev = await r.json(); if (!Array.isArray(ev)) return;
+    let newest = br.since || new Date().toISOString();
+    for (const e of ev) {
+      if (!(e.at > br.since)) continue;
+      const ai = e.ai || 'An AI';
+      if (e.needs_you) notify(ai + ' needs you', e.needs_you, '', e.chat_url || '');
+      else if (e.finished) notify(ai + ' finished', e.summary || e.project || 'A job is done', '', e.chat_url || '');
+      if (e.at > newest) newest = e.at;
+    }
+    if (newest !== br.since) { br.since = newest; brSave(); }
+  } catch {}
+}
 ipcMain.handle('info', () => ({ version: app.getVersion(), electron: process.versions.electron, user }));
 
 app.whenReady().then(() => {
@@ -337,6 +366,6 @@ app.whenReady().then(() => {
   makeAuth();
   win.on('resize', applyGate);
   hubView.webContents.once('did-finish-load', () => { for (const a of accounts()) viewFor(a.id); });
-  setInterval(checkUser, 3000); setInterval(() => { if (win && (win.isFocused() || Date.now() % 300000 < 60000)) syncNow(); }, 60000); setTimeout(syncNow, 8000); setInterval(scanAll, 60000); setTimeout(scanAll, 20000);
+  setInterval(checkUser, 3000); setInterval(() => { if (win && (win.isFocused() || Date.now() % 300000 < 60000)) syncNow(); }, 60000); setTimeout(syncNow, 8000); setInterval(scanAll, 60000); setInterval(bridgePoll, 20000); setTimeout(bridgePoll, 10000); setTimeout(scanAll, 20000);
 });
 app.on('window-all-closed', () => app.quit());
