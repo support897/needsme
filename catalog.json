@@ -376,6 +376,14 @@
   "convo": ""
  },
  {
+  "id": "polar",
+  "name": "Polar",
+  "url": "https://polarbrowser.com/",
+  "group": "Agent",
+  "how": "web",
+  "convo": ""
+ },
+ {
   "id": "custom",
   "name": "Any other AI (paste its link)",
   "url": "",
