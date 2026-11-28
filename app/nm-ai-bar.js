@@ -72,12 +72,12 @@
       const body = { fields: { json: { stringValue: JSON.stringify({ v: 1, accounts: cur }) }, updated: { integerValue: String(now) }, device: { stringValue: 'web' } } };
       const w = await fetch(docUrl(user.uid) + '?updateMask.fieldPaths=json&updateMask.fieldPaths=updated&updateMask.fieldPaths=device', { method: 'PATCH', headers: { Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       if (!w.ok) throw new Error('HTTP ' + w.status);
-      list = cur;
+      list = cur; editing = a.id; draft = JSON.parse(JSON.stringify(a)); isNew = a.id; open = true;
     } catch (e) { state = 'Could not save it to your list (' + e.message + ').'; }
     draw();
   }
 
-  let editing = null, draft = null;
+  let editing = null, draft = null, isNew = null;
   async function saveList(mutate) { // read the newest shared list, change it, write it back (newer change wins on every device)
     const t = await token(user);
     const r0 = await fetch(docUrl(user.uid), { headers: { Authorization: 'Bearer ' + t } });
@@ -94,7 +94,7 @@
     const d = draft, nf = d.nf || {}, use = d.use || {};
     const sw = (g, k, label, o) => `<label class="nmb-sw"><input type="checkbox" data-sw="${g}.${k}" ${o[k] !== false ? 'checked' : ''}> ${label}</label>`;
     return `<div class="nmb-ed">
-      <div class="nmb-lab">Edit ${esc(title(a))}</div>
+      <div class="nmb-lab">${isNew === a.id ? 'Make it yours:' : 'Edit'} ${esc(title(a))}</div>
       <input class="nmb-in" data-f="name" placeholder="Name (like Work)" value="${esc(d.name || '')}">
       <input class="nmb-in" data-f="emoji" placeholder="Emoji" maxlength="4" value="${esc(d.emoji || '')}">
       <textarea class="nmb-in" data-f="desc" maxlength="300" placeholder="What is this AI for?">${esc(d.desc || '')}</textarea>
@@ -165,9 +165,9 @@
       ed.querySelectorAll('[data-sw]').forEach((i) => (i.onchange = () => { const [g, k] = i.dataset.sw.split('.'); draft[g] = draft[g] || {}; draft[g][k] = i.checked; }));
       const f = ed.querySelector('[data-img]'); if (f) f.onchange = () => f.files[0] && pickImage(f.files[0], (u) => { draft.img = u; draw(); });
       const ni = ed.querySelector('[data-noimg]'); if (ni) ni.onclick = () => { draft.img = ''; draw(); };
-      ed.querySelector('[data-cancel]').onclick = () => { editing = null; draw(); };
-      ed.querySelector('[data-save]').onclick = async () => { try { const d = Object.assign({}, draft, { at: Date.now(), del: false }); await saveList((c) => c.map((x) => (x.id === d.id ? d : x))); state = ''; } catch (e) { state = 'Could not save (' + e.message + ').'; } editing = null; draw(); };
-      ed.querySelector('[data-del]').onclick = async () => { try { await saveList((c) => c.map((x) => (x.id === draft.id ? Object.assign({}, x, { del: true, at: Date.now() }) : x))); } catch (e) { state = 'Could not remove (' + e.message + ').'; } editing = null; draw(); };
+      ed.querySelector('[data-cancel]').onclick = () => { editing = null; isNew = null; draw(); };
+      ed.querySelector('[data-save]').onclick = async () => { try { const d = Object.assign({}, draft, { at: Date.now(), del: false }); await saveList((c) => c.map((x) => (x.id === d.id ? d : x))); state = ''; } catch (e) { state = 'Could not save (' + e.message + ').'; } editing = null; isNew = null; draw(); };
+      ed.querySelector('[data-del]').onclick = async () => { try { await saveList((c) => c.map((x) => (x.id === draft.id ? Object.assign({}, x, { del: true, at: Date.now() }) : x))); } catch (e) { state = 'Could not remove (' + e.message + ').'; } editing = null; isNew = null; draw(); };
     }
     const mn = root.querySelector('[data-mcpname]'); if (mn) mn.oninput = () => { mcpName = mn.value; };
     const mm = root.querySelector('[data-mcpmake]'); if (mm) mm.onclick = makeMcp;
