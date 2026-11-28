@@ -47,6 +47,7 @@ final class AlertWatcher {
 
     func start() {
         guard !started else { return }; started = true
+        CheckIns.schedule(); CrashReporter.start()
         NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.holdOn() }
         }

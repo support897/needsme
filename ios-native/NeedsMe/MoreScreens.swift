@@ -227,6 +227,7 @@ struct SettingsView: View {
                 Card {
                     Text("Alerts").font(.headline).foregroundColor(p.ink)
                     Toggle("Quiet hours (10pm to 7am)", isOn: $quiet).tint(p.accent).foregroundColor(p.ink)
+                    Toggle("Daily check-ins (9am, 1pm, 6pm)", isOn: Binding(get: { CheckIns.on }, set: { CheckIns.on = $0 })).tint(p.accent).foregroundColor(p.ink)
                     Picker("Digest", selection: $digest) {
                         Text("Instant").tag("Instant"); Text("Daily").tag("Daily"); Text("Weekly").tag("Weekly")
                     }.pickerStyle(.segmented).accessibilityIdentifier("digestPicker")

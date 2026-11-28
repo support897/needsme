@@ -132,7 +132,7 @@ struct AccountEditor: View {
                 }.padding()
             }
             .scrollDismissesKeyboard(.interactively)
-            .lookBg().navigationTitle("Edit account").navigationBarTitleDisplayMode(.inline)
+            .lookBg().navigationTitle(conns.isConnected(account) ? "Edit account" : "Make it yours").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") {
                 if !name.trimmingCharacters(in: .whitespaces).isEmpty { conns.rename(account, to: name) }; av.setDesc(about, account.id); dismiss() } } }
             .onAppear { name = account.label; about = av.desc(account.id) }

@@ -31,6 +31,8 @@ enum WebHub {
         let sz = UIScreen.main.bounds.size
         let v = WKWebView(frame: CGRect(x: 0, y: 0, width: sz.width, height: sz.height), configuration: c)
         v.customUserAgent = ua
+        v.uiDelegate = PopupHandler.shared
+        v.navigationDelegate = PopupHandler.shared
         v.allowsBackForwardNavigationGestures = true
         views[a.id] = v
         park(v)
@@ -303,7 +305,7 @@ struct WebAIScreen: View {
         let r = await WebHub.test(current)
         checking = false
         switch r {
-        case .success: conns.connectWeb(current); msg = ""; if AvatarStore.shared.shouldPrompt(current.id) { editing = current }
+        case .success: conns.connectWeb(current); msg = ""
         case .failure(let e): msg = "Not ready: " + e.reason + "."
         }
     }
@@ -349,7 +351,7 @@ struct WebAIScreen: View {
                 }
                 Spacer()
                 Menu {
-                    Button { editing = current } label: { Label("Edit name and icon", systemImage: "pencil") }
+                    Button { editing = current } label: { Label(conns.isConnected(current) ? "Edit name and icon" : "Pick name, color and icon", systemImage: "pencil") }
                     Button { show(conns.addWeb(id: current.provider, label: "", url: current.url)) } label: { Label("Add another \(current.platformName) account", systemImage: "person.badge.plus") }
                 } label: { Image(systemName: "ellipsis").font(.system(size: 14, weight: .bold)).foregroundColor(p.ink).frame(width: 30, height: 28).background(p.chip).clipShape(Capsule()) }
                     .accessibilityIdentifier("webMore")
@@ -362,7 +364,7 @@ struct WebAIScreen: View {
         }
         .background(p.bg.ignoresSafeArea())
         .overlay(alignment: .bottomTrailing) { KeyboardDownButton() }
-        .onAppear { tabs.open(current); AlertRouter.shared.screenUp = true; AlertRouter.shared.viewing = current.id }
+        .onAppear { tabs.open(current); if !conns.isConnected(current) && AvatarStore.shared.shouldPrompt(current.id) { editing = current }; AlertRouter.shared.screenUp = true; AlertRouter.shared.viewing = current.id }
         .onDisappear { AlertRouter.shared.screenUp = false }
         .onChange(of: current.id) { AlertRouter.shared.viewing = $0 }
         .onReceive(AlertRouter.shared.$open) { if let a = $0 { show(a); AlertRouter.shared.open = nil } }
@@ -614,5 +616,39 @@ struct KeysCard: View {
             }
         }
         .padding(12).background(p.chip).clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+
+/// Item 6: let the AI open links, new windows and pop-ups. A new window loads in the same tab,
+/// mail/phone/app links open the system app, and JS alert/confirm boxes work.
+final class PopupHandler: NSObject, WKUIDelegate, WKNavigationDelegate {
+    static let shared = PopupHandler()
+    func webView(_ w: WKWebView, createWebViewWith c: WKWebViewConfiguration, for a: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+        if a.targetFrame == nil || a.targetFrame?.isMainFrame == false { w.load(a.request) }
+        return nil
+    }
+    func webView(_ w: WKWebView, decidePolicyFor a: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        if let u = a.request.url, let sc = u.scheme?.lowercased(), !["http", "https", "about", "blob", "data", "file"].contains(sc) {
+            UIApplication.shared.open(u); decisionHandler(.cancel); return
+        }
+        if a.targetFrame == nil { w.load(a.request); decisionHandler(.cancel); return }
+        decisionHandler(.allow)
+    }
+    func webView(_ w: WKWebView, runJavaScriptAlertPanelWithMessage m: String, initiatedByFrame f: WKFrameInfo, completionHandler: @escaping () -> Void) {
+        guard let vc = Self.top() else { completionHandler(); return }
+        let al = UIAlertController(title: nil, message: m, preferredStyle: .alert)
+        al.addAction(UIAlertAction(title: "OK", style: .default) { _ in completionHandler() }); vc.present(al, animated: true)
+    }
+    func webView(_ w: WKWebView, runJavaScriptConfirmPanelWithMessage m: String, initiatedByFrame f: WKFrameInfo, completionHandler: @escaping (Bool) -> Void) {
+        guard let vc = Self.top() else { completionHandler(false); return }
+        let al = UIAlertController(title: nil, message: m, preferredStyle: .alert)
+        al.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in completionHandler(false) })
+        al.addAction(UIAlertAction(title: "OK", style: .default) { _ in completionHandler(true) }); vc.present(al, animated: true)
+    }
+    static func top() -> UIViewController? {
+        var v = UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first?.rootViewController
+        while let n = v?.presentedViewController { v = n }
+        return v
     }
 }
