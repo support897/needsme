@@ -356,6 +356,23 @@ async function bridgePoll() {
 }
 ipcMain.handle('info', () => ({ version: app.getVersion(), electron: process.versions.electron, user }));
 
+// Daily check-ins (9, 13, 18): local alerts, no server. On by default; toggle in Settings.
+const ciFile = () => require('path').join(app.getPath('userData'), 'checkins.json');
+function ciOn() { try { return JSON.parse(require('fs').readFileSync(ciFile(), 'utf8')).on !== false; } catch (e) { return true; } }
+let ciLast = '';
+function ciTick() {
+  if (!ciOn()) return;
+  const d = new Date(), h = d.getHours(); if (![9, 13, 18].includes(h)) return;
+  const key = d.toDateString() + h; if (key === ciLast) return; ciLast = key;
+  notify('NeedsMe', h === 9 ? 'Good morning. Open NeedsMe to see your projects and what needs you.' : h === 13 ? 'Midday check-in. Open NeedsMe to see what needs you.' : "Evening check-in. Open NeedsMe to see today's updates.", '', '');
+}
+ipcMain.handle('checkinsGet', () => ciOn());
+ipcMain.handle('checkinsSet', (e, v) => { try { require('fs').writeFileSync(ciFile(), JSON.stringify({ on: !!v })); } catch (er) {} return !!v; });
+// Crash reports go to the bridge so they can be read and fixed.
+process.on('uncaughtException', (err) => {
+  try { fetch('https://billowing-lake-5abc.placenciailse.workers.dev/report', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'bug', text: 'Desktop crash\n' + String(err && err.stack || err).slice(0, 3500), info: process.platform + ' ' + app.getVersion() }) }).catch(() => {}); } catch (e) {}
+});
+
 app.whenReady().then(() => {
   store = load();
   try { if (process.platform === 'darwin') app.dock.setIcon(nativeImage.createFromPath(path.join(__dirname, 'build/icon.png'))); } catch {}
@@ -366,6 +383,6 @@ app.whenReady().then(() => {
   makeAuth();
   win.on('resize', applyGate);
   hubView.webContents.once('did-finish-load', () => { for (const a of accounts()) viewFor(a.id); });
-  setInterval(checkUser, 3000); setInterval(() => { if (win && (win.isFocused() || Date.now() % 300000 < 60000)) syncNow(); }, 60000); setTimeout(syncNow, 8000); setInterval(scanAll, 60000); setInterval(bridgePoll, 20000); setTimeout(bridgePoll, 10000); setTimeout(scanAll, 20000);
+  setInterval(checkUser, 3000); if (win) win.on('focus', () => syncNow()); setTimeout(syncNow, 8000); setInterval(scanAll, 60000); setInterval(bridgePoll, 20000); setInterval(ciTick, 60000); setTimeout(ciTick, 15000); setTimeout(bridgePoll, 10000); setTimeout(scanAll, 20000);
 });
 app.on('window-all-closed', () => app.quit());

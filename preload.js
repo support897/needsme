@@ -6,6 +6,6 @@ contextBridge.exposeInMainWorld('hub', {
   viewShow: inv('viewShow'), viewHide: inv('viewHide'), removeAccount: inv('rmAccount'),
   account: inv('account'), accountBack: inv('accountBack'), logout: inv('logout'),
   notify: inv('notify'), openExternal: inv('openExternal'), prefs: inv('prefs'), info: inv('info'),
-  syncState: inv('syncState'), syncNow: inv('syncNow'),
+  syncState: inv('syncState'), syncNow: inv('syncNow'), checkinsGet: inv('checkinsGet'), checkinsSet: inv('checkinsSet'),
   on: (ch, fn) => R.on(ch, (_e, d) => fn(d)),
 });

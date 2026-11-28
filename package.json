@@ -1,7 +1,7 @@
 {
   "name": "needsme-mac",
   "productName": "NeedsMe",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "NeedsMe for Mac: all your AIs, one calm place",
   "main": "main.js"
 }
