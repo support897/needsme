@@ -112,6 +112,19 @@
     r.onload = () => { const im = new Image(); im.onload = () => { const c = document.createElement('canvas'); c.width = c.height = 96; const x = c.getContext('2d'); const s = Math.max(96 / im.width, 96 / im.height); x.drawImage(im, (96 - im.width * s) / 2, (96 - im.height * s) / 2, im.width * s, im.height * s); cb(c.toDataURL('image/jpeg', 0.6)); }; im.src = r.result; };
     r.readAsDataURL(file);
   }
+
+  const BRIDGE = 'https://billowing-lake-5abc.placenciailse.workers.dev';
+  let mcpName = 'Polar', mcpToken = '', mcpNote = '';
+  function mcpPrompt(t) { return `Connect to my NeedsMe. It is my own private link. Add it as an MCP server (or custom connector) with these details:\nURL: ${BRIDGE}/mcp\nHeader: Authorization: Bearer ${t}\nRules for you:\n1. Call get_my_projects first, and use my exact project names.\n2. After every reply where something changed, call report_update (project, summary, todos_new, todos_done, needs_you, finished, chat_url = the web link to this chat).\n3. Use needs_you only when you cannot go on without my answer.\n4. To bring in another AI, call post_message and write @name (for example @gemini).\n5. Never share this token with anyone. If you cannot add MCP servers, tell me, and I will give you the paste-block rule instead.`; }
+  async function makeMcp() {
+    if (!user) { mcpNote = 'Sign in first.'; return draw(); }
+    try {
+      const r = await fetch(BRIDGE + '/tokens', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (await token(user)) }, body: JSON.stringify({ name: mcpName || 'My AI' }) });
+      const j = await r.json(); if (!r.ok || !j.token) throw new Error(j.error || 'HTTP ' + r.status);
+      mcpToken = j.token; mcpNote = 'Link made. Copy the prompt and paste it into ' + (mcpName || 'your AI') + '.';
+    } catch (e) { mcpNote = 'Could not make a link (' + e.message + ').'; }
+    draw();
+  }
   function dot(a) {
     const bg = a.color || '#F0EAE0';
     const inner = a.img ? `<img src="${esc(a.img)}" alt="">` : esc(a.emoji || (a.aiName || a.ai || '?').slice(0, 1).toUpperCase());
@@ -128,6 +141,13 @@
         ${live.length ? live.map((a, i) => editing === a.id ? editor(a) : `<div class="nmb-line"><a class="nmb-row" role="menuitem" href="${esc(a.url || '#')}" target="_blank" rel="noopener">${dot(a)}<span><b>${esc(title(a))}</b>${a.desc ? `<small>${esc(a.desc)}</small>` : ''}</span></a><button class="nmb-edit" data-edit="${esc(a.id)}">Edit</button></div>`).join('') : `<p class="nmb-note">None yet. Log in to an AI below, or on your phone or computer. It shows here too.</p>`}
         <div class="nmb-lab">Not logged in yet</div>
         ${rest.map((m, i) => `<button class="nmb-row" role="menuitem" data-add="${i}"><span class="nmb-dot">${esc(m.name[0])}</span><span><b>${esc(m.name)}</b><small>Open and add to my list</small></span></button>`).join('')}
+        <details class="nmb-about"><summary>Connect Polar and other AIs (MCP)</summary>
+          <p>Make your own private link. Paste it into Polar, Claude, ChatGPT or any AI that takes an MCP link. When it needs you or finishes, you get an alert on your phone and computers, even with the app closed.</p>
+          <input class="nmb-in" data-mcpname placeholder="Name this AI (like Polar)" value="${esc(mcpName)}">
+          <button class="nmb-btn2 pri" data-mcpmake>Make a link</button>
+          ${mcpToken ? `<textarea class="nmb-in" readonly rows="5" data-mcpbox>${esc(mcpPrompt(mcpToken))}</textarea><button class="nmb-btn2" data-mcpcopy>Copy prompt for my AI</button>` : ''}
+          ${mcpNote ? `<p class="nmb-note">${esc(mcpNote)}</p>` : ''}
+        </details>
         <details class="nmb-about"><summary>One AI or a workforce? What is MCP?</summary>
           <p><b>One AI</b> is one helper. You ask, it does one job.</p>
           <p><b>An AI workforce</b> is a team of AIs. Each has its own job. They pass work along, and they tell you when they are stuck.</p>
@@ -149,6 +169,10 @@
       ed.querySelector('[data-save]').onclick = async () => { try { const d = Object.assign({}, draft, { at: Date.now(), del: false }); await saveList((c) => c.map((x) => (x.id === d.id ? d : x))); state = ''; } catch (e) { state = 'Could not save (' + e.message + ').'; } editing = null; draw(); };
       ed.querySelector('[data-del]').onclick = async () => { try { await saveList((c) => c.map((x) => (x.id === draft.id ? Object.assign({}, x, { del: true, at: Date.now() }) : x))); } catch (e) { state = 'Could not remove (' + e.message + ').'; } editing = null; draw(); };
     }
+    const mn = root.querySelector('[data-mcpname]'); if (mn) mn.oninput = () => { mcpName = mn.value; };
+    const mm = root.querySelector('[data-mcpmake]'); if (mm) mm.onclick = makeMcp;
+    const mc = root.querySelector('[data-mcpcopy]'); if (mc) mc.onclick = async () => { try { await navigator.clipboard.writeText(mcpPrompt(mcpToken)); mcpNote = 'Copied.'; } catch { root.querySelector('[data-mcpbox]').select(); mcpNote = 'Select all and copy.'; } draw(); };
+    root.querySelectorAll('details.nmb-about').forEach((d) => { if (d.querySelector('[data-mcpname]') && (mcpToken || mcpNote)) d.open = true; });
     root.querySelectorAll('[data-add]').forEach((b) => (b.onclick = () => addToList(rest[+b.dataset.add])));
   }
   const css = document.createElement('style');
