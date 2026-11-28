@@ -127,7 +127,9 @@ final class Store: ObservableObject {
 
     nonisolated static var today: String { let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: Date()) }
 
+    static weak var current: Store?
     init() {
+        Store.current = self
         FirebaseBoot.ensure()
         authHandle = Auth.auth().addStateDidChangeListener { [weak self] _, u in
             Task { @MainActor in

@@ -54,6 +54,7 @@ final class AlertWatcher {
             while true {
                 try? await Task.sleep(nanoseconds: 6_000_000_000)
                 await self.scan()
+                if let s = Store.current { await AutoPull.run(store: s) }
             }
         }
     }
@@ -81,7 +82,9 @@ final class AlertWatcher {
             if prevBusy == true && !busy, AlertPrefs.shared.on(id, "done") {
                 post(a, "Finished", "\(a.label) is done.")
             } else if !busy && tail != pt && !tail.isEmpty, AlertPrefs.shared.on(id, "needs"), Self.asksYou(tail) {
-                post(a, "Needs you", "\(a.label) is waiting for your answer.")
+                post(a, "Needs you", String(tail.suffix(240)))
+                // fill the Needs You list, if she turned "Use it as NeedsMe" on for this AI
+                if AlertPrefs.shared.on(id, "uneeds") { Store.current?.addNeed(text: String(tail.suffix(240)), ai: a.label, roomId: "", project: "", url: a.url ?? webAI(a.provider)?.url ?? "") }
             } else if !busy && tail != pt && !tail.isEmpty, AlertPrefs.shared.on(id, "msgs") {
                 post(a, "New message", String(tail.suffix(240)))
             }

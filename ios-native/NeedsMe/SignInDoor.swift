@@ -68,10 +68,12 @@ enum DoorFiler {
         }
         var seen = Set<String>(); var chatsAdded = 0
         let room = "Chats from \(source)"
+        let existing = Set(store.notes.filter { $0.projects.contains(room) }.map { $0.title.lowercased() })
         for t in chats {
             let title = t.trimmingCharacters(in: .whitespacesAndNewlines)
             if title.isEmpty || seen.contains(title.lowercased()) { continue }
             seen.insert(title.lowercased())
+            if existing.contains(title.lowercased()) { continue }
             _ = store.saveNote(id: nil, title: title, body: "A chat you had in \(source).", isPrompt: false,
                                extra: ["projects": [room], "project": room, "projectFixed": true])
             chatsAdded += 1
